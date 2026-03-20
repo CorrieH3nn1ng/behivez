@@ -1,0 +1,248 @@
+{
+  "name": "BeeGraded - Free Sample",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-free-sample",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "d1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Free Sample",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-free-sample"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse form data from webhook\nconst body = items[0].json.body || items[0].json;\n\nlet email = (body.email || '').toLowerCase().trim();\n\n// Normalize gmail: strip +suffix and dots\nif (email.includes('@gmail.com')) {\n  const [local, domain] = email.split('@');\n  const cleaned = local.split('+')[0].replace(/\\./g, '');\n  email = cleaned + '@' + domain;\n}\n\nconst subject = body.subject || 'Unknown';\nconst assessmentType = body.assessment_type || 'exam';\n\n// Get binary file key\nconst binaryKey = Object.keys(items[0].binary || {})[0] || 'file';\nconst filename = (items[0].binary && items[0].binary[binaryKey]) ? items[0].binary[binaryKey].fileName || 'upload.pdf' : 'upload.pdf';\n\nreturn [{\n  json: {\n    email,\n    subject,\n    assessment_type: assessmentType,\n    filename,\n    binaryKey\n  },\n  binary: items[0].binary\n}];"
+      },
+      "id": "d1000001-0001-0001-0001-000000000002",
+      "name": "Parse Form Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id FROM free_samples WHERE email = '\" + $json.email.replace(/'/g, \"''\") + \"' LIMIT 1;\" }}",
+        "additionalFields": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000003",
+      "name": "Check Email Uniqueness",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "d1000001-0001-0001-0001-000000000004",
+      "name": "Email Already Used?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'This email has already been used for a free sample.' }) }}",
+        "options": {
+          "responseCode": 409
+        }
+      },
+      "id": "d1000001-0001-0001-0001-000000000005",
+      "name": "Respond Email Exists",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://beegraded-api:5001/extract-text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "={{ $node['Parse Form Data'].json.binaryKey }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "d1000001-0001-0001-0001-000000000006",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "const apiResponse = items[0].json;\nconst formData = $node['Parse Form Data'].json;\n\nconst text = apiResponse.text || apiResponse.paper_text || '';\nconst wordCount = apiResponse.word_count || text.split(/\\\\s+/).filter(w => w.length > 0).length;\nconst pageCount = apiResponse.page_count || 1;\n\nconst safeSubject = (formData.subject || '').replace(/'/g, \"''\");\nconst safeAssessmentType = (formData.assessment_type || '').replace(/'/g, \"''\");\nconst safeFilename = (formData.filename || '').replace(/'/g, \"''\");\nconst safeText = text.replace(/'/g, \"''\");\n\nreturn [{\n  json: {\n    email: formData.email,\n    subject: safeSubject,\n    assessment_type: safeAssessmentType,\n    filename: safeFilename,\n    paper_text: safeText,\n    word_count: wordCount,\n    page_count: pageCount\n  }\n}];"
+      },
+      "id": "d1000001-0001-0001-0001-000000000007",
+      "name": "Parse Extraction",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO papers (filename, subject, assessment_type, paper_text, word_count, page_count) VALUES ('\" + $json.filename + \"', '\" + $json.subject + \"', '\" + $json.assessment_type + \"', '\" + $json.paper_text + \"', \" + $json.word_count + \", \" + $json.page_count + \") RETURNING id;\" }}",
+        "additionalFields": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000008",
+      "name": "Insert Paper",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1560, 400],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ 'https://beegraded.co.za/webhook/bg-evaluate' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "paper_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "subject",
+              "value": "={{ $node['Parse Extraction'].json.subject }}"
+            },
+            {
+              "name": "assessment_type",
+              "value": "={{ $node['Parse Extraction'].json.assessment_type }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "d1000001-0001-0001-0001-000000000009",
+      "name": "Trigger Evaluation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO free_samples (email, paper_id) VALUES ('\" + $node['Parse Extraction'].json.email.replace(/'/g, \"''\") + \"', \" + $node['Insert Paper'].json.id + \") RETURNING id;\" }}",
+        "additionalFields": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000010",
+      "name": "Insert Free Sample",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2000, 400],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ sample_id: $json.id }) }}",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000011",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Free Sample": {
+      "main": [[{ "node": "Parse Form Data", "type": "main", "index": 0 }]]
+    },
+    "Parse Form Data": {
+      "main": [[{ "node": "Check Email Uniqueness", "type": "main", "index": 0 }]]
+    },
+    "Check Email Uniqueness": {
+      "main": [[{ "node": "Email Already Used?", "type": "main", "index": 0 }]]
+    },
+    "Email Already Used?": {
+      "main": [
+        [{ "node": "Respond Email Exists", "type": "main", "index": 0 }],
+        [{ "node": "Extract Text", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Text": {
+      "main": [[{ "node": "Parse Extraction", "type": "main", "index": 0 }]]
+    },
+    "Parse Extraction": {
+      "main": [[{ "node": "Insert Paper", "type": "main", "index": 0 }]]
+    },
+    "Insert Paper": {
+      "main": [[{ "node": "Trigger Evaluation", "type": "main", "index": 0 }]]
+    },
+    "Trigger Evaluation": {
+      "main": [[{ "node": "Insert Free Sample", "type": "main", "index": 0 }]]
+    },
+    "Insert Free Sample": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

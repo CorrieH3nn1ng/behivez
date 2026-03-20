@@ -1,0 +1,144 @@
+{
+  "name": "Broodz Talent CRUD",
+  "nodes": [
+    {
+      "name": "bz-talent-mine",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bz-talent-mine",
+        "responseMode": "responseNode"
+      },
+      "notes": "Auth required. Returns the logged-in user's talent profile + services + portfolio."
+    },
+    {
+      "name": "Get My Talent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.*, c.name as category_name, c.slug as category_slug FROM talents t LEFT JOIN categories c ON c.id = t.category_id WHERE t.user_id = $1",
+        "options": { "queryParams": "={{ $json.headers.authorization_user_id }}" }
+      },
+      "notes": "User ID extracted from JWT by auth middleware"
+    },
+    {
+      "name": "Get My Services",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM services WHERE talent_id = $1 ORDER BY sort_order",
+        "options": { "queryParams": "={{ $json.id }}" }
+      }
+    },
+    {
+      "name": "Get My Portfolio",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM portfolio_items WHERE talent_id = $1 ORDER BY sort_order",
+        "options": { "queryParams": "={{ $json.id }}" }
+      }
+    },
+    {
+      "name": "Respond Mine",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ...($node['Get My Talent'].json), services: $node['Get My Services'].json, portfolio: $node['Get My Portfolio'].json }) }}"
+      }
+    },
+    {
+      "name": "bz-talent-update",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-talent-update",
+        "responseMode": "responseNode"
+      },
+      "notes": "Auth required. Receives profile fields to update."
+    },
+    {
+      "name": "Update Talent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE talents SET name = COALESCE($2, name), slug = COALESCE($3, slug), tagline = COALESCE($4, tagline), bio = COALESCE($5, bio), category_id = COALESCE($6, category_id), location = COALESCE($7, location), social_links = COALESCE($8::jsonb, social_links), profile_image = COALESCE($9, profile_image), cover_image = COALESCE($10, cover_image), updated_at = NOW() WHERE user_id = $1 RETURNING *",
+        "options": {
+          "queryParams": "={{ $json.headers.authorization_user_id }},={{ $json.body.name }},={{ $json.body.slug }},={{ $json.body.tagline }},={{ $json.body.bio }},={{ $json.body.category_id }},={{ $json.body.location }},={{ JSON.stringify($json.body.social_links) }},={{ $json.body.profile_image }},={{ $json.body.cover_image }}"
+        }
+      }
+    },
+    {
+      "name": "Respond Update",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": { "respondWith": "json" }
+    },
+    {
+      "name": "bz-talent-slug-check",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bz-talent-slug-check",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Check Slug",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) as count FROM talents WHERE slug = $1",
+        "options": { "queryParams": "={{ $json.query.slug }}" }
+      }
+    },
+    {
+      "name": "Respond Slug",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ available: $json.count === '0' }) }}"
+      }
+    },
+    {
+      "name": "bz-talent-publish",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-talent-publish",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Toggle Publish",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE talents SET is_published = $2, updated_at = NOW() WHERE user_id = $1 RETURNING *",
+        "options": { "queryParams": "={{ $json.headers.authorization_user_id }},={{ $json.body.is_published }}" }
+      }
+    },
+    {
+      "name": "Respond Publish",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": { "respondWith": "json" }
+    }
+  ],
+  "connections": {
+    "bz-talent-mine": { "main": [[ { "node": "Get My Talent" } ]] },
+    "Get My Talent": { "main": [[ { "node": "Get My Services" } ]] },
+    "Get My Services": { "main": [[ { "node": "Get My Portfolio" } ]] },
+    "Get My Portfolio": { "main": [[ { "node": "Respond Mine" } ]] },
+    "bz-talent-update": { "main": [[ { "node": "Update Talent" } ]] },
+    "Update Talent": { "main": [[ { "node": "Respond Update" } ]] },
+    "bz-talent-slug-check": { "main": [[ { "node": "Check Slug" } ]] },
+    "Check Slug": { "main": [[ { "node": "Respond Slug" } ]] },
+    "bz-talent-publish": { "main": [[ { "node": "Toggle Publish" } ]] },
+    "Toggle Publish": { "main": [[ { "node": "Respond Publish" } ]] }
+  }
+}

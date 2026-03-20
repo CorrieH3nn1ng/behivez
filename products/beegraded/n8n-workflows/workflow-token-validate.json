@@ -1,0 +1,77 @@
+{
+  "name": "BeeGraded - Token Validate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bg-token-validate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "g1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Validate",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-token-validate"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.id, t.code, t.email, t.status, t.price_paid, t.tier, t.coupon_code, t.rubric_id, t.draft_paper_id, t.draft_evaluation_id, t.final_paper_id, t.final_evaluation_id, t.expires_at, t.activated_at, t.created_at, r.programme, r.module_name, r.nqf_level, r.assessment_type AS rubric_assessment_type, r.total_marks, r.parsed_json, r.confirmed, r.original_filename FROM tokens t LEFT JOIN rubrics r ON t.rubric_id = r.id WHERE t.code = $1 LIMIT 1;",
+        "options": {
+          "queryReplacement": "={{ ($json.query.code || '').toString().substring(0, 20) }}"
+        }
+      },
+      "id": "g1000001-0001-0001-0001-000000000002",
+      "name": "Query Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const token = items[0].json;\n\nif (!token || !token.id) {\n  return [{ json: { error: 'Token not found', status: 404 } }];\n}\n\nconst isExpired = token.expires_at && new Date(token.expires_at) < new Date();\n\nconst result = {\n  id: token.id,\n  code: token.code,\n  email: token.email,\n  status: isExpired ? 'expired' : token.status,\n  is_expired: isExpired,\n  price_paid: token.price_paid,\n  tier: token.tier,\n  coupon_code: token.coupon_code,\n  rubric_id: token.rubric_id,\n  draft_paper_id: token.draft_paper_id,\n  draft_evaluation_id: token.draft_evaluation_id,\n  final_paper_id: token.final_paper_id,\n  final_evaluation_id: token.final_evaluation_id,\n  expires_at: token.expires_at,\n  activated_at: token.activated_at,\n  created_at: token.created_at,\n  rubric: token.programme ? {\n    programme: token.programme,\n    module_name: token.module_name,\n    nqf_level: token.nqf_level,\n    assessment_type: token.rubric_assessment_type,\n    total_marks: token.total_marks,\n    parsed_json: token.parsed_json,\n    confirmed: token.confirmed,\n    original_filename: token.original_filename\n  } : null\n};\n\nreturn [{ json: result }];"
+      },
+      "id": "g1000001-0001-0001-0001-000000000005",
+      "name": "Build Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "g1000001-0001-0001-0001-000000000006",
+      "name": "Respond Validate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Validate": {
+      "main": [[{ "node": "Query Token", "type": "main", "index": 0 }]]
+    },
+    "Query Token": {
+      "main": [[{ "node": "Build Response", "type": "main", "index": 0 }]]
+    },
+    "Build Response": {
+      "main": [[{ "node": "Respond Validate", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

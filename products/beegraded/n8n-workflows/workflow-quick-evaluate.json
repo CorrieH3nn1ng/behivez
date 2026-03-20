@@ -1,0 +1,247 @@
+{
+  "name": "BeeGraded - Quick Evaluate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-quick-evaluate",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "d1000001-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "bg-quick-evaluate"
+    },
+    {
+      "parameters": {
+        "functionCode": "const body = items[0].json.body || items[0].json;\n\nconst subject = body.subject || 'Unknown';\nconst assessmentType = body.assessment_type || 'Summative Assessment';\nconst numQuestions = parseInt(body.num_questions) || 4;\nconst mode = body.mode || 'A';\n\nconst binaryKey = Object.keys(items[0].binary || {})[0] || 'file';\nconst filename = (items[0].binary && items[0].binary[binaryKey]) ? items[0].binary[binaryKey].fileName || 'upload.docx' : 'upload.docx';\n\nreturn [{\n  json: {\n    subject,\n    assessment_type: assessmentType,\n    num_questions: numQuestions,\n    mode,\n    filename,\n    binaryKey\n  },\n  binary: items[0].binary\n}];"
+      },
+      "id": "d1000001-0001-0001-0001-000000000002",
+      "name": "Parse Form Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://beegraded-api:5001/extract-text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "={{ $json.binaryKey }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "d1000001-0001-0001-0001-000000000003",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const apiResponse = items[0].json;\nconst formData = $node['Parse Form Data'].json;\n\nconst paperText = apiResponse.text || apiResponse.paper_text || '';\nconst wordCount = apiResponse.word_count || paperText.split(/\\s+/).filter(w => w.length > 0).length;\nconst subject = formData.subject;\nconst assessmentType = formData.assessment_type;\nconst numQuestions = formData.num_questions;\nconst mode = formData.mode;\n\nconst systemPrompt = `You are an experienced university lecturer and external examiner. You are evaluating a STUDENT'S SUBMITTED ASSIGNMENT (not designing or reviewing an exam). Be honest and strict — students need realistic feedback before submitting to Turnitin.\n\n## YOUR TASK\nRead the student's submission and evaluate the QUALITY OF THEIR WORK:\n- Did they demonstrate understanding or just describe/list?\n- Did they think critically (compare, contrast, challenge, synthesise) or just summarise sources?\n- Did they apply theory to the specific case/context or write generically?\n- Are ALL in-text citations present in the bibliography and vice versa?\n- Is there evidence of AI-generated content (uniform style, no personal voice, identical paragraph structures)?\n\n## SCORING RUBRIC (0-100, be strict and realistic)\n- **overall_score**: Weighted holistic mark. A typical undergraduate paper with surface-level analysis and referencing gaps scores 45-60. Only truly excellent work scores 75+.\n- **knowledge_score**: Does the student show genuine understanding? Listing facts = 40-55. Explaining with insight = 60-75.\n- **critical_score**: Did they ANALYSE (compare, evaluate, challenge) or just DESCRIBE? Description only = 30-50. Some analysis = 50-65. Strong critical engagement = 70+.\n- **application_score**: Did they apply to the specific context/case study or write generic answers? Generic = 40-55.\n- **referencing_score**: Check EVERY in-text citation against the bibliography. Missing citations = severe penalty. 5+ missing = below 40. Also check date mismatches, format errors, orphan references. IMPORTANT: If the assessment is based on a CASE STUDY, students correctly cite it as (Case Study, Year) or (Company Name, Year). These are VALID citations — do NOT penalise them.\n- **structure_score**: Organisation, headings, flow, grammar, spelling errors.\n- **ai_risk_score**: 0 = definitely human, 100 = definitely AI. Check for: uniform paragraph length, identical structure across sections, no personal voice/hedging, suspiciously polished prose, citation-bibliography mismatches (AI hallucination signal).\n\n## REFERENCE AUDIT INSTRUCTIONS\nFor EVERY in-text citation (Author, Year), check if it appears in the bibliography. For every bibliography entry, check if cited in text. List ALL mismatches.\nSPECIAL CASE — Case Study Based Assessments: When answering from a case study, citations like 'Case Study, 2025' are CORRECT — mark as matched=true.\n\n## ISSUES\nFind the TOP 8 most important issues. Include at least one example_before/example_after showing actual text and how to improve.\n\n## RESPONSE FORMAT\nReturn ONLY raw JSON. No markdown, no code fences. Start with { end with }.\n{\n  \"scores\": {\n    \"overall_score\": <number>,\n    \"knowledge_score\": <number>,\n    \"critical_score\": <number>,\n    \"application_score\": <number>,\n    \"referencing_score\": <number>,\n    \"structure_score\": <number>,\n    \"ai_risk_score\": <number>\n  },\n  \"issues\": [\n    {\n      \"category\": \"<referencing|critical_thinking|repetition|structure|language|application|ai_risk|error>\",\n      \"severity\": \"<critical|important|polish>\",\n      \"where_in_paper\": \"<location>\",\n      \"description\": \"<what is wrong>\",\n      \"recommendation\": \"<how to fix>\",\n      \"example_before\": \"<actual text from paper or null>\",\n      \"example_after\": \"<improved version or null>\"\n    }\n  ],\n  \"strengths\": [\n    {\n      \"category\": \"<category>\",\n      \"what_well\": \"<what was done well>\",\n      \"where_in_paper\": \"<location>\"\n    }\n  ],\n  \"reference_audit\": [\n    {\n      \"citation\": \"<Author, Year>\",\n      \"source_type\": \"<in_text|bibliography>\",\n      \"matched\": true/false,\n      \"issue_type\": \"<null|missing_in_bibliography|orphan_reference|date_mismatch|format_error>\"\n    }\n  ],\n  \"summary\": \"<2-3 paragraph honest assessment>\"\n}`;\n\nconst userMessage = `Subject: ${subject}\\nAssessment Type: ${assessmentType}\\nNumber of Questions: ${numQuestions}\\n\\nThis is a STUDENT SUBMISSION to be evaluated. Grade their work honestly.\\n\\n--- STUDENT SUBMISSION ---\\n${paperText}`;\n\nreturn [{\n  json: {\n    subject,\n    mode,\n    filename: formData.filename,\n    word_count: wordCount,\n    system_prompt: systemPrompt,\n    user_message: userMessage\n  }\n}];"
+      },
+      "id": "d1000001-0001-0001-0001-000000000004",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "REDACTED_API_KEY"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 8192, system: $json.system_prompt, messages: [{ role: 'user', content: $json.user_message }] }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "d1000001-0001-0001-0001-000000000005",
+      "name": "Call Claude API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        1140,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const claudeResponse = items[0].json;\nconst promptData = $node['Build Prompt'].json;\n\nlet content = '';\nif (claudeResponse.content && claudeResponse.content.length > 0) {\n  content = claudeResponse.content[0].text;\n}\n\nlet evaluation;\ntry {\n  evaluation = JSON.parse(content);\n} catch(e) {\n  let cleaned = content.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/, '').trim();\n  const firstBrace = cleaned.indexOf('{');\n  if (firstBrace > 0) cleaned = cleaned.substring(firstBrace);\n  if (!cleaned.endsWith('}')) {\n    const lastBrace = cleaned.lastIndexOf('}');\n    if (lastBrace > 0) cleaned = cleaned.substring(0, lastBrace + 1);\n  }\n  try {\n    evaluation = JSON.parse(cleaned);\n  } catch(e2) {\n    const scoresMatch = cleaned.match(/\"scores\"\\s*:\\s*\\{[^}]+\\}/);\n    if (scoresMatch) {\n      const partial = JSON.parse('{' + scoresMatch[0] + '}');\n      evaluation = { scores: partial.scores, issues: [], strengths: [], reference_audit: [], summary: 'Report truncated — scores extracted.' };\n    } else {\n      evaluation = { scores: {}, issues: [], strengths: [], reference_audit: [], summary: 'Parsing failed.' };\n    }\n  }\n}\n\nconst scores = evaluation.scores || {};\nconst issues = evaluation.issues || [];\nconst strengths = evaluation.strengths || [];\nconst reference_audit = evaluation.reference_audit || [];\nconst summary = evaluation.summary || '';\n\nreturn [{\n  json: {\n    subject: promptData.subject,\n    mode: promptData.mode,\n    filename: promptData.filename,\n    word_count: promptData.word_count,\n    scores,\n    issues,\n    strengths,\n    reference_audit,\n    summary\n  }\n}];"
+      },
+      "id": "d1000001-0001-0001-0001-000000000006",
+      "name": "Parse + Extract",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\nfunction s(v) { const n = Number(v); return isNaN(n) ? 0 : Math.round(n); }\n\nconst scores = {};\nconst scoreKeys = ['overall_score', 'knowledge_score', 'critical_score', 'application_score', 'referencing_score', 'structure_score', 'ai_risk_score'];\nfor (const key of scoreKeys) {\n  scores[key] = s(data.scores[key]);\n}\n\nconst issues = (data.issues || []).slice(0, 12);\nconst strengths = (data.strengths || []).slice(0, 8);\nconst reference_audit = data.reference_audit || [];\nconst summary = data.summary || '';\nconst subject = data.subject || 'Academic Paper';\nconst overall = scores.overall_score || 0;\nconst scoreColor = overall >= 75 ? '#22c55e' : overall >= 60 ? '#f59e0b' : overall >= 50 ? '#fb923c' : '#ef4444';\nconst gradeLabel = overall >= 75 ? 'DISTINCTION' : overall >= 65 ? 'MERIT' : overall >= 50 ? 'PASS' : 'AT RISK';\n\nconst criticalCount = issues.filter(i => i.severity === 'critical').length;\nconst importantCount = issues.filter(i => i.severity === 'important').length;\nconst refMismatches = reference_audit.filter(r => !r.matched).length;\nconst refTotal = reference_audit.length;\n\nfunction gauge(label, score, size) {\n  size = size || 90;\n  var c = score >= 75 ? '#22c55e' : score >= 60 ? '#f59e0b' : score >= 50 ? '#fb923c' : '#ef4444';\n  var key = label.toLowerCase().replace(/\\s+/g, '-');\n  var grade = score >= 75 ? 'Distinction' : score >= 60 ? 'Merit' : score >= 50 ? 'Pass' : 'At Risk';\n  return '<div class=\"gauge-item\" style=\"text-align:center;flex:1;min-width:120px;margin:8px;cursor:pointer;transition:transform 0.15s\" onclick=\"toggleScoreDetail(\\'' + key + '\\')\" title=\"Click for details\">' +\n    '<div style=\"position:relative;width:' + size + 'px;height:' + size + 'px;margin:0 auto\">' +\n    '<svg viewBox=\"0 0 36 36\" style=\"width:' + size + 'px;height:' + size + 'px;transform:rotate(-90deg)\">' +\n    '<circle cx=\"18\" cy=\"18\" r=\"15.9\" fill=\"none\" stroke=\"#1e293b\" stroke-width=\"3\"/>' +\n    '<circle cx=\"18\" cy=\"18\" r=\"15.9\" fill=\"none\" stroke=\"' + c + '\" stroke-width=\"3\" stroke-dasharray=\"' + score + ' ' + (100-score) + '\" stroke-linecap=\"round\"/>' +\n    '</svg>' +\n    '<div style=\"position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;font-weight:700;color:' + c + '\">' + score + '</div>' +\n    '</div>' +\n    '<div style=\"margin-top:6px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px\">' + label + '</div>' +\n    '<div style=\"font-size:9px;color:#64748b;margin-top:2px\">' + grade + '</div></div>';\n}\n\nfunction badge(sev) {\n  const colors = { critical: '#ef4444', important: '#f59e0b', polish: '#3b82f6' };\n  return '<span style=\"display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:white;background:' + (colors[sev] || '#64748b') + '\">' + (sev || '').toUpperCase() + '</span>';\n}\n\nlet issueRows = '';\nfor (const i of issues) {\n  const desc = (i.description || '').replace(/'/g, '&#39;').replace(/\"/g, '&quot;').replace(/</g, '&lt;');\n  const rec = (i.recommendation || '').replace(/'/g, '&#39;').replace(/\"/g, '&quot;').replace(/</g, '&lt;');\n  const before = i.example_before ? '<div style=\"background:#1a0a0a;padding:8px;border-radius:4px;margin:4px 0;font-size:12px;color:#fca5a5;border-left:3px solid #ef4444\">' + (i.example_before || '').replace(/</g, '&lt;') + '</div>' : '';\n  const after = i.example_after ? '<div style=\"background:#0a1a0a;padding:8px;border-radius:4px;margin:4px 0;font-size:12px;color:#86efac;border-left:3px solid #22c55e\">' + (i.example_after || '').replace(/</g, '&lt;') + '</div>' : '';\n  issueRows += '<tr><td style=\"padding:10px;border-bottom:1px solid #1e293b;white-space:nowrap;vertical-align:top\">' + (i.where_in_paper || '') + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #1e293b;vertical-align:top\">' + badge(i.severity) + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #1e293b;vertical-align:top\">' + desc + before + after + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #1e293b;vertical-align:top;color:#22d3ee\">' + rec + '</td></tr>';\n}\n\nlet strengthCards = '';\nfor (const st of strengths) {\n  strengthCards += '<div style=\"padding:12px 16px;margin:8px 0;background:#0a1a0a;border-left:3px solid #22c55e;border-radius:6px\">' +\n    '<strong style=\"color:#22c55e\">' + (st.where_in_paper || st.category || '') + '</strong>' +\n    '<div style=\"color:#cbd5e1;margin-top:4px\">' + (st.what_well || '') + '</div></div>';\n}\n\nlet refRows = '';\nfor (const r of reference_audit) {\n  const matchIcon = r.matched ? '<span style=\"color:#22c55e;font-weight:bold\">&#10003; YES</span>' : '<span style=\"color:#ef4444;font-weight:bold\">&#10007; NO</span>';\n  const issueText = r.issue_type ? '<span style=\"color:#f59e0b\">' + r.issue_type.replace(/_/g, ' ') + '</span>' : '<span style=\"color:#475569\">&mdash;</span>';\n  refRows += '<tr><td style=\"padding:8px;border-bottom:1px solid #1e293b\">' + ((r.citation || '').substring(0, 80)) + '</td>' +\n    '<td style=\"padding:8px;border-bottom:1px solid #1e293b\">' + (r.source_type || '') + '</td>' +\n    '<td style=\"padding:8px;border-bottom:1px solid #1e293b\">' + matchIcon + '</td>' +\n    '<td style=\"padding:8px;border-bottom:1px solid #1e293b\">' + issueText + '</td></tr>';\n}\n\nconst reportHTML = '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"><title>BeeGraded Report</title>' +\n'<style>' +\n'*{margin:0;padding:0;box-sizing:border-box}' +\n'body{font-family:\"Segoe UI\",system-ui,-apple-system,sans-serif;background:#0a0e1a;color:#e2e8f0;line-height:1.6}' +\n'.cover{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 40%,#312e81 70%,#4f46e5 100%);padding:50px 30px;text-align:center;position:relative;overflow:hidden}' +\n'.cover::before{content:\"\";position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(251,191,36,0.08) 0%,transparent 50%)}' +\n'.cover h1{font-size:36px;font-weight:800;background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}' +\n'.cover .sub{font-size:16px;color:#94a3b8;margin-bottom:20px}' +\n'.cover .sbadge{display:inline-block;padding:6px 20px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);border-radius:20px;color:#fbbf24;font-weight:600;font-size:14px;margin-bottom:16px}' +\n'.tabs{display:flex;flex-wrap:wrap;border-bottom:2px solid #1e293b;background:#0f172a;padding:0 16px;position:sticky;top:0;z-index:10}' +\n'.tab{padding:12px 20px;cursor:pointer;color:#64748b;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.2s}' +\n'.tab:hover{color:#94a3b8}' +\n'.tab.active{color:#fbbf24;border-bottom-color:#fbbf24}' +\n'.panel{display:none;max-width:960px;margin:0 auto;padding:24px 20px}' +\n'.panel.active{display:block}' +\n'.card{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:20px;margin-bottom:16px}' +\n'.gauges{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}' +\n'table{width:100%;border-collapse:collapse;font-size:13px}' +\n'th{padding:10px 8px;text-align:left;background:#1e293b;color:#fbbf24;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}' +\n'td{color:#cbd5e1}' +\n'.summary{white-space:pre-wrap;color:#cbd5e1;font-size:14px;line-height:1.8}' +\n'.stat-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}' +\n'.stat{flex:1;min-width:140px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:16px;text-align:center}' +\n'.stat .val{font-size:28px;font-weight:800}' +\n'.stat .lbl{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px}' +\n'.ai-badge{display:inline-block;padding:4px 12px;background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.3);border-radius:6px;color:#a78bfa;font-size:12px;font-weight:600;margin-top:12px}' +\n'.footer{text-align:center;padding:24px;color:#475569;font-size:11px;border-top:1px solid #1e293b;margin-top:30px}' +\n'@media print{.tabs{display:none}.panel{display:block!important}body{background:white;color:#1e293b}.card{border-color:#e2e8f0}.cover{background:#1e293b!important}}' +\n'@media(max-width:640px){.tab{padding:10px 12px;font-size:11px}.gauges>div{min-width:80px}}' +\n.gauge-item:hover{transform:scale(1.1)}.gauge-item:active{transform:scale(0.95)}#score-detail-panel{animation:sdSlide 0.25s ease}@keyframes sdSlide{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}'</style></head><body>' +\n\n'<div class=\"cover\">' +\n'<div class=\"sbadge\">' + subject + '</div>' +\n'<h1>BeeGraded</h1>' +\n'<div class=\"sub\">Assessment Evaluation Report</div>' +\n'<div style=\"display:inline-block;width:110px;height:110px;position:relative;margin-top:10px\">' +\n'<svg viewBox=\"0 0 36 36\" style=\"width:110px;height:110px;transform:rotate(-90deg)\">' +\n'<circle cx=\"18\" cy=\"18\" r=\"15.9\" fill=\"none\" stroke=\"rgba(255,255,255,0.1)\" stroke-width=\"3\"/>' +\n'<circle cx=\"18\" cy=\"18\" r=\"15.9\" fill=\"none\" stroke=\"' + scoreColor + '\" stroke-width=\"3\" stroke-dasharray=\"' + overall + ' ' + (100-overall) + '\" stroke-linecap=\"round\"/>' +\n'</svg>' +\n'<div style=\"position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center\">' +\n'<div style=\"font-size:26px;font-weight:800;color:' + scoreColor + '\">' + overall + '</div>' +\n'<div style=\"font-size:9px;color:#94a3b8;letter-spacing:1px\">' + gradeLabel + '</div></div></div>' +\n'<div class=\"ai-badge\">Evaluated by Claude AI</div>' +\n'</div>' +\n\n'<div class=\"tabs\">' +\n'<div class=\"tab active\" onclick=\"switchTab(0)\">Overview</div>' +\n'<div class=\"tab\" onclick=\"switchTab(1)\">Scores</div>' +\n'<div class=\"tab\" onclick=\"switchTab(2)\">Issues (' + issues.length + ')</div>' +\n'<div class=\"tab\" onclick=\"switchTab(3)\">Strengths</div>' +\n'<div class=\"tab\" onclick=\"switchTab(4)\">References</div>' +\n'</div>' +\n\n'<div class=\"panel active\" id=\"panel-0\">' +\n'<div class=\"stat-row\">' +\n'<div class=\"stat\"><div class=\"val\" style=\"color:' + scoreColor + '\">' + overall + '%</div><div class=\"lbl\">Overall Score</div></div>' +\n'<div class=\"stat\"><div class=\"val\" style=\"color:#ef4444\">' + criticalCount + '</div><div class=\"lbl\">Critical Issues</div></div>' +\n'<div class=\"stat\"><div class=\"val\" style=\"color:#f59e0b\">' + importantCount + '</div><div class=\"lbl\">Important Issues</div></div>' +\n'<div class=\"stat\"><div class=\"val\" style=\"color:#3b82f6\">' + refMismatches + '/' + refTotal + '</div><div class=\"lbl\">Ref Mismatches</div></div>' +\n'</div>' +\n'<div class=\"card\"><h3 style=\"color:#fbbf24;margin-bottom:12px;font-size:16px\">Executive Summary</h3><div class=\"summary\">' + summary + '</div></div>' +\n'</div>' +\n\n'<div class=\"panel\" id=\"panel-1\">' +\n'<div class=\"card\"><div class=\"gauges\">' +\ngauge('Overall', scores.overall_score) +\ngauge('Knowledge', scores.knowledge_score) +\ngauge('Critical', scores.critical_score) +\ngauge('Application', scores.application_score) +\ngauge('Referencing', scores.referencing_score) +\ngauge('Structure', scores.structure_score) +\ngauge('AI Risk', scores.ai_risk_score) +\n'</div></div></div>' +\n\n'<div class=\"panel\" id=\"panel-2\">' +\n'<div class=\"card\" style=\"overflow-x:auto\"><table>' +\n'<tr><th>Location</th><th>Severity</th><th>Issue &amp; Example</th><th>How to Fix</th></tr>' +\n(issueRows || '<tr><td colspan=\"4\" style=\"text-align:center;padding:20px;color:#64748b\">No issues found</td></tr>') +\n'</table></div></div>' +\n\n'<div class=\"panel\" id=\"panel-3\">' +\n'<div class=\"card\">' +\n(strengthCards || '<div style=\"text-align:center;padding:20px;color:#64748b\">No specific strengths highlighted</div>') +\n'</div></div>' +\n\n'<div class=\"panel\" id=\"panel-4\">' +\n'<div class=\"card\" style=\"overflow-x:auto\"><table>' +\n'<tr><th>Citation</th><th>Type</th><th>Matched</th><th>Issue</th></tr>' +\n(refRows || '<tr><td colspan=\"4\" style=\"text-align:center;padding:20px;color:#64748b\">No references audited</td></tr>') +\n'</table></div></div>' +\n\n'<div class=\"footer\">BeeGraded &mdash; AI Evaluation (Claude) &mdash; Generated ' + new Date().toISOString().split('T')[0] + '</div>' +\n\n'<script>function toggleScoreDetail(key){var p=document.getElementById('score-detail-panel');if(!p)return;if(!key||p.dataset.active===key){p.style.display='none';p.dataset.active='';return;}var d={'overall':['Combined score across all evaluation criteria. This represents the overall quality of your paper.','Focus on improving your weakest scoring areas to lift your overall grade. Check the other dials to find where you lost the most marks.'],'knowledge':['Measures how well you demonstrate understanding of subject matter, key concepts, theories, and course content.','Reference specific theories and frameworks by name. Show you have read beyond the textbook by citing journal articles or case studies.'],'critical':['Evaluates your analytical thinking, how you assess arguments, and whether you use evidence-based reasoning.','Do not just describe \\u2014 analyse WHY something matters. Compare different viewpoints, question assumptions, and weigh evidence for and against.'],'application':['Assesses how you connect theory to practice, use relevant examples, and demonstrate real-world understanding.','Use concrete, specific examples. Show how a concept plays out in a real scenario relevant to your field or the South African context.'],'referencing':['Checks citation format, bibliography consistency, in-text vs reference-list matching, and source attribution.','Every in-text citation must have a matching reference-list entry (and vice versa). Follow your required format (APA 7, Harvard) consistently throughout.'],'structure':['Looks at logical flow, paragraph organisation, topic sentences, and the quality of your introduction and conclusion.','Each paragraph should have one clear main idea with a topic sentence. Your introduction should preview the argument; your conclusion should summarise it.'],'ai-risk':['Estimates the likelihood that the content was AI-generated. A LOWER score here is better \\u2014 it means your writing appears more authentically human.','Write in your own voice. Include personal analysis, examples from your lectures or tutorials, and unique perspectives that only you would have.']};var info=d[key]||['',''];var score=0;document.querySelectorAll('.gauge-item').forEach(function(g){var oc=g.getAttribute('onclick')||'';if(oc.indexOf(\"'\"+key+\"'\")>-1){var t=g.querySelector('div[style*=\"font-weight:700\"]');if(t)score=parseInt(t.textContent);}});var c=score>=75?'#22c55e':score>=60?'#f59e0b':score>=50?'#fb923c':'#ef4444';var gl=score>=75?'Distinction (75-100%)':score>=60?'Merit (60-74%)':score>=50?'Pass (50-59%)':'At Risk (0-49%)';var nm=key.replace(/-/g,' ').replace(/\\b\\w/g,function(c){return c.toUpperCase()});document.getElementById('sd-dot').style.background=c;document.getElementById('sd-title').textContent=nm+' \\u2014 '+score+'%';document.getElementById('sd-title').style.color=c;document.getElementById('sd-grade').innerHTML='<span style=\"color:'+c+';font-weight:600\">'+gl+'</span>';document.getElementById('sd-desc').textContent=info[0];document.getElementById('sd-fill').style.width=score+'%';document.getElementById('sd-fill').style.background=c;document.getElementById('sd-tips').innerHTML='<div style=\"font-size:11px;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px\">How to improve</div><div style=\"color:#cbd5e1;font-size:13px;line-height:1.6\">'+info[1]+'</div>';p.style.display='block';p.dataset.active=key;p.scrollIntoView({behavior:'smooth',block:'nearest'});}function switchTab(n){document.querySelectorAll(\".tab\").forEach(function(t,i){t.classList.toggle(\"active\",i===n)});document.querySelectorAll(\".panel\").forEach(function(p,i){p.classList.toggle(\"active\",i===n)})}</script>' +\n'</body></html>';\n\nreturn [{\n  json: {\n    report_html: reportHTML\n  }\n}];"
+      },
+      "id": "d1000001-0001-0001-0001-000000000007",
+      "name": "Build Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1580,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ report_html: $json.report_html }) }}",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000008",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Form Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Form Data": {
+      "main": [
+        [
+          {
+            "node": "Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Claude API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude API": {
+      "main": [
+        [
+          {
+            "node": "Parse + Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse + Extract": {
+      "main": [
+        [
+          {
+            "node": "Build Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Report": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

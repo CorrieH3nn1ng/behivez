@@ -1,0 +1,222 @@
+{
+  "name": "Broodz Media Upload",
+  "nodes": [
+    {
+      "name": "bz-media-upload",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-media-upload",
+        "responseMode": "responseNode",
+        "options": { "rawBody": true }
+      },
+      "notes": "Multipart upload. Saves file to /opt/saas/broodz/uploads/{talent_id}/, inserts into portfolio_items."
+    },
+    {
+      "name": "Parse Form Data",
+      "type": "n8n-nodes-base.extractFromFile",
+      "parameters": {},
+      "notes": "Extracts binary file from multipart form data"
+    },
+    {
+      "name": "Get Talent ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM talents WHERE user_id = $1",
+        "options": { "queryParams": "={{ $json.headers.authorization_user_id }}" }
+      }
+    },
+    {
+      "name": "Save File",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "parameters": {
+        "fileName": "=/opt/saas/broodz/uploads/{{ $node['Get Talent ID'].json.id }}/{{ Date.now() }}_{{ $binary.file.fileName }}",
+        "dataPropertyName": "file"
+      }
+    },
+    {
+      "name": "Insert Portfolio Item",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO portfolio_items (talent_id, type, url, sort_order) VALUES ($1, $2, $3, COALESCE((SELECT MAX(sort_order) + 1 FROM portfolio_items WHERE talent_id = $1), 0)) RETURNING *",
+        "options": {
+          "queryParams": "={{ $node['Get Talent ID'].json.id }},={{ $json.body?.type || 'image' }},=/uploads/{{ $node['Get Talent ID'].json.id }}/{{ Date.now() }}_{{ $binary.file.fileName }}"
+        }
+      }
+    },
+    {
+      "name": "Respond Upload",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": { "respondWith": "json" }
+    },
+    {
+      "name": "bz-media-delete",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-media-delete",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Delete Portfolio Item",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM portfolio_items WHERE id = $1 RETURNING url",
+        "options": { "queryParams": "={{ $json.body.id }}" }
+      }
+    },
+    {
+      "name": "Respond Delete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      }
+    },
+    {
+      "name": "bz-media-reorder",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-media-reorder",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Reorder Item",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE portfolio_items SET sort_order = $2 WHERE id = $1",
+        "options": { "queryParams": "={{ $json.body.id }},={{ $json.body.sort_order }}" }
+      }
+    },
+    {
+      "name": "Respond Reorder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      }
+    },
+    {
+      "name": "bz-profile-image",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-profile-image",
+        "responseMode": "responseNode",
+        "options": { "rawBody": true }
+      }
+    },
+    {
+      "name": "Get Talent For Profile",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM talents WHERE user_id = $1",
+        "options": { "queryParams": "={{ $json.headers.authorization_user_id }}" }
+      }
+    },
+    {
+      "name": "Save Profile Image",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "parameters": {
+        "fileName": "=/opt/saas/broodz/uploads/{{ $node['Get Talent For Profile'].json.id }}/profile_{{ Date.now() }}.jpg",
+        "dataPropertyName": "file"
+      }
+    },
+    {
+      "name": "Update Profile Image",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE talents SET profile_image = $2, updated_at = NOW() WHERE id = $1 RETURNING profile_image",
+        "options": { "queryParams": "={{ $node['Get Talent For Profile'].json.id }},=/uploads/{{ $node['Get Talent For Profile'].json.id }}/profile_{{ Date.now() }}.jpg" }
+      }
+    },
+    {
+      "name": "Respond Profile Image",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ url: $json.profile_image }) }}"
+      }
+    },
+    {
+      "name": "bz-cover-image",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-cover-image",
+        "responseMode": "responseNode",
+        "options": { "rawBody": true }
+      }
+    },
+    {
+      "name": "Get Talent For Cover",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM talents WHERE user_id = $1",
+        "options": { "queryParams": "={{ $json.headers.authorization_user_id }}" }
+      }
+    },
+    {
+      "name": "Save Cover Image",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "parameters": {
+        "fileName": "=/opt/saas/broodz/uploads/{{ $node['Get Talent For Cover'].json.id }}/cover_{{ Date.now() }}.jpg",
+        "dataPropertyName": "file"
+      }
+    },
+    {
+      "name": "Update Cover Image",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE talents SET cover_image = $2, updated_at = NOW() WHERE id = $1 RETURNING cover_image",
+        "options": { "queryParams": "={{ $node['Get Talent For Cover'].json.id }},=/uploads/{{ $node['Get Talent For Cover'].json.id }}/cover_{{ Date.now() }}.jpg" }
+      }
+    },
+    {
+      "name": "Respond Cover Image",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ url: $json.cover_image }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "bz-media-upload": { "main": [[ { "node": "Parse Form Data" } ]] },
+    "Parse Form Data": { "main": [[ { "node": "Get Talent ID" } ]] },
+    "Get Talent ID": { "main": [[ { "node": "Save File" } ]] },
+    "Save File": { "main": [[ { "node": "Insert Portfolio Item" } ]] },
+    "Insert Portfolio Item": { "main": [[ { "node": "Respond Upload" } ]] },
+    "bz-media-delete": { "main": [[ { "node": "Delete Portfolio Item" } ]] },
+    "Delete Portfolio Item": { "main": [[ { "node": "Respond Delete" } ]] },
+    "bz-media-reorder": { "main": [[ { "node": "Reorder Item" } ]] },
+    "Reorder Item": { "main": [[ { "node": "Respond Reorder" } ]] },
+    "bz-profile-image": { "main": [[ { "node": "Get Talent For Profile" } ]] },
+    "Get Talent For Profile": { "main": [[ { "node": "Save Profile Image" } ]] },
+    "Save Profile Image": { "main": [[ { "node": "Update Profile Image" } ]] },
+    "Update Profile Image": { "main": [[ { "node": "Respond Profile Image" } ]] },
+    "bz-cover-image": { "main": [[ { "node": "Get Talent For Cover" } ]] },
+    "Get Talent For Cover": { "main": [[ { "node": "Save Cover Image" } ]] },
+    "Save Cover Image": { "main": [[ { "node": "Update Cover Image" } ]] },
+    "Update Cover Image": { "main": [[ { "node": "Respond Cover Image" } ]] }
+  }
+}

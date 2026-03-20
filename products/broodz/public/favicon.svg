@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1520"/>
+      <stop offset="50%" style="stop-color:#2a1e30"/>
+      <stop offset="100%" style="stop-color:#3a2520"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded background -->
+  <rect width="512" height="512" rx="80" fill="url(#bg)"/>
+  <!-- Wings -->
+  <ellipse cx="175" cy="170" rx="85" ry="105" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.35)" stroke-width="3" transform="rotate(-15 175 170)"/>
+  <ellipse cx="337" cy="170" rx="85" ry="105" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.35)" stroke-width="3" transform="rotate(15 337 170)"/>
+  <!-- Body -->
+  <ellipse cx="256" cy="250" rx="130" ry="155" fill="#f0a030"/>
+  <!-- Stripes -->
+  <rect x="140" y="218" width="232" height="22" rx="11" fill="#1a1520"/>
+  <rect x="152" y="288" width="208" height="22" rx="11" fill="#1a1520"/>
+  <!-- Eyes -->
+  <circle cx="218" cy="200" r="16" fill="#1a1520"/>
+  <circle cx="294" cy="200" r="16" fill="#1a1520"/>
+  <circle cx="222" cy="195" r="5" fill="white"/>
+  <circle cx="298" cy="195" r="5" fill="white"/>
+  <!-- Stinger -->
+  <polygon points="236,405 256,448 276,405" fill="#e85d04"/>
+  <!-- Antennae -->
+  <path d="M230 130 Q200 60 170 80" stroke="#f0a030" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <circle cx="167" cy="82" r="14" fill="#f0a030"/>
+  <path d="M282 130 Q312 60 342 80" stroke="#f0a030" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <circle cx="345" cy="82" r="14" fill="#f0a030"/>
+  <!-- Smile -->
+  <path d="M225 260 Q256 290 287 260" stroke="#1a1520" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>

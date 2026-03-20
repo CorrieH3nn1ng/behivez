@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Broodz — Theme Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: #f5f5f5; }
+h1 { text-align: center; padding: 32px 16px 8px; font-size: 28px; color: #333; }
+p.subtitle { text-align: center; color: #888; margin-bottom: 32px; font-size: 14px; }
+
+.themes { display: flex; flex-direction: column; gap: 48px; max-width: 1200px; margin: 0 auto; padding: 0 16px 64px; }
+
+.theme-block { border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
+.theme-label { padding: 12px 24px; background: #fff; display: flex; justify-content: space-between; align-items: center; }
+.theme-label h2 { font-size: 18px; }
+.theme-label .tags { display: flex; gap: 8px; }
+.theme-label .tag { font-size: 11px; padding: 3px 10px; border-radius: 99px; background: #eee; color: #555; }
+
+/* Header bar */
+.preview-header { display: flex; align-items: center; padding: 12px 24px; gap: 16px; }
+.preview-header .logo { font-weight: 800; font-size: 22px; }
+.preview-header .nav { margin-left: auto; display: flex; gap: 16px; font-size: 14px; font-weight: 600; }
+.preview-header .nav a { text-decoration: none; opacity: 0.8; }
+.preview-header .btn { padding: 6px 18px; border-radius: 8px; font-weight: 600; font-size: 13px; border: none; cursor: pointer; }
+
+/* Hero */
+.preview-hero { padding: 64px 40px; text-align: center; }
+.preview-hero h2 { font-size: 36px; font-weight: 800; margin-bottom: 12px; line-height: 1.2; }
+.preview-hero p { font-size: 16px; opacity: 0.8; max-width: 500px; margin: 0 auto 24px; }
+.preview-hero .cta { display: inline-block; padding: 12px 32px; border-radius: 10px; font-weight: 700; font-size: 15px; text-decoration: none; }
+
+/* Cards row */
+.preview-cards { display: flex; gap: 16px; padding: 24px 24px 32px; }
+.card { flex: 1; border-radius: 12px; overflow: hidden; }
+.card .card-img { height: 100px; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+.card .card-body { padding: 12px; }
+.card .card-body h4 { font-size: 14px; margin-bottom: 4px; }
+.card .card-body p { font-size: 11px; opacity: 0.7; }
+.card .card-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 99px; margin-top: 6px; }
+
+/* Footer */
+.preview-footer { padding: 12px 24px; text-align: center; font-size: 11px; opacity: 0.6; }
+
+@media (max-width: 640px) {
+  .preview-cards { flex-direction: column; }
+  .preview-hero h2 { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+
+<h1>Broodz Platform Theme Options</h1>
+<p class="subtitle">This is the landing page / chrome only — each artist picks their own storefront theme separately</p>
+
+<div class="themes">
+
+<!-- 1. BOLD CREATIVE -->
+<div class="theme-block">
+  <div class="theme-label">
+    <h2>1. Bold Creative</h2>
+    <div class="tags"><span class="tag">Purple</span><span class="tag">Electric Amber</span><span class="tag">Energetic</span></div>
+  </div>
+  <div class="preview-header" style="background: #1a0a2e; color: #fff;">
+    <div class="logo" style="color: #f5a623;">🐝 Broodz</div>
+    <div class="nav">
+      <a style="color: #ccc;" href="#">Browse</a>
+      <a style="color: #ccc;" href="#">Categories</a>
+    </div>
+    <button class="btn" style="background: #f5a623; color: #1a0a2e;">Get Started</button>
+  </div>
+  <div class="preview-hero" style="background: linear-gradient(135deg, #1a0a2e 0%, #3d1a78 50%, #6b21a8 100%); color: #fff;">
+    <h2>Your talent deserves<br>a <span style="color: #f5a623;">storefront</span></h2>
+    <p>Build your brand. Showcase your work. Get discovered by clients across South Africa.</p>
+    <a class="cta" style="background: #f5a623; color: #1a0a2e;" href="#">Create Your Storefront</a>
+  </div>
+  <div class="preview-cards" style="background: #0f0620;">
+    <div class="card" style="background: #1e0d3d;">
+      <div class="card-img" style="background: linear-gradient(135deg, #6b21a8, #9333ea);">🌿</div>
+      <div class="card-body" style="color: #e0d0f0;">
+        <h4>Maggie Senyatsi</h4>
+        <p>Curated Greenery · Johannesburg</p>
+        <span class="card-badge" style="background: #f5a62333; color: #f5a623;">Landscaping</span>
+      </div>
+    </div>
+    <div class="card" style="background: #1e0d3d;">
+      <div class="card-img" style="background: linear-gradient(135deg, #9333ea, #c084fc);">🎨</div>
+      <div class="card-body" style="color: #e0d0f0;">
+        <h4>Thabo Designs</h4>
+        <p>Digital Art & Murals · Cape Town</p>
+        <span class="card-badge" style="background: #f5a62333; color: #f5a623;">Art & Design</span>
+      </div>
+    </div>
+    <div class="card" style="background: #1e0d3d;">
+      <div class="card-img" style="background: linear-gradient(135deg, #c084fc, #6b21a8);">📸</div>
+      <div class="card-body" style="color: #e0d0f0;">
+        <h4>Lerato Captures</h4>
+        <p>Wedding Photography · Pretoria</p>
+        <span class="card-badge" style="background: #f5a62333; color: #f5a623;">Photography</span>
+      </div>
+    </div>
+  </div>
+  <div class="preview-footer" style="background: #0a0418; color: #a090c0;">Broodz © 2026 — Your talent, your storefront</div>
+</div>
+
+<!-- 2. MODERN MINIMAL -->
+<div class="theme-block">
+  <div class="theme-label">
+    <h2>2. Modern Minimal</h2>
+    <div class="tags"><span class="tag">Charcoal</span><span class="tag">Coral</span><span class="tag">Clean</span></div>
+  </div>
+  <div class="preview-header" style="background: #1a1a2e; color: #fff;">
+    <div class="logo" style="color: #ff6b6b;">🐝 Broodz</div>
+    <div class="nav">
+      <a style="color: #aaa;" href="#">Browse</a>
+      <a style="color: #aaa;" href="#">Categories</a>
+    </div>
+    <button class="btn" style="background: #ff6b6b; color: #fff;">Get Started</button>
+  </div>
+  <div class="preview-hero" style="background: linear-gradient(160deg, #1a1a2e 0%, #2d2b55 100%); color: #fff;">
+    <h2>Your talent deserves<br>a <span style="color: #ff6b6b;">storefront</span></h2>
+    <p>Build your brand. Showcase your work. Get discovered by clients across South Africa.</p>
+    <a class="cta" style="background: #ff6b6b; color: #fff;" href="#">Create Your Storefront</a>
+  </div>
+  <div class="preview-cards" style="background: #16162a;">
+    <div class="card" style="background: #222244;">
+      <div class="card-img" style="background: linear-gradient(135deg, #2d2b55, #3e3b70);">🌿</div>
+      <div class="card-body" style="color: #d0d0e0;">
+        <h4>Maggie Senyatsi</h4>
+        <p>Curated Greenery · Johannesburg</p>
+        <span class="card-badge" style="background: #ff6b6b33; color: #ff6b6b;">Landscaping</span>
+      </div>
+    </div>
+    <div class="card" style="background: #222244;">
+      <div class="card-img" style="background: linear-gradient(135deg, #3e3b70, #5553a0);">🎨</div>
+      <div class="card-body" style="color: #d0d0e0;">
+        <h4>Thabo Designs</h4>
+        <p>Digital Art & Murals · Cape Town</p>
+        <span class="card-badge" style="background: #ff6b6b33; color: #ff6b6b;">Art & Design</span>
+      </div>
+    </div>
+    <div class="card" style="background: #222244;">
+      <div class="card-img" style="background: linear-gradient(135deg, #5553a0, #2d2b55);">📸</div>
+      <div class="card-body" style="color: #d0d0e0;">
+        <h4>Lerato Captures</h4>
+        <p>Wedding Photography · Pretoria</p>
+        <span class="card-badge" style="background: #ff6b6b33; color: #ff6b6b;">Photography</span>
+      </div>
+    </div>
+  </div>
+  <div class="preview-footer" style="background: #111128; color: #7070a0;">Broodz © 2026 — Your talent, your storefront</div>
+</div>
+
+<!-- 3. AFRO-FUTURE -->
+<div class="theme-block">
+  <div class="theme-label">
+    <h2>3. Afro-Future</h2>
+    <div class="tags"><span class="tag">Deep Navy</span><span class="tag">Gold</span><span class="tag">Aspirational</span></div>
+  </div>
+  <div class="preview-header" style="background: #0f0e17; color: #fff;">
+    <div class="logo" style="color: #e8b931;">🐝 Broodz</div>
+    <div class="nav">
+      <a style="color: #a7a9be;" href="#">Browse</a>
+      <a style="color: #a7a9be;" href="#">Categories</a>
+    </div>
+    <button class="btn" style="background: #e8b931; color: #0f0e17;">Get Started</button>
+  </div>
+  <div class="preview-hero" style="background: linear-gradient(135deg, #0f0e17 0%, #1a1830 40%, #2a1f4e 100%); color: #fffffe;">
+    <h2>Your talent deserves<br>a <span style="color: #e8b931;">storefront</span></h2>
+    <p>Build your brand. Showcase your work. Get discovered by clients across South Africa.</p>
+    <a class="cta" style="background: #e8b931; color: #0f0e17;" href="#">Create Your Storefront</a>
+  </div>
+  <div class="preview-cards" style="background: #0a0914;">
+    <div class="card" style="background: #171525; border: 1px solid #2a2745;">
+      <div class="card-img" style="background: linear-gradient(135deg, #1a1830, #2a1f4e);">🌿</div>
+      <div class="card-body" style="color: #d0cfe0;">
+        <h4>Maggie Senyatsi</h4>
+        <p>Curated Greenery · Johannesburg</p>
+        <span class="card-badge" style="background: #e8b93122; color: #e8b931;">Landscaping</span>
+      </div>
+    </div>
+    <div class="card" style="background: #171525; border: 1px solid #2a2745;">
+      <div class="card-img" style="background: linear-gradient(135deg, #2a1f4e, #3d2d6b);">🎨</div>
+      <div class="card-body" style="color: #d0cfe0;">
+        <h4>Thabo Designs</h4>
+        <p>Digital Art & Murals · Cape Town</p>
+        <span class="card-badge" style="background: #e8b93122; color: #e8b931;">Art & Design</span>
+      </div>
+    </div>
+    <div class="card" style="background: #171525; border: 1px solid #2a2745;">
+      <div class="card-img" style="background: linear-gradient(135deg, #3d2d6b, #1a1830);">📸</div>
+      <div class="card-body" style="color: #d0cfe0;">
+        <h4>Lerato Captures</h4>
+        <p>Wedding Photography · Pretoria</p>
+        <span class="card-badge" style="background: #e8b93122; color: #e8b931;">Photography</span>
+      </div>
+    </div>
+  </div>
+  <div class="preview-footer" style="background: #070611; color: #5a5880;">Broodz © 2026 — Your talent, your storefront</div>
+</div>
+
+<!-- 4. FRESH & WARM -->
+<div class="theme-block">
+  <div class="theme-label">
+    <h2>4. Fresh & Warm</h2>
+    <div class="tags"><span class="tag">Cream</span><span class="tag">Burnt Orange</span><span class="tag">Teal</span><span class="tag">Vibrant</span></div>
+  </div>
+  <div class="preview-header" style="background: #fff8f0; color: #2d2013; border-bottom: 1px solid #f0e0d0;">
+    <div class="logo" style="color: #e85d04;">🐝 Broodz</div>
+    <div class="nav">
+      <a style="color: #6b5c4e;" href="#">Browse</a>
+      <a style="color: #6b5c4e;" href="#">Categories</a>
+    </div>
+    <button class="btn" style="background: #e85d04; color: #fff;">Get Started</button>
+  </div>
+  <div class="preview-hero" style="background: linear-gradient(135deg, #fff8f0 0%, #fef0e0 50%, #fde8d0 100%); color: #2d2013;">
+    <h2>Your talent deserves<br>a <span style="color: #e85d04;">storefront</span></h2>
+    <p style="color: #6b5c4e;">Build your brand. Showcase your work. Get discovered by clients across South Africa.</p>
+    <a class="cta" style="background: #e85d04; color: #fff;" href="#">Create Your Storefront</a>
+  </div>
+  <div class="preview-cards" style="background: #fffcf5;">
+    <div class="card" style="background: #fff; border: 1px solid #f0e0d0; border-radius: 12px;">
+      <div class="card-img" style="background: linear-gradient(135deg, #e85d04, #f09040);">🌿</div>
+      <div class="card-body" style="color: #2d2013;">
+        <h4>Maggie Senyatsi</h4>
+        <p>Curated Greenery · Johannesburg</p>
+        <span class="card-badge" style="background: #0d9488; color: #fff;">Landscaping</span>
+      </div>
+    </div>
+    <div class="card" style="background: #fff; border: 1px solid #f0e0d0; border-radius: 12px;">
+      <div class="card-img" style="background: linear-gradient(135deg, #f09040, #f5b060);">🎨</div>
+      <div class="card-body" style="color: #2d2013;">
+        <h4>Thabo Designs</h4>
+        <p>Digital Art & Murals · Cape Town</p>
+        <span class="card-badge" style="background: #0d9488; color: #fff;">Art & Design</span>
+      </div>
+    </div>
+    <div class="card" style="background: #fff; border: 1px solid #f0e0d0; border-radius: 12px;">
+      <div class="card-img" style="background: linear-gradient(135deg, #f5b060, #e85d04);">📸</div>
+      <div class="card-body" style="color: #2d2013;">
+        <h4>Lerato Captures</h4>
+        <p>Wedding Photography · Pretoria</p>
+        <span class="card-badge" style="background: #0d9488; color: #fff;">Photography</span>
+      </div>
+    </div>
+  </div>
+  <div class="preview-footer" style="background: #2d2013; color: #a09080;">Broodz © 2026 — Your talent, your storefront</div>
+</div>
+
+<!-- 5. ELECTRIC TEAL -->
+<div class="theme-block">
+  <div class="theme-label">
+    <h2>5. Electric Teal</h2>
+    <div class="tags"><span class="tag">Dark Teal</span><span class="tag">Lime</span><span class="tag">Tech-forward</span></div>
+  </div>
+  <div class="preview-header" style="background: #0d1b2a; color: #fff;">
+    <div class="logo" style="color: #64ffda;">🐝 Broodz</div>
+    <div class="nav">
+      <a style="color: #8892b0;" href="#">Browse</a>
+      <a style="color: #8892b0;" href="#">Categories</a>
+    </div>
+    <button class="btn" style="background: #64ffda; color: #0d1b2a;">Get Started</button>
+  </div>
+  <div class="preview-hero" style="background: linear-gradient(135deg, #0d1b2a 0%, #1b2d45 50%, #0d3b3e 100%); color: #e6f1ff;">
+    <h2>Your talent deserves<br>a <span style="color: #64ffda;">storefront</span></h2>
+    <p>Build your brand. Showcase your work. Get discovered by clients across South Africa.</p>
+    <a class="cta" style="background: #64ffda; color: #0d1b2a;" href="#">Create Your Storefront</a>
+  </div>
+  <div class="preview-cards" style="background: #0a1628;">
+    <div class="card" style="background: #112240; border: 1px solid #1d3557;">
+      <div class="card-img" style="background: linear-gradient(135deg, #1b2d45, #0d3b3e);">🌿</div>
+      <div class="card-body" style="color: #ccd6f6;">
+        <h4>Maggie Senyatsi</h4>
+        <p>Curated Greenery · Johannesburg</p>
+        <span class="card-badge" style="background: #64ffda22; color: #64ffda;">Landscaping</span>
+      </div>
+    </div>
+    <div class="card" style="background: #112240; border: 1px solid #1d3557;">
+      <div class="card-img" style="background: linear-gradient(135deg, #0d3b3e, #1b5e4b);">🎨</div>
+      <div class="card-body" style="color: #ccd6f6;">
+        <h4>Thabo Designs</h4>
+        <p>Digital Art & Murals · Cape Town</p>
+        <span class="card-badge" style="background: #64ffda22; color: #64ffda;">Art & Design</span>
+      </div>
+    </div>
+    <div class="card" style="background: #112240; border: 1px solid #1d3557;">
+      <div class="card-img" style="background: linear-gradient(135deg, #1b5e4b, #1b2d45);">📸</div>
+      <div class="card-body" style="color: #ccd6f6;">
+        <h4>Lerato Captures</h4>
+        <p>Wedding Photography · Pretoria</p>
+        <span class="card-badge" style="background: #64ffda22; color: #64ffda;">Photography</span>
+      </div>
+    </div>
+  </div>
+  <div class="preview-footer" style="background: #060f1e; color: #4a5d80;">Broodz © 2026 — Your talent, your storefront</div>
+</div>
+
+<!-- 6. CURRENT (Brown) for comparison -->
+<div class="theme-block" style="opacity: 0.6;">
+  <div class="theme-label">
+    <h2>6. Current (Brown) — for comparison</h2>
+    <div class="tags"><span class="tag">Brown</span><span class="tag">Amber</span><span class="tag">Earthy</span></div>
+  </div>
+  <div class="preview-header" style="background: #3e2723; color: #fff;">
+    <div class="logo" style="color: #ffc107;">🐝 Broodz</div>
+    <div class="nav">
+      <a style="color: #bcaaa4;" href="#">Browse</a>
+      <a style="color: #bcaaa4;" href="#">Categories</a>
+    </div>
+    <button class="btn" style="background: #ffc107; color: #3e2723;">Get Started</button>
+  </div>
+  <div class="preview-hero" style="background: linear-gradient(135deg, #3e2723 0%, #5d4037 100%); color: #fff;">
+    <h2>Your talent deserves<br>a <span style="color: #ffc107;">storefront</span></h2>
+    <p>Build your brand. Showcase your work. Get discovered by clients across South Africa.</p>
+    <a class="cta" style="background: #ffc107; color: #3e2723;" href="#">Create Your Storefront</a>
+  </div>
+  <div class="preview-cards" style="background: #3e2723;">
+    <div class="card" style="background: #4e342e;">
+      <div class="card-img" style="background: linear-gradient(135deg, #5d4037, #8d6e63);">🌿</div>
+      <div class="card-body" style="color: #d7ccc8;">
+        <h4>Maggie Senyatsi</h4>
+        <p>Curated Greenery · Johannesburg</p>
+        <span class="card-badge" style="background: #ffc10733; color: #ffc107;">Landscaping</span>
+      </div>
+    </div>
+    <div class="card" style="background: #4e342e;">
+      <div class="card-img" style="background: linear-gradient(135deg, #8d6e63, #a1887f);">🎨</div>
+      <div class="card-body" style="color: #d7ccc8;">
+        <h4>Thabo Designs</h4>
+        <p>Digital Art & Murals · Cape Town</p>
+        <span class="card-badge" style="background: #ffc10733; color: #ffc107;">Art & Design</span>
+      </div>
+    </div>
+    <div class="card" style="background: #4e342e;">
+      <div class="card-img" style="background: linear-gradient(135deg, #a1887f, #5d4037);">📸</div>
+      <div class="card-body" style="color: #d7ccc8;">
+        <h4>Lerato Captures</h4>
+        <p>Wedding Photography · Pretoria</p>
+        <span class="card-badge" style="background: #ffc10733; color: #ffc107;">Photography</span>
+      </div>
+    </div>
+  </div>
+  <div class="preview-footer" style="background: #2c1a15; color: #8d6e63;">Broodz © 2026 — Your talent, your storefront</div>
+</div>
+
+</div>
+</body>
+</html>

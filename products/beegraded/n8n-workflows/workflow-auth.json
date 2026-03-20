@@ -1,0 +1,295 @@
+{
+  "name": "BeeGraded - Auth (Magic Link)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-auth-magic-link",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Magic Link",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-auth-magic-link"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'INSERT INTO users (email) VALUES (\\'' + $json.body.email + '\\') ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id, email, name;' }}",
+        "additionalFields": {}
+      },
+      "id": "a1000001-0001-0001-0001-000000000002",
+      "name": "Upsert User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const user = items[0].json;\nconst userId = user.id;\nconst userEmail = user.email;\n\n// Generate 64-char hex token\nconst chars = '0123456789abcdef';\nlet token = '';\nfor (let i = 0; i < 64; i++) {\n  token += chars[Math.floor(Math.random() * chars.length)];\n}\n\n// Expiry = 15 minutes from now\nconst expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();\n\nreturn [{\n  json: {\n    user_id: userId,\n    email: userEmail,\n    token: token,\n    token_expires_at: expiry\n  }\n}];"
+      },
+      "id": "a1000001-0001-0001-0001-000000000003",
+      "name": "Generate Token",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'UPDATE users SET magic_token = \\'' + $json.token + '\\', token_expires_at = \\'' + $json.token_expires_at + '\\' WHERE id = ' + $json.user_id + ';' }}",
+        "additionalFields": {}
+      },
+      "id": "a1000001-0001-0001-0001-000000000004",
+      "name": "Store Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Magic link sent', token: $node['Generate Token'].json.token }) }}",
+        "options": {}
+      },
+      "id": "a1000001-0001-0001-0001-000000000005",
+      "name": "Respond Magic Link",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-auth-verify",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1000001-0001-0001-0002-000000000001",
+      "name": "Webhook Verify Token",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 640],
+      "webhookId": "bg-auth-verify"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'SELECT id, email, name FROM users WHERE magic_token = \\'' + $json.body.token + '\\' AND token_expires_at > NOW() LIMIT 1;' }}",
+        "additionalFields": {}
+      },
+      "id": "a1000001-0001-0001-0002-000000000002",
+      "name": "Validate Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [460, 640],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "a1000001-0001-0001-0002-000000000003",
+      "name": "Token Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 640]
+    },
+    {
+      "parameters": {
+        "functionCode": "const user = items[0].json;\nreturn [{\n  json: {\n    user_id: user.id,\n    email: user.email,\n    name: user.name\n  }\n}];"
+      },
+      "id": "a1000001-0001-0001-0002-000000000004",
+      "name": "Extract User Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 560]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'UPDATE users SET magic_token = NULL, token_expires_at = NULL WHERE id = ' + $json.user_id + ';' }}",
+        "additionalFields": {}
+      },
+      "id": "a1000001-0001-0001-0002-000000000005",
+      "name": "Clear Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1120, 560],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ token: 'jwt-placeholder-' + $node['Extract User Data'].json.user_id, user: { id: $node['Extract User Data'].json.user_id, email: $node['Extract User Data'].json.email, name: $node['Extract User Data'].json.name } }) }}",
+        "options": {}
+      },
+      "id": "a1000001-0001-0001-0002-000000000006",
+      "name": "Respond Verified",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 560]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'Invalid or expired token' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "a1000001-0001-0001-0002-000000000007",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 740]
+    }
+  ],
+  "connections": {
+    "Webhook Magic Link": {
+      "main": [
+        [
+          {
+            "node": "Upsert User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert User": {
+      "main": [
+        [
+          {
+            "node": "Generate Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Token": {
+      "main": [
+        [
+          {
+            "node": "Store Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Token": {
+      "main": [
+        [
+          {
+            "node": "Respond Magic Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Verify Token": {
+      "main": [
+        [
+          {
+            "node": "Validate Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Token": {
+      "main": [
+        [
+          {
+            "node": "Token Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token Valid?": {
+      "main": [
+        [
+          {
+            "node": "Extract User Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract User Data": {
+      "main": [
+        [
+          {
+            "node": "Clear Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear Token": {
+      "main": [
+        [
+          {
+            "node": "Respond Verified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

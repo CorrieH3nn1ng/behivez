@@ -1,0 +1,9 @@
+packages:
+  - products/*
+  - packages/*
+
+ignoredBuiltDependencies:
+  - '@parcel/watcher'
+  - core-js
+  - esbuild
+  - vue-demi

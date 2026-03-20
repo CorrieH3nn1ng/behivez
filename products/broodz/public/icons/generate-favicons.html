@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate Broodz Favicons</title></head>
+<body style="background:#e8e8e8;font-family:sans-serif;padding:32px;text-align:center;">
+<h2>Broodz Favicon Generator</h2>
+<p>Right-click each image → "Save image as" to download, then place in public/icons/</p>
+<div style="display:flex;gap:32px;justify-content:center;flex-wrap:wrap;margin-top:24px;">
+
+<div>
+  <canvas id="c512" width="512" height="512"></canvas>
+  <p>512x512 (app icon)</p>
+</div>
+<div>
+  <canvas id="c192" width="192" height="192"></canvas>
+  <p>192x192</p>
+</div>
+<div>
+  <canvas id="c128" width="128" height="128"></canvas>
+  <p>128x128</p>
+</div>
+<div>
+  <canvas id="c32" width="32" height="32"></canvas>
+  <p>32x32 (favicon)</p>
+</div>
+<div>
+  <canvas id="c16" width="16" height="16"></canvas>
+  <p>16x16</p>
+</div>
+</div>
+
+<div style="margin-top:32px;">
+  <button onclick="downloadAll()" style="padding:12px 32px;font-size:16px;background:#f0a030;border:none;border-radius:8px;font-weight:700;cursor:pointer;">Download All as PNGs</button>
+</div>
+
+<script>
+function drawIcon(canvasId, size) {
+  const c = document.getElementById(canvasId);
+  const ctx = c.getContext('2d');
+  const s = size;
+  const r = s * 0.12; // corner radius
+
+  // Background - rounded square with dark plum
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(s - r, 0);
+  ctx.quadraticCurveTo(s, 0, s, r);
+  ctx.lineTo(s, s - r);
+  ctx.quadraticCurveTo(s, s, s - r, s);
+  ctx.lineTo(r, s);
+  ctx.quadraticCurveTo(0, s, 0, s - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+
+  // Gradient background
+  const grad = ctx.createLinearGradient(0, 0, s, s);
+  grad.addColorStop(0, '#1a1520');
+  grad.addColorStop(0.5, '#2a1e30');
+  grad.addColorStop(1, '#3a2520');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Bee body (hexagon-ish shape)
+  const cx = s * 0.5;
+  const cy = s * 0.48;
+  const bw = s * 0.28; // body width
+  const bh = s * 0.32; // body height
+
+  // Body - warm gold
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, bw, bh, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#f0a030';
+  ctx.fill();
+
+  // Stripes
+  const stripeW = bw * 0.9;
+  const stripeH = bh * 0.12;
+  ctx.fillStyle = '#1a1520';
+  ctx.fillRect(cx - stripeW, cy - stripeH * 2.5, stripeW * 2, stripeH);
+  ctx.fillRect(cx - stripeW * 0.85, cy + stripeH * 1.2, stripeW * 1.7, stripeH);
+
+  // Wings
+  const wingW = s * 0.18;
+  const wingH = s * 0.22;
+  const wingY = cy - bh * 0.5;
+
+  // Left wing
+  ctx.beginPath();
+  ctx.ellipse(cx - bw * 0.6, wingY, wingW, wingH, -0.3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = s * 0.01;
+  ctx.stroke();
+
+  // Right wing
+  ctx.beginPath();
+  ctx.ellipse(cx + bw * 0.6, wingY, wingW, wingH, 0.3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.stroke();
+
+  // Eyes
+  const eyeR = s * 0.035;
+  ctx.fillStyle = '#1a1520';
+  ctx.beginPath();
+  ctx.arc(cx - bw * 0.3, cy - bh * 0.25, eyeR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx + bw * 0.3, cy - bh * 0.25, eyeR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Stinger
+  ctx.beginPath();
+  ctx.moveTo(cx - s * 0.04, cy + bh);
+  ctx.lineTo(cx, cy + bh + s * 0.08);
+  ctx.lineTo(cx + s * 0.04, cy + bh);
+  ctx.fillStyle = '#e85d04';
+  ctx.fill();
+
+  // Antennae
+  ctx.strokeStyle = '#f0a030';
+  ctx.lineWidth = s * 0.018;
+  ctx.lineCap = 'round';
+
+  // Left antenna
+  ctx.beginPath();
+  ctx.moveTo(cx - bw * 0.2, cy - bh * 0.85);
+  ctx.quadraticCurveTo(cx - bw * 0.6, cy - bh * 1.4, cx - bw * 0.8, cy - bh * 1.2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx - bw * 0.8, cy - bh * 1.2, s * 0.025, 0, Math.PI * 2);
+  ctx.fillStyle = '#f0a030';
+  ctx.fill();
+
+  // Right antenna
+  ctx.beginPath();
+  ctx.moveTo(cx + bw * 0.2, cy - bh * 0.85);
+  ctx.quadraticCurveTo(cx + bw * 0.6, cy - bh * 1.4, cx + bw * 0.8, cy - bh * 1.2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx + bw * 0.8, cy - bh * 1.2, s * 0.025, 0, Math.PI * 2);
+  ctx.fillStyle = '#f0a030';
+  ctx.fill();
+
+  // "B" letter at bottom
+  if (size >= 128) {
+    ctx.fillStyle = 'rgba(255,248,240,0.9)';
+    ctx.font = `bold ${s * 0.14}px Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Broodz', cx, s * 0.88);
+  }
+}
+
+drawIcon('c512', 512);
+drawIcon('c192', 192);
+drawIcon('c128', 128);
+drawIcon('c32', 32);
+drawIcon('c16', 16);
+
+function downloadAll() {
+  const sizes = [
+    { id: 'c512', name: 'icon-512x512.png' },
+    { id: 'c192', name: 'icon-192x192.png' },
+    { id: 'c128', name: 'favicon-128x128.png' },
+    { id: 'c32', name: 'favicon-32x32.png' },
+    { id: 'c16', name: 'favicon-16x16.png' },
+  ];
+  sizes.forEach(({ id, name }) => {
+    const canvas = document.getElementById(id);
+    const link = document.createElement('a');
+    link.download = name;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+}
+</script>
+</body>
+</html>

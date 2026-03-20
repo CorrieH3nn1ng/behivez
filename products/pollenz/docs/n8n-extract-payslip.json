@@ -1,0 +1,110 @@
+{
+  "id": "payslipExtract01",
+  "name": "Pollenz - Extract Payslip",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "extract-payslip",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ps-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "extract-payslip"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst { file_data, mime_type, filename } = body;\n\nif (!file_data) {\n  throw new Error('No file_data provided');\n}\n\nconst buffer = Buffer.from(file_data, 'base64');\nconst binary = await this.helpers.prepareBinaryData(\n  buffer,\n  filename || 'payslip.pdf',\n  mime_type || 'application/pdf'\n);\n\nreturn {\n  json: { filename, mime_type },\n  binary: { data: binary }\n};"
+      },
+      "id": "ps-002",
+      "name": "Convert to Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "analyzeDocument",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "Analyze this South African payslip document and extract ALL employment and salary information. Return ONLY valid JSON with no markdown formatting or code blocks.\n\nIDENTITY & EMPLOYMENT:\n- employer_name: Company/employer name\n- employer_tax_ref: Employer PAYE reference number\n- employee_number: Employee/payroll number\n- tax_number: Employee tax reference number\n- id_number: SA ID number (13 digits)\n- irp5_reference: IRP5 certificate number\n- pay_period: Pay date or period (e.g. \"February 2026\" or \"28/02/2026\")\n- designation: Job title / position / designation\n- cost_centre: Cost centre name or code\n- hourly_rate: Hourly rate of pay (number only)\n- normal_hours: Normal hours worked this period (number only)\n- leave_days: Leave days balance or accrued (number only)\n\nEARNINGS:\n- gross_salary: Gross monthly pay (number only, no currency symbols)\n- net_salary: Net/take-home pay (number only)\n- bonus: 13th cheque or bonus amount (number only)\n- commission: Commission income (number only)\n- overtime: Overtime pay (number only)\n- travel_allowance: Travel allowance amount (number only)\n- other_earnings: Array of additional earnings [{\"name\":\"...\",\"amount\":number}] or null\n\nEMPLOYEE DEDUCTIONS:\n- paye: PAYE tax deducted (number only)\n- uif: UIF contribution (number only)\n- medical_aid: Medical aid deduction (number only)\n- medical_aid_members: Number of medical aid dependants (integer)\n- pension_fund: Pension/provident fund employee contribution (number only)\n- retirement_annuity: Retirement annuity contribution (number only)\n- sdl: Skills Development Levy / Prescribed Levy (number only)\n- wellness_fund: Wellness fund / EAP deduction (number only)\n- union_fees: Union / association fees (number only)\n- other_deductions: Array of additional deductions [{\"name\":\"...\",\"amount\":number}] or null\n- total_deductions: Total of all deductions (number only)\n\nCOMPANY CONTRIBUTIONS (not deducted from salary):\n- employer_pension: Employer pension contribution / pension fringe benefit (number only)\n- employer_uif: Employer UIF contribution (number only)\n- employer_oid: OID / COIDA / Workmen's Compensation (number only)\n\nYEAR-TO-DATE TOTALS:\n- ytd_gross: YTD gross remuneration (number only)\n- ytd_paye: YTD PAYE tax (number only)\n- ytd_pension: YTD pension fund contributions (number only)\n- ytd_medical_aid: YTD medical aid contributions (number only)\n\nOTHER:\n- notes: Any additional relevant info\n- confidence: 0-100\n\nIf a field is not found or unclear, use null.\nFor monetary amounts, use numbers only (no R, no spaces).\nFor other_earnings and other_deductions, return array of {name, amount} objects or null.",
+        "inputType": "binary",
+        "binaryPropertyName": "data",
+        "simplifyOutput": true,
+        "options": {}
+      },
+      "id": "ps-003",
+      "name": "Analyze Payslip",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [720, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\nlet text = response.output || response.text || '';\n\nif (!text && response.content && response.content.parts && response.content.parts[0]) {\n  text = response.content.parts[0].text || '';\n}\n\nif (typeof text === 'object') text = JSON.stringify(text);\ntext = String(text).trim();\n\ntext = text.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/, '').trim();\n\nconst firstBrace = text.indexOf('{');\nif (firstBrace > 0) text = text.substring(firstBrace);\nconst lastBrace = text.lastIndexOf('}');\nif (lastBrace > 0) text = text.substring(0, lastBrace + 1);\n\nlet data;\ntry {\n  data = JSON.parse(text);\n} catch (e) {\n  return [{ json: { success: false, error: 'Failed to parse JSON: ' + e.message, data: null } }];\n}\n\nfunction parseAmt(val) {\n  if (val === null || val === undefined) return null;\n  if (typeof val === 'string') val = val.replace(/[^0-9.-]/g, '');\n  if (val === '') return null;\n  return parseFloat(Number(val).toFixed(2));\n}\n\nfunction parseArr(val) {\n  if (!Array.isArray(val)) return null;\n  return val.map(v => ({ name: v.name || '', amount: parseAmt(v.amount) || 0 }));\n}\n\nreturn [{ json: {\n  success: true,\n  data: {\n    employer_name: data.employer_name || null,\n    employer_tax_ref: data.employer_tax_ref || null,\n    employee_number: data.employee_number || null,\n    tax_number: data.tax_number || null,\n    id_number: data.id_number || null,\n    irp5_reference: data.irp5_reference || null,\n    pay_period: data.pay_period || null,\n    designation: data.designation || null,\n    cost_centre: data.cost_centre || null,\n    hourly_rate: parseAmt(data.hourly_rate),\n    normal_hours: parseAmt(data.normal_hours),\n    leave_days: parseAmt(data.leave_days),\n    gross_salary: parseAmt(data.gross_salary),\n    net_salary: parseAmt(data.net_salary),\n    bonus: parseAmt(data.bonus),\n    commission: parseAmt(data.commission),\n    overtime: parseAmt(data.overtime),\n    travel_allowance: parseAmt(data.travel_allowance),\n    other_earnings: parseArr(data.other_earnings),\n    paye: parseAmt(data.paye),\n    uif: parseAmt(data.uif),\n    medical_aid: parseAmt(data.medical_aid),\n    medical_aid_members: data.medical_aid_members != null ? parseInt(data.medical_aid_members) : null,\n    pension_fund: parseAmt(data.pension_fund),\n    retirement_annuity: parseAmt(data.retirement_annuity),\n    sdl: parseAmt(data.sdl),\n    wellness_fund: parseAmt(data.wellness_fund),\n    union_fees: parseAmt(data.union_fees),\n    other_deductions: parseArr(data.other_deductions),\n    total_deductions: parseAmt(data.total_deductions),\n    employer_pension: parseAmt(data.employer_pension),\n    employer_uif: parseAmt(data.employer_uif),\n    employer_oid: parseAmt(data.employer_oid),\n    ytd_gross: parseAmt(data.ytd_gross),\n    ytd_paye: parseAmt(data.ytd_paye),\n    ytd_pension: parseAmt(data.ytd_pension),\n    ytd_medical_aid: parseAmt(data.ytd_medical_aid),\n    notes: data.notes || null,\n    confidence: data.confidence ?? null\n  }\n}}];"
+      },
+      "id": "ps-004",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "ps-005",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Convert to Binary", "type": "main", "index": 0 }]]
+    },
+    "Convert to Binary": {
+      "main": [[{ "node": "Analyze Payslip", "type": "main", "index": 0 }]]
+    },
+    "Analyze Payslip": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

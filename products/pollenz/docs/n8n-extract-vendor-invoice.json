@@ -1,0 +1,109 @@
+{
+  "name": "Pollenz - Extract Vendor Invoice",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "extract-vendor-invoice",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "vi-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "extract-vendor-invoice"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst { file_data, mime_type, filename } = body;\n\nif (!file_data) {\n  throw new Error('No file_data provided');\n}\n\nconst buffer = Buffer.from(file_data, 'base64');\nconst binary = await this.helpers.prepareBinaryData(\n  buffer,\n  filename || 'invoice.pdf',\n  mime_type || 'application/pdf'\n);\n\nreturn {\n  json: { filename, mime_type },\n  binary: { data: binary }\n};"
+      },
+      "id": "vi-002",
+      "name": "Convert to Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "analyzeDocument",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "Analyze this invoice document and extract the following information. Return ONLY valid JSON with no markdown formatting or code blocks.\n\nExtract these fields:\n- invoice_number: The invoice number/reference\n- invoice_date: Date issued (YYYY-MM-DD)\n- due_date: Payment due date (YYYY-MM-DD)\n- vendor_name: Name of the business/person who ISSUED the invoice\n- subtotal: Amount before tax (number only, no currency symbols)\n- tax_rate: Tax percentage (just the number, e.g. 15 for 15%)\n- tax_amount: Tax amount (number only)\n- total: Total including tax (number only)\n- currency: Currency code (e.g. ZAR)\n- line_items: Array of {description, quantity, unit_price, amount}\n- confidence: 0-100\n- notes: any extraction quality notes\n\nIf a field is not found, use null. For amounts use numbers only.",
+        "inputType": "binary",
+        "binaryPropertyName": "data",
+        "simplifyOutput": true,
+        "options": {}
+      },
+      "id": "vi-003",
+      "name": "Analyze Invoice",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [720, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\n// With simplifyOutput the text is directly in response.output or response.text\nlet text = response.output || response.text || '';\n\n// Also check the nested structure\nif (!text && response.content && response.content.parts && response.content.parts[0]) {\n  text = response.content.parts[0].text || '';\n}\n\nif (typeof text === 'object') text = JSON.stringify(text);\ntext = String(text).trim();\n\ntext = text.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/, '').trim();\n\nconst firstBrace = text.indexOf('{');\nif (firstBrace > 0) text = text.substring(firstBrace);\nconst lastBrace = text.lastIndexOf('}');\nif (lastBrace > 0) text = text.substring(0, lastBrace + 1);\n\nlet data;\ntry {\n  data = JSON.parse(text);\n} catch (e) {\n  return [{ json: { success: false, error: 'Failed to parse JSON: ' + e.message, data: null, raw_response: text.substring(0, 500) } }];\n}\n\nfunction parseAmt(val) {\n  if (val === null || val === undefined) return null;\n  if (typeof val === 'string') val = val.replace(/[^0-9.-]/g, '');\n  if (val === '') return null;\n  return parseFloat(Number(val).toFixed(2));\n}\n\nreturn [{ json: {\n  success: true,\n  data: {\n    invoice_number: data.invoice_number || null,\n    invoice_date: data.invoice_date || null,\n    due_date: data.due_date || null,\n    vendor_name: data.vendor_name || null,\n    subtotal: parseAmt(data.subtotal),\n    tax_rate: data.tax_rate ?? null,\n    tax_amount: parseAmt(data.tax_amount),\n    total: parseAmt(data.total),\n    currency: data.currency || 'ZAR',\n    line_items: data.line_items || [],\n    confidence: data.confidence ?? null,\n    notes: data.notes || null\n  }\n}}];"
+      },
+      "id": "vi-004",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "vi-005",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Convert to Binary", "type": "main", "index": 0 }]]
+    },
+    "Convert to Binary": {
+      "main": [[{ "node": "Analyze Invoice", "type": "main", "index": 0 }]]
+    },
+    "Analyze Invoice": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

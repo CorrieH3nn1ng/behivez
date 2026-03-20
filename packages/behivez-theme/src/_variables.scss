@@ -1,0 +1,33 @@
+// BeHivez Shared SCSS Variables
+// ================================
+
+// Primary palette
+$amber:       #f59e0b;
+$amber-dark:  #d97706;
+$amber-light: #fbbf24;
+$gold:        #eab308;
+$honey:       #fef3c7;
+
+// Neutrals
+$dark:        #1c1917;
+$dark-card:   #292524;
+$warm-gray:   #78716c;
+
+// Backgrounds
+$bg-primary:  #fffbeb;
+$bg-card:     #ffffff;
+
+// Semantic
+$success:     #22c55e;
+$danger:      #ef4444;
+$info:        #3b82f6;
+$warning:     #f59e0b;
+
+// Quasar variable overrides
+$primary:   $amber;
+$secondary: $dark;
+$accent:    $amber-dark;
+$dark:      $dark;
+$dark-page: #121212;
+$positive:  $success;
+$negative:  $danger;

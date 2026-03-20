@@ -1,0 +1,789 @@
+{
+  "name": "BeeGraded - Evaluate Paper",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-evaluate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Evaluate",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "bg-evaluate"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'SELECT p.id, p.user_id, p.filename, p.subject, p.assessment_type, p.num_questions, p.paper_text, p.word_count, p.page_count, r.parsed_json as rubric_json, r.programme, r.module_name, r.total_marks FROM papers p LEFT JOIN tokens t ON (t.draft_paper_id = p.id OR t.final_paper_id = p.id) LEFT JOIN rubrics r ON t.rubric_id = r.id WHERE p.id = ' + $json.body.paper_id + ' LIMIT 1;' }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000002",
+      "name": "Get Paper",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const paper = items[0].json;\nconst mode = $node['Webhook Evaluate'].json.body.mode || 'A';\nconst tokenCode = $node['Webhook Evaluate'].json.body.token_code || null;\n\n// Check if we have a custom rubric from the token\nlet rubricSection = '';\nlet rubricJson = null;\ntry {\n  if (paper.rubric_json) {\n    rubricJson = typeof paper.rubric_json === 'string' ? JSON.parse(paper.rubric_json) : paper.rubric_json;\n  }\n} catch(e) {}\n\nif (rubricJson && rubricJson.questions && rubricJson.questions.length > 0) {\n  rubricSection = '\\n\\n## CUSTOM RUBRIC (USE THIS INSTEAD OF DEFAULT CRITERIA)\\n';\n  rubricSection += 'Programme: ' + (paper.programme || 'Unknown') + '\\n';\n  rubricSection += 'Module: ' + (paper.module_name || 'Unknown') + '\\n';\n  rubricSection += 'Total Marks: ' + (paper.total_marks || 100) + '\\n\\n';\n  rubricSection += 'EVALUATE EACH QUESTION SEPARATELY according to the rubric below:\\n';\n  for (const q of rubricJson.questions) {\n    rubricSection += '\\nQuestion ' + q.number + ': ' + q.title + ' (' + q.marks + ' marks)\\n';\n    if (q.criteria && q.criteria.length) {\n      rubricSection += 'Criteria: ' + q.criteria.join(', ') + '\\n';\n    }\n  }\n  rubricSection += '\\nFor EACH question, score out of the allocated marks. Then calculate overall_score as weighted average of all questions (out of 100).\\n';\n  rubricSection += 'In your issues and strengths, reference specific question numbers.\\n';\n}\n\nconst defaultRubric = `## SCORING RUBRIC (0-100, be strict and realistic)\n- **overall_score**: Weighted holistic mark. A typical undergraduate paper with surface-level analysis and referencing gaps scores 45-60. Only truly excellent work scores 75+.\n- **knowledge_score**: Does the student show genuine understanding? Listing facts = 40-55. Explaining with insight = 60-75.\n- **critical_score**: Did they ANALYSE (compare, evaluate, challenge) or just DESCRIBE? Description only = 30-50. Some analysis = 50-65. Strong critical engagement = 70+.\n- **application_score**: Did they apply to the specific context/case study or write generic answers? Generic = 40-55.\n- **referencing_score**: Check EVERY in-text citation against the bibliography. Missing citations = severe penalty. 5+ missing = below 40. Also check date mismatches, format errors, orphan references. IMPORTANT: If the assessment is based on a CASE STUDY, students correctly cite it as (Case Study, Year) or (Company Name, Year). These are VALID citations — do NOT penalise them.\n- **structure_score**: Organisation, headings, flow, grammar, spelling errors.\n- **ai_risk_score**: 0 = definitely human, 100 = definitely AI. Check for: uniform paragraph length, identical structure across sections, no personal voice/hedging, suspiciously polished prose, citation-bibliography mismatches (AI hallucination signal).`;\n\nconst systemPrompt = `You are an experienced university lecturer and external examiner. You are evaluating a STUDENT'S SUBMITTED ASSIGNMENT (not designing or reviewing an exam). Be honest and strict — students need realistic feedback before submitting to Turnitin.\n\n## YOUR TASK\nRead the student's submission and evaluate the QUALITY OF THEIR WORK:\n- Did they demonstrate understanding or just describe/list?\n- Did they think critically (compare, contrast, challenge, synthesise) or just summarise sources?\n- Did they apply theory to the specific case/context or write generically?\n- Are ALL in-text citations present in the bibliography and vice versa?\n- Is there evidence of AI-generated content (uniform style, no personal voice, identical paragraph structures)?\n${rubricSection || defaultRubric}\n\n## REFERENCE AUDIT INSTRUCTIONS\nFor EVERY in-text citation (Author, Year), check if it appears in the bibliography. For every bibliography entry, check if cited in text. List ALL mismatches.\nSPECIAL CASE — Case Study Based Assessments: When answering from a case study, citations like 'Case Study, 2025' are CORRECT — mark as matched=true.\n\n## ISSUES\nFind the TOP 8 most important issues. Include at least one example_before/example_after showing actual text and how to improve.\n\n## RESPONSE FORMAT\nReturn ONLY raw JSON. No markdown, no code fences. Start with { end with }.\n{\n  \"scores\": {\n    \"overall_score\": <number>,\n    \"knowledge_score\": <number>,\n    \"critical_score\": <number>,\n    \"application_score\": <number>,\n    \"referencing_score\": <number>,\n    \"structure_score\": <number>,\n    \"ai_risk_score\": <number>\n  },\n  \"issues\": [\n    {\n      \"category\": \"<referencing|critical_thinking|repetition|structure|language|application|ai_risk|error>\",\n      \"severity\": \"<critical|important|polish>\",\n      \"where_in_paper\": \"<location>\",\n      \"description\": \"<what is wrong>\",\n      \"recommendation\": \"<how to fix>\",\n      \"example_before\": \"<actual text from paper or null>\",\n      \"example_after\": \"<improved version or null>\"\n    }\n  ],\n  \"strengths\": [\n    {\n      \"category\": \"<category>\",\n      \"what_well\": \"<what was done well>\",\n      \"where_in_paper\": \"<location>\"\n    }\n  ],\n  \"reference_audit\": [\n    {\n      \"citation\": \"<Author, Year>\",\n      \"source_type\": \"<in_text|bibliography>\",\n      \"matched\": true/false,\n      \"issue_type\": \"<null|missing_in_bibliography|orphan_reference|date_mismatch|format_error>\"\n    }\n  ],\n  \"summary\": \"<2-3 paragraph honest assessment>\"\n}`;\n\nconst userMessage = `Subject: ${paper.subject}\\nAssessment Type: ${paper.assessment_type}\\nNumber of Questions: ${paper.num_questions}\\n${paper.programme ? 'Programme: ' + paper.programme + '\\n' : ''}${paper.module_name ? 'Module: ' + paper.module_name + '\\n' : ''}\\nThis is a STUDENT SUBMISSION to be evaluated. Grade their work honestly.\\n\\n--- STUDENT SUBMISSION ---\\n${paper.paper_text}`;\n\nreturn [{\n  json: {\n    paper_id: paper.id,\n    subject: paper.subject,\n    mode: mode,\n    token_code: tokenCode,\n    system_prompt: systemPrompt,\n    user_message: userMessage\n  }\n}];"
+      },
+      "id": "c1000001-0001-0001-0001-000000000003",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "REDACTED_API_KEY"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 8192, system: $json.system_prompt, messages: [{ role: 'user', content: $json.user_message }] }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "c1000001-0001-0001-0001-000000000004",
+      "name": "Call Claude API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [
+        920,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.system_prompt + '\\n\\n' + $json.user_message }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000020",
+      "name": "Call Gemini API",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        920,
+        420
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const claudeResponse = items[0].json;\nconst promptData = $node['Build Prompt'].json;\n\nlet content = '';\nif (claudeResponse.content && claudeResponse.content.length > 0) {\n  content = claudeResponse.content[0].text;\n}\n\nlet evaluation;\ntry {\n  evaluation = JSON.parse(content);\n} catch(e) {\n  let cleaned = content.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/, '').trim();\n  const firstBrace = cleaned.indexOf('{');\n  if (firstBrace > 0) cleaned = cleaned.substring(firstBrace);\n  if (!cleaned.endsWith('}')) {\n    const lastBrace = cleaned.lastIndexOf('}');\n    if (lastBrace > 0) cleaned = cleaned.substring(0, lastBrace + 1);\n  }\n  try {\n    evaluation = JSON.parse(cleaned);\n  } catch(e2) {\n    const scoresMatch = cleaned.match(/\"scores\"\\s*:\\s*\\{[^}]+\\}/);\n    if (scoresMatch) {\n      const partial = JSON.parse('{' + scoresMatch[0] + '}');\n      evaluation = { scores: partial.scores, issues: [], strengths: [], reference_audit: [], summary: 'Claude report truncated — scores extracted.' };\n    } else {\n      evaluation = { scores: {}, issues: [], strengths: [], reference_audit: [], summary: 'Claude parsing failed.' };\n    }\n  }\n}\n\nreturn [{\n  json: {\n    claude_scores: evaluation.scores || {},\n    claude_issues: evaluation.issues || [],\n    claude_strengths: evaluation.strengths || [],\n    claude_reference_audit: evaluation.reference_audit || [],\n    claude_summary: evaluation.summary || '',\n    paper_id: promptData.paper_id,\n    subject: promptData.subject,\n    mode: promptData.mode\n  }\n}];"
+      },
+      "id": "c1000001-0001-0001-0001-000000000021",
+      "name": "Parse Claude",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const geminiResponse = items[0].json;\n\n// Native n8n Gemini node outputs: text, output, or candidates format\nlet content = geminiResponse.text || geminiResponse.output || '';\n\n// Fallback: check raw API response format\nif (!content && geminiResponse.candidates && geminiResponse.candidates.length > 0) {\n  const parts = geminiResponse.candidates[0].content.parts;\n  if (parts && parts.length > 0) content = parts[0].text;\n}\n\n// If content is empty, try stringifying the whole response\nif (!content && typeof geminiResponse === 'object') {\n  const keys = Object.keys(geminiResponse);\n  for (const k of keys) {\n    if (typeof geminiResponse[k] === 'string' && geminiResponse[k].includes('scores')) {\n      content = geminiResponse[k];\n      break;\n    }\n  }\n}\n\nlet evaluation;\ntry {\n  evaluation = JSON.parse(content);\n} catch(e) {\n  let cleaned = content.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/, '').trim();\n  const firstBrace = cleaned.indexOf('{');\n  if (firstBrace > 0) cleaned = cleaned.substring(firstBrace);\n  if (!cleaned.endsWith('}')) {\n    const lastBrace = cleaned.lastIndexOf('}');\n    if (lastBrace > 0) cleaned = cleaned.substring(0, lastBrace + 1);\n  }\n  try {\n    evaluation = JSON.parse(cleaned);\n  } catch(e2) {\n    const scoresMatch = cleaned.match(/\"scores\"\\s*:\\s*\\{[^}]+\\}/);\n    if (scoresMatch) {\n      const partial = JSON.parse('{' + scoresMatch[0] + '}');\n      evaluation = { scores: partial.scores, issues: [], strengths: [], reference_audit: [], summary: 'Gemini report truncated — scores extracted.' };\n    } else {\n      evaluation = { scores: {}, issues: [], strengths: [], reference_audit: [], summary: 'Gemini parsing failed.' };\n    }\n  }\n}\n\nreturn [{\n  json: {\n    gemini_scores: evaluation.scores || {},\n    gemini_issues: evaluation.issues || [],\n    gemini_strengths: evaluation.strengths || [],\n    gemini_reference_audit: evaluation.reference_audit || [],\n    gemini_summary: evaluation.summary || ''\n  }\n}];"
+      },
+      "id": "c1000001-0001-0001-0001-000000000022",
+      "name": "Parse Gemini",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1140,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "mergeByPosition"
+      },
+      "id": "c1000001-0001-0001-0001-000000000023",
+      "name": "Merge AI",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\nfunction s(v) { const n = Number(v); return isNaN(n) ? 0 : Math.round(n); }\n\nconst cs = data.claude_scores || {};\nconst gs = data.gemini_scores || {};\nconst scoreKeys = ['overall_score', 'knowledge_score', 'critical_score', 'application_score', 'referencing_score', 'structure_score', 'ai_risk_score'];\n\nconst scores = {};\nconst claude_has = Object.keys(cs).length > 0;\nconst gemini_has = Object.keys(gs).length > 0;\n\nfor (const key of scoreKeys) {\n  const cv = s(cs[key]);\n  const gv = s(gs[key]);\n  if (claude_has && gemini_has) {\n    scores[key] = Math.round((cv + gv) / 2);\n  } else if (claude_has) {\n    scores[key] = cv;\n  } else {\n    scores[key] = gv;\n  }\n}\n\nlet agreement = 100;\nif (claude_has && gemini_has) {\n  const diffs = scoreKeys.map(k => Math.abs(s(cs[k]) - s(gs[k])));\n  const avgDiff = diffs.reduce((a,b) => a+b, 0) / diffs.length;\n  agreement = Math.max(0, Math.round(100 - avgDiff * 2));\n}\n\nconst allIssues = [...(data.claude_issues || []), ...(data.gemini_issues || [])];\nconst seen = new Set();\nconst issues = [];\nfor (const issue of allIssues) {\n  const key = (issue.category || '') + '|' + (issue.description || '').substring(0, 60);\n  if (!seen.has(key) && issues.length < 12) {\n    seen.add(key);\n    issues.push(issue);\n  }\n}\n\nconst allStrengths = [...(data.claude_strengths || []), ...(data.gemini_strengths || [])];\nconst seenStr = new Set();\nconst strengths = [];\nfor (const str of allStrengths) {\n  const key = (str.category || '') + '|' + (str.what_well || '').substring(0, 60);\n  if (!seenStr.has(key) && strengths.length < 8) {\n    seenStr.add(key);\n    strengths.push(str);\n  }\n}\n\nconst reference_audit = (data.gemini_reference_audit || []).length >= (data.claude_reference_audit || []).length\n  ? (data.gemini_reference_audit || [])\n  : (data.claude_reference_audit || []);\n\nconst summary = (data.gemini_summary || '').length > (data.claude_summary || '').length\n  ? (data.gemini_summary || '')\n  : (data.claude_summary || '');\n\nconst subject = data.subject || 'Academic Paper';\nconst overall = scores.overall_score || 0;\nconst scoreColor = overall >= 75 ? '#22c55e' : overall >= 60 ? '#f59e0b' : overall >= 50 ? '#fb923c' : '#ef4444';\nconst gradeLabel = overall >= 75 ? 'DISTINCTION' : overall >= 65 ? 'MERIT' : overall >= 50 ? 'PASS' : 'AT RISK';\nconst modelsUsed = (claude_has && gemini_has) ? 'Claude + Gemini' : claude_has ? 'Claude' : 'Gemini';\n\nconst criticalCount = issues.filter(i => i.severity === 'critical').length;\nconst importantCount = issues.filter(i => i.severity === 'important').length;\nconst polishCount = issues.filter(i => i.severity === 'polish').length;\nconst refMismatches = reference_audit.filter(r => !r.matched).length;\nconst refTotal = reference_audit.length;\n\nfunction gauge(label, score, size) {\n  size = size || 90;\n  var c = score >= 75 ? '#22c55e' : score >= 60 ? '#f59e0b' : score >= 50 ? '#fb923c' : '#ef4444';\n  var key = label.toLowerCase().replace(/\\s+/g, '-');\n  var grade = score >= 75 ? 'Distinction' : score >= 60 ? 'Merit' : score >= 50 ? 'Pass' : 'At Risk';\n  return '<div class=\"gauge-item\" style=\"text-align:center;flex:1;min-width:120px;margin:8px;cursor:pointer;transition:transform 0.15s\" onclick=\"toggleScoreDetail(\\'' + key + '\\')\" title=\"Click for details\">' +\n    '<div style=\"position:relative;width:' + size + 'px;height:' + size + 'px;margin:0 auto\">' +\n    '<svg viewBox=\"0 0 36 36\" style=\"width:' + size + 'px;height:' + size + 'px;transform:rotate(-90deg)\">' +\n    '<circle cx=\"18\" cy=\"18\" r=\"15.9\" fill=\"none\" stroke=\"#1e293b\" stroke-width=\"3\"/>' +\n    '<circle cx=\"18\" cy=\"18\" r=\"15.9\" fill=\"none\" stroke=\"' + c + '\" stroke-width=\"3\" stroke-dasharray=\"' + score + ' ' + (100-score) + '\" stroke-linecap=\"round\"/>' +\n    '</svg>' +\n    '<div style=\"position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;font-weight:700;color:' + c + '\">' + score + '</div>' +\n    '</div>' +\n    '<div style=\"margin-top:6px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px\">' + label + '</div>' +\n    '<div style=\"font-size:9px;color:#64748b;margin-top:2px\">' + grade + '</div></div>';\n}\n\nfunction badge(sev) {\n  const colors = { critical: '#ef4444', important: '#f59e0b', polish: '#3b82f6' };\n  return '<span style=\"display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:white;background:' + (colors[sev] || '#64748b') + '\">' + (sev || '').toUpperCase() + '</span>';\n}\n\nlet issueRows = '';\nfor (const i of issues) {\n  const desc = (i.description || i.what_issue || '').replace(/'/g, '&#39;').replace(/\"/g, '&quot;');\n  const rec = (i.recommendation || i.how_to_fix || '').replace(/'/g, '&#39;').replace(/\"/g, '&quot;');\n  const before = i.example_before ? '<div style=\"background:#1a0a0a;padding:8px;border-radius:4px;margin:4px 0;font-size:12px;color:#fca5a5;border-left:3px solid #ef4444\">' + (i.example_before || '').replace(/'/g, '&#39;').replace(/\"/g, '&quot;') + '</div>' : '';\n  const after = i.example_after ? '<div style=\"background:#0a1a0a;padding:8px;border-radius:4px;margin:4px 0;font-size:12px;color:#86efac;border-left:3px solid #22c55e\">' + (i.example_after || '').replace(/'/g, '&#39;').replace(/\"/g, '&quot;') + '</div>' : '';\n  issueRows += '<tr><td style=\"padding:10px;border-bottom:1px solid #1e293b;white-space:nowrap;vertical-align:top\">' + (i.where_in_paper || '') + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #1e293b;vertical-align:top\">' + badge(i.severity) + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #1e293b;vertical-align:top\">' + desc + before + after + '</td>' +\n    '<td style=\"padding:10px;border-bottom:1px solid #1e293b;vertical-align:top;color:#22d3ee\">' + rec + '</td></tr>';\n}\n\nlet strengthCards = '';\nfor (const st of strengths) {\n  strengthCards += '<div style=\"padding:12px 16px;margin:8px 0;background:#0a1a0a;border-left:3px solid #22c55e;border-radius:6px\">' +\n    '<strong style=\"color:#22c55e\">' + (st.where_in_paper || st.category || '') + '</strong>' +\n    '<div style=\"color:#cbd5e1;margin-top:4px\">' + (st.what_well || '') + '</div></div>';\n}\n\nlet refRows = '';\nfor (const r of reference_audit) {\n  const matchIcon = r.matched ? '<span style=\"color:#22c55e;font-weight:bold\">&#10003; YES</span>' : '<span style=\"color:#ef4444;font-weight:bold\">&#10007; NO</span>';\n  const issueText = r.issue_type ? '<span style=\"color:#f59e0b\">' + r.issue_type.replace(/_/g, ' ') + '</span>' : '<span style=\"color:#475569\">&mdash;</span>';\n  refRows += '<tr><td style=\"padding:8px;border-bottom:1px solid #1e293b\">' + ((r.citation || '').substring(0, 80)) + '</td>' +\n    '<td style=\"padding:8px;border-bottom:1px solid #1e293b\">' + (r.source_type || '') + '</td>' +\n    '<td style=\"padding:8px;border-bottom:1px solid #1e293b\">' + matchIcon + '</td>' +\n    '<td style=\"padding:8px;border-bottom:1px solid #1e293b\">' + issueText + '</td></tr>';\n}\n\nlet comparisonRows = '';\nif (claude_has && gemini_has) {\n  const labels = ['Overall', 'Knowledge', 'Critical', 'Application', 'Referencing', 'Structure', 'AI Risk'];\n  for (let idx = 0; idx < scoreKeys.length; idx++) {\n    const cv = s(cs[scoreKeys[idx]]);\n    const gv = s(gs[scoreKeys[idx]]);\n    const avg = scores[scoreKeys[idx]];\n    const diff = Math.abs(cv - gv);\n    const diffColor = diff <= 5 ? '#22c55e' : diff <= 15 ? '#f59e0b' : '#ef4444';\n    comparisonRows += '<tr><td style=\"padding:8px;border-bottom:1px solid #1e293b;font-weight:600\">' + labels[idx] + '</td>' +\n      '<td style=\"padding:8px;border-bottom:1px solid #1e293b;text-align:center\">' + cv + '%</td>' +\n      '<td style=\"padding:8px;border-bottom:1px solid #1e293b;text-align:center\">' + gv + '%</td>' +\n      '<td style=\"padding:8px;border-bottom:1px solid #1e293b;text-align:center;font-weight:700;color:#fbbf24\">' + avg + '%</td>' +\n      '<td style=\"padding:8px;border-bottom:1px solid #1e293b;text-align:center;color:' + diffColor + '\">' + diff + '</td></tr>';\n  }\n}\n\nconst reportHTML = '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"><title>BeeGraded Report</title>' +\n'<style>' +\n'*{margin:0;padding:0;box-sizing:border-box}' +\n'body{font-family:\"Segoe UI\",system-ui,-apple-system,sans-serif;background:#0a0e1a;color:#e2e8f0;line-height:1.6}' +\n'.cover{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 40%,#312e81 70%,#4f46e5 100%);padding:50px 30px;text-align:center;position:relative;overflow:hidden}' +\n'.cover::before{content:\"\";position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle,rgba(251,191,36,0.08) 0%,transparent 50%)}' +\n'.cover h1{font-size:36px;font-weight:800;background:linear-gradient(135deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}' +\n'.cover .sub{font-size:16px;color:#94a3b8;margin-bottom:20px}' +\n'.cover .sbadge{display:inline-block;padding:6px 20px;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);border-radius:20px;color:#fbbf24;font-weight:600;font-size:14px;margin-bottom:16px}' +\n'.tabs{display:flex;flex-wrap:wrap;border-bottom:2px solid #1e293b;background:#0f172a;padding:0 16px;position:sticky;top:0;z-index:10}' +\n'.tab{padding:12px 20px;cursor:pointer;color:#64748b;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all 0.2s}' +\n'.tab:hover{color:#94a3b8}' +\n'.tab.active{color:#fbbf24;border-bottom-color:#fbbf24}' +\n'.panel{display:none;max-width:960px;margin:0 auto;padding:24px 20px}' +\n'.panel.active{display:block}' +\n'.card{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:20px;margin-bottom:16px}' +\n'.gauges{display:flex;flex-wrap:wrap;justify-content:center;gap:4px}' +\n'table{width:100%;border-collapse:collapse;font-size:13px}' +\n'th{padding:10px 8px;text-align:left;background:#1e293b;color:#fbbf24;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}' +\n'td{color:#cbd5e1}' +\n'.summary{white-space:pre-wrap;color:#cbd5e1;font-size:14px;line-height:1.8}' +\n'.stat-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}' +\n'.stat{flex:1;min-width:140px;background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:16px;text-align:center}' +\n'.stat .val{font-size:28px;font-weight:800}' +\n'.stat .lbl{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px}' +\n'.ai-badge{display:inline-block;padding:4px 12px;background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.3);border-radius:6px;color:#a78bfa;font-size:12px;font-weight:600;margin-top:12px}' +\n'.footer{text-align:center;padding:24px;color:#475569;font-size:11px;border-top:1px solid #1e293b;margin-top:30px}' +\n'@media print{.tabs{display:none}.panel{display:block!important}body{background:white;color:#1e293b}.card{border-color:#e2e8f0}.cover{background:#1e293b!important}}' +\n'@media(max-width:640px){.tab{padding:10px 12px;font-size:11px}.gauges>div{min-width:80px}}' +\n.gauge-item:hover{transform:scale(1.1)}.gauge-item:active{transform:scale(0.95)}#score-detail-panel{animation:sdSlide 0.25s ease}@keyframes sdSlide{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}'</style></head><body>' +\n\n'<div class=\"cover\">' +\n'<div class=\"sbadge\">' + subject + '</div>' +\n'<h1>BeeGraded</h1>' +\n'<div class=\"sub\">Assessment Evaluation Report</div>' +\n'<div style=\"display:inline-block;width:110px;height:110px;position:relative;margin-top:10px\">' +\n'<svg viewBox=\"0 0 36 36\" style=\"width:110px;height:110px;transform:rotate(-90deg)\">' +\n'<circle cx=\"18\" cy=\"18\" r=\"15.9\" fill=\"none\" stroke=\"rgba(255,255,255,0.1)\" stroke-width=\"3\"/>' +\n'<circle cx=\"18\" cy=\"18\" r=\"15.9\" fill=\"none\" stroke=\"' + scoreColor + '\" stroke-width=\"3\" stroke-dasharray=\"' + overall + ' ' + (100-overall) + '\" stroke-linecap=\"round\"/>' +\n'</svg>' +\n'<div style=\"position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center\">' +\n'<div style=\"font-size:26px;font-weight:800;color:' + scoreColor + '\">' + overall + '</div>' +\n'<div style=\"font-size:9px;color:#94a3b8;letter-spacing:1px\">' + gradeLabel + '</div></div></div>' +\n'<div class=\"ai-badge\">Evaluated by ' + modelsUsed + ' &bull; ' + agreement + '% agreement</div>' +\n'</div>' +\n\n'<div class=\"tabs\">' +\n'<div class=\"tab active\" onclick=\"switchTab(0)\">Overview</div>' +\n'<div class=\"tab\" onclick=\"switchTab(1)\">Scores</div>' +\n'<div class=\"tab\" onclick=\"switchTab(2)\">Issues (' + issues.length + ')</div>' +\n'<div class=\"tab\" onclick=\"switchTab(3)\">Strengths</div>' +\n'<div class=\"tab\" onclick=\"switchTab(4)\">References</div>' +\n(claude_has && gemini_has ? '<div class=\"tab\" onclick=\"switchTab(5)\">AI Models</div>' : '') +\n'</div>' +\n\n'<div class=\"panel active\" id=\"panel-0\">' +\n'<div class=\"stat-row\">' +\n'<div class=\"stat\"><div class=\"val\" style=\"color:' + scoreColor + '\">' + overall + '%</div><div class=\"lbl\">Overall Score</div></div>' +\n'<div class=\"stat\"><div class=\"val\" style=\"color:#ef4444\">' + criticalCount + '</div><div class=\"lbl\">Critical Issues</div></div>' +\n'<div class=\"stat\"><div class=\"val\" style=\"color:#f59e0b\">' + importantCount + '</div><div class=\"lbl\">Important Issues</div></div>' +\n'<div class=\"stat\"><div class=\"val\" style=\"color:#3b82f6\">' + refMismatches + '/' + refTotal + '</div><div class=\"lbl\">Ref Mismatches</div></div>' +\n'</div>' +\n'<div class=\"card\"><h3 style=\"color:#fbbf24;margin-bottom:12px;font-size:16px\">Executive Summary</h3><div class=\"summary\">' + summary + '</div></div>' +\n'</div>' +\n\n'<div class=\"panel\" id=\"panel-1\">' +\n'<div class=\"card\"><div class=\"gauges\">' +\ngauge('Overall', scores.overall_score) +\ngauge('Knowledge', scores.knowledge_score) +\ngauge('Critical', scores.critical_score) +\ngauge('Application', scores.application_score) +\ngauge('Referencing', scores.referencing_score) +\ngauge('Structure', scores.structure_score) +\ngauge('AI Risk', scores.ai_risk_score) +\n'</div></div></div>' +\n\n'<div class=\"panel\" id=\"panel-2\">' +\n'<div class=\"card\" style=\"overflow-x:auto\"><table>' +\n'<tr><th>Location</th><th>Severity</th><th>Issue &amp; Example</th><th>How to Fix</th></tr>' +\n(issueRows || '<tr><td colspan=\"4\" style=\"text-align:center;padding:20px;color:#64748b\">No issues found</td></tr>') +\n'</table></div></div>' +\n\n'<div class=\"panel\" id=\"panel-3\">' +\n'<div class=\"card\">' +\n(strengthCards || '<div style=\"text-align:center;padding:20px;color:#64748b\">No specific strengths highlighted</div>') +\n'</div></div>' +\n\n'<div class=\"panel\" id=\"panel-4\">' +\n'<div class=\"card\" style=\"overflow-x:auto\"><table>' +\n'<tr><th>Citation</th><th>Type</th><th>Matched</th><th>Issue</th></tr>' +\n(refRows || '<tr><td colspan=\"4\" style=\"text-align:center;padding:20px;color:#64748b\">No references audited</td></tr>') +\n'</table></div></div>' +\n\n(claude_has && gemini_has ? '<div class=\"panel\" id=\"panel-5\">' +\n'<div class=\"card\"><h3 style=\"color:#fbbf24;margin-bottom:12px;font-size:16px\">Model Comparison &mdash; Claude vs Gemini</h3>' +\n'<p style=\"color:#94a3b8;font-size:13px;margin-bottom:16px\">Both AI models evaluated independently. Final scores are averaged. Agreement: <strong style=\"color:#fbbf24\">' + agreement + '%</strong></p>' +\n'<table><tr><th>Criterion</th><th style=\"text-align:center\">Claude</th><th style=\"text-align:center\">Gemini</th><th style=\"text-align:center\">Average</th><th style=\"text-align:center\">Diff</th></tr>' +\ncomparisonRows +\n'</table></div></div>' : '') +\n\n'<div class=\"footer\">BeeGraded &mdash; Dual AI Evaluation (' + modelsUsed + ') &mdash; Generated ' + new Date().toISOString().split('T')[0] + '</div>' +\n\n'<script>function toggleScoreDetail(key){var p=document.getElementById('score-detail-panel');if(!p)return;if(!key||p.dataset.active===key){p.style.display='none';p.dataset.active='';return;}var d={'overall':['Combined score across all evaluation criteria. This represents the overall quality of your paper.','Focus on improving your weakest scoring areas to lift your overall grade. Check the other dials to find where you lost the most marks.'],'knowledge':['Measures how well you demonstrate understanding of subject matter, key concepts, theories, and course content.','Reference specific theories and frameworks by name. Show you have read beyond the textbook by citing journal articles or case studies.'],'critical':['Evaluates your analytical thinking, how you assess arguments, and whether you use evidence-based reasoning.','Do not just describe \\u2014 analyse WHY something matters. Compare different viewpoints, question assumptions, and weigh evidence for and against.'],'application':['Assesses how you connect theory to practice, use relevant examples, and demonstrate real-world understanding.','Use concrete, specific examples. Show how a concept plays out in a real scenario relevant to your field or the South African context.'],'referencing':['Checks citation format, bibliography consistency, in-text vs reference-list matching, and source attribution.','Every in-text citation must have a matching reference-list entry (and vice versa). Follow your required format (APA 7, Harvard) consistently throughout.'],'structure':['Looks at logical flow, paragraph organisation, topic sentences, and the quality of your introduction and conclusion.','Each paragraph should have one clear main idea with a topic sentence. Your introduction should preview the argument; your conclusion should summarise it.'],'ai-risk':['Estimates the likelihood that the content was AI-generated. A LOWER score here is better \\u2014 it means your writing appears more authentically human.','Write in your own voice. Include personal analysis, examples from your lectures or tutorials, and unique perspectives that only you would have.']};var info=d[key]||['',''];var score=0;document.querySelectorAll('.gauge-item').forEach(function(g){var oc=g.getAttribute('onclick')||'';if(oc.indexOf(\"'\"+key+\"'\")>-1){var t=g.querySelector('div[style*=\"font-weight:700\"]');if(t)score=parseInt(t.textContent);}});var c=score>=75?'#22c55e':score>=60?'#f59e0b':score>=50?'#fb923c':'#ef4444';var gl=score>=75?'Distinction (75-100%)':score>=60?'Merit (60-74%)':score>=50?'Pass (50-59%)':'At Risk (0-49%)';var nm=key.replace(/-/g,' ').replace(/\\b\\w/g,function(c){return c.toUpperCase()});document.getElementById('sd-dot').style.background=c;document.getElementById('sd-title').textContent=nm+' \\u2014 '+score+'%';document.getElementById('sd-title').style.color=c;document.getElementById('sd-grade').innerHTML='<span style=\"color:'+c+';font-weight:600\">'+gl+'</span>';document.getElementById('sd-desc').textContent=info[0];document.getElementById('sd-fill').style.width=score+'%';document.getElementById('sd-fill').style.background=c;document.getElementById('sd-tips').innerHTML='<div style=\"font-size:11px;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px\">How to improve</div><div style=\"color:#cbd5e1;font-size:13px;line-height:1.6\">'+info[1]+'</div>';p.style.display='block';p.dataset.active=key;p.scrollIntoView({behavior:'smooth',block:'nearest'});}function switchTab(n){document.querySelectorAll(\".tab\").forEach(function(t,i){t.classList.toggle(\"active\",i===n)});document.querySelectorAll(\".panel\").forEach(function(p,i){p.classList.toggle(\"active\",i===n)})}</script>' +\n'</body></html>';\n\nreturn [{\n  json: {\n    paper_id: data.paper_id,\n    subject: data.subject,\n    mode: data.mode,\n    scores: scores,\n    issues: issues,\n    strengths: strengths,\n    reference_audit: reference_audit,\n    summary: summary,\n    report_html: reportHTML,\n    models_used: modelsUsed,\n    agreement: agreement,\n    claude_scores: cs,\n    gemini_scores: gs\n  }\n}];"
+      },
+      "id": "c1000001-0001-0001-0001-000000000024",
+      "name": "Build Rich Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1580,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\nconst scores = data.scores || {};\nconst mode = data.mode || 'A';\n\nfunction safeScore(v) { const n = Number(v); return isNaN(n) ? 0 : n; }\n\nconst safeHtml = (data.report_html || '').replace(/'/g, \"''\");\n\nreturn [{\n  json: {\n    paper_id: Number(data.paper_id) || 0,\n    mode: mode,\n    overall_score: safeScore(scores.overall_score),\n    knowledge_score: safeScore(scores.knowledge_score),\n    critical_score: safeScore(scores.critical_score),\n    application_score: safeScore(scores.application_score),\n    referencing_score: safeScore(scores.referencing_score),\n    structure_score: safeScore(scores.structure_score),\n    ai_risk_score: safeScore(scores.ai_risk_score),\n    report_html: safeHtml,\n    issues: data.issues || [],\n    strengths: data.strengths || [],\n    reference_audit: data.reference_audit || []\n  }\n}];"
+      },
+      "id": "c1000001-0001-0001-0001-000000000015",
+      "name": "Prepare Eval Insert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'INSERT INTO evaluations (paper_id, mode, draft_or_final, overall_score, knowledge_score, critical_score, application_score, referencing_score, structure_score, ai_risk_score, report_html) VALUES (' + $json.paper_id + ', \\'' + $json.mode + '\\', \\'draft\\', ' + $json.overall_score + ', ' + $json.knowledge_score + ', ' + $json.critical_score + ', ' + $json.application_score + ', ' + $json.referencing_score + ', ' + $json.structure_score + ', ' + $json.ai_risk_score + ', \\'' + $json.report_html + '\\') RETURNING id;' }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000006",
+      "name": "Insert Evaluation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        2020,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const evalId = items[0].json.id;\nconst data = $node['Prepare Eval Insert'].json;\nconst issues = data.issues || [];\n\nif (issues.length === 0) {\n  return [{ json: { evaluation_id: evalId, skip: true } }];\n}\n\nreturn issues.map(issue => {\n  const safeWhat = (issue.what_issue || '').replace(/'/g, \"''\");\n  const safeWhere = (issue.where_in_paper || '').replace(/'/g, \"''\");\n  const safeRootCause = (issue.root_cause || '').replace(/'/g, \"''\");\n  const safeHowToFix = (issue.how_to_fix || '').replace(/'/g, \"''\");\n  const safeDescription = (issue.description || '').replace(/'/g, \"''\");\n  const safeRecommendation = (issue.recommendation || '').replace(/'/g, \"''\");\n  const safeExBefore = (issue.example_before || '').replace(/'/g, \"''\");\n  const safeExAfter = (issue.example_after || '').replace(/'/g, \"''\");\n  const whyChain = JSON.stringify(issue.why_chain || []).replace(/'/g, \"''\");\n\n  return {\n    json: {\n      evaluation_id: evalId,\n      category: (issue.category || 'general').substring(0, 100),\n      severity: issue.severity || 'polish',\n      what_issue: safeWhat,\n      where_in_paper: safeWhere,\n      why_chain: whyChain,\n      root_cause: safeRootCause,\n      how_to_fix: safeHowToFix,\n      who_notices: (issue.who_notices || '').replace(/'/g, \"''\").substring(0, 100),\n      description: safeDescription,\n      recommendation: safeRecommendation,\n      example_before: safeExBefore,\n      example_after: safeExAfter,\n      skip: false\n    }\n  };\n});"
+      },
+      "id": "c1000001-0001-0001-0001-000000000007",
+      "name": "Prepare Issues",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        140
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.skip ? 'SELECT 1' : 'INSERT INTO evaluation_issues (evaluation_id, category, severity, what_issue, where_in_paper, why_chain, root_cause, how_to_fix, who_notices, description, recommendation, example_before, example_after) VALUES (' + $json.evaluation_id + ', \\'' + $json.category + '\\', \\'' + $json.severity + '\\', \\'' + $json.what_issue + '\\', \\'' + $json.where_in_paper + '\\', \\'' + $json.why_chain + '\\'::jsonb, \\'' + $json.root_cause + '\\', \\'' + $json.how_to_fix + '\\', \\'' + $json.who_notices + '\\', \\'' + $json.description + '\\', \\'' + $json.recommendation + '\\', \\'' + $json.example_before + '\\', \\'' + $json.example_after + '\\');' }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000008",
+      "name": "Insert Issues",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        140
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const evalId = $node['Insert Evaluation'].json.id;\nconst data = $node['Prepare Eval Insert'].json;\nconst strengths = data.strengths || [];\n\nif (strengths.length === 0) {\n  return [{ json: { evaluation_id: evalId, skip: true } }];\n}\n\nreturn strengths.map(s => {\n  const safeCategory = (s.category || '').replace(/'/g, \"''\").substring(0, 100);\n  const safeWhatWell = (s.what_well || '').replace(/'/g, \"''\");\n  const safeWhere = (s.where_in_paper || '').replace(/'/g, \"''\");\n  const whyChain = JSON.stringify(s.why_chain || []).replace(/'/g, \"''\");\n  const safeReusable = (s.reusable_pattern || '').replace(/'/g, \"''\");\n  const safeHowHelps = (s.how_it_helps || '').replace(/'/g, \"''\");\n  const safeWho = (s.who_notices || '').replace(/'/g, \"''\").substring(0, 100);\n\n  return {\n    json: {\n      evaluation_id: evalId,\n      category: safeCategory,\n      what_well: safeWhatWell,\n      where_in_paper: safeWhere,\n      why_chain: whyChain,\n      reusable_pattern: safeReusable,\n      how_it_helps: safeHowHelps,\n      who_notices: safeWho,\n      skip: false\n    }\n  };\n});"
+      },
+      "id": "c1000001-0001-0001-0001-000000000009",
+      "name": "Prepare Strengths",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.skip ? 'SELECT 1' : 'INSERT INTO evaluation_strengths (evaluation_id, category, what_well, where_in_paper, why_chain, reusable_pattern, how_it_helps, who_notices) VALUES (' + $json.evaluation_id + ', \\'' + $json.category + '\\', \\'' + $json.what_well + '\\', \\'' + $json.where_in_paper + '\\', \\'' + $json.why_chain + '\\'::jsonb, \\'' + $json.reusable_pattern + '\\', \\'' + $json.how_it_helps + '\\', \\'' + $json.who_notices + '\\');' }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000010",
+      "name": "Insert Strengths",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        340
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const evalId = $node['Insert Evaluation'].json.id;\nconst data = $node['Prepare Eval Insert'].json;\nconst checks = data.consistency_checks || [];\n\nif (checks.length === 0) {\n  return [{ json: { evaluation_id: evalId, skip: true } }];\n}\n\nreturn checks.map(c => {\n  const safeLocA = (c.location_a || '').replace(/'/g, \"''\");\n  const safeLocB = (c.location_b || '').replace(/'/g, \"''\");\n  const safeDesc = (c.description || '').replace(/'/g, \"''\");\n  const safeExplanation = (c.explanation || '').replace(/'/g, \"''\");\n  const safeRec = (c.recommendation || '').replace(/'/g, \"''\");\n  const allowedVerdicts = ['genuine_nuance', 'misunderstanding', 'contradiction'];\n  const verdict = allowedVerdicts.includes(c.verdict) ? c.verdict : 'genuine_nuance';\n\n  return {\n    json: {\n      evaluation_id: evalId,\n      location_a: safeLocA,\n      location_b: safeLocB,\n      description: safeDesc,\n      verdict: verdict,\n      explanation: safeExplanation,\n      recommendation: safeRec,\n      skip: false\n    }\n  };\n});"
+      },
+      "id": "c1000001-0001-0001-0001-000000000011",
+      "name": "Prepare Consistency",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.skip ? 'SELECT 1' : 'INSERT INTO consistency_checks (evaluation_id, location_a, location_b, description, verdict, explanation, recommendation) VALUES (' + $json.evaluation_id + ', \\'' + $json.location_a + '\\', \\'' + $json.location_b + '\\', \\'' + $json.description + '\\', \\'' + $json.verdict + '\\', \\'' + $json.explanation + '\\', \\'' + $json.recommendation + '\\');' }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000012",
+      "name": "Insert Consistency",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        540
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const evalId = $node['Insert Evaluation'].json.id;\nconst data = $node['Prepare Eval Insert'].json;\nconst refs = data.reference_audit || [];\n\nif (refs.length === 0) {\n  return [{ json: { evaluation_id: evalId, skip: true } }];\n}\n\nreturn refs.map(r => {\n  const safeCitation = (r.citation || '').replace(/'/g, \"''\").substring(0, 500);\n  const allowedTypes = ['in_text', 'bibliography'];\n  const sourceType = allowedTypes.includes(r.source_type) ? r.source_type : 'in_text';\n  const matched = r.matched === true ? 'TRUE' : 'FALSE';\n  const safeIssue = (r.issue_type || '').replace(/'/g, \"''\").substring(0, 50);\n\n  return {\n    json: {\n      evaluation_id: evalId,\n      citation: safeCitation,\n      source_type: sourceType,\n      matched: matched,\n      issue_type: safeIssue || null,\n      skip: false\n    }\n  };\n});"
+      },
+      "id": "c1000001-0001-0001-0001-000000000016",
+      "name": "Prepare References",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.skip ? 'SELECT 1' : 'INSERT INTO reference_audit (evaluation_id, citation, source_type, matched, issue_type) VALUES (' + $json.evaluation_id + ', \\'' + $json.citation + '\\', \\'' + $json.source_type + '\\', ' + $json.matched + ', ' + ($json.issue_type ? '\\'' + $json.issue_type + '\\'' : 'NULL') + ');' }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000017",
+      "name": "Insert References",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        2460,
+        740
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const evalId = $node['Insert Evaluation'].json.id;\nconst tokenCode = $node['Build Prompt'].json.token_code || null;\nconst paperId = $node['Build Prompt'].json.paper_id;\nreturn [{ json: { evaluation_id: evalId, token_code: tokenCode, paper_id: paperId } }];"
+      },
+      "id": "c1000001-0001-0001-0001-000000000013",
+      "name": "Merge for Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2680,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.token_code ? 'UPDATE tokens SET ' + ($node['Build Prompt'].json.mode === 'final' ? 'final_evaluation_id' : 'draft_evaluation_id') + ' = ' + $json.evaluation_id + ', status = CASE WHEN draft_evaluation_id IS NULL THEN \\'draft_evaluated\\' ELSE \\'final_evaluated\\' END WHERE code = \\'' + $json.token_code + '\\';' : 'SELECT 1;' }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000025",
+      "name": "Update Token Eval",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        2900,
+        440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const tokenCode = $json.token_code || $node['Merge for Response'].json.token_code;\nconst evalId = $json.evaluation_id || $node['Merge for Response'].json.evaluation_id;\n\nif (!tokenCode) {\n  return [{ json: { skip_email: true, evaluation_id: evalId } }];\n}\n\n// Look up token email and determine draft vs final\nreturn [{ json: {\n  skip_email: false,\n  token_code: tokenCode,\n  evaluation_id: evalId\n} }];"
+      },
+      "id": "c1000001-0001-0001-0001-000000000026",
+      "name": "Check Email Needed",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.skip_email ? 'SELECT null as email, null as draft_or_final' : \"SELECT email, CASE WHEN final_evaluation_id = \" + $json.evaluation_id + \" THEN 'final' ELSE 'draft' END as draft_or_final FROM tokens WHERE code = '\" + ($json.token_code || '').replace(/'/g, '') + \"'\" }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000027",
+      "name": "Get Token Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        3340,
+        440
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $node['Check Email Needed'].json.skip_email }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "id": "c1000001-0001-0001-0001-000000000028",
+      "name": "Should Send Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        3560,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@beegraded.co.za",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.draft_or_final === 'final' ? 'Your Final Report & Comparison is Ready!' : 'Your Draft Report is Ready!' }}",
+        "text": "={{ $json.draft_or_final === 'final' ? 'Hi there!\\n\\nYour final evaluation is complete. View your full report and comparison with your draft:\\n\\nhttps://beegraded.co.za/t/' + $node['Check Email Needed'].json.token_code + '\\n\\nYour token journey is now complete. Create an account to save your work:\\nhttps://beegraded.co.za/get-started\\n\\n— BeeGraded Team' : 'Hi there!\\n\\nYour draft evaluation is complete! View your full report:\\n\\nhttps://beegraded.co.za/t/' + $node['Check Email Needed'].json.token_code + '\\n\\nWhen you\\'re ready, upload your final version for a comparison report:\\nhttps://beegraded.co.za/t/' + $node['Check Email Needed'].json.token_code + '/final\\n\\n— BeeGraded Team' }}",
+        "options": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000029",
+      "name": "Send Eval Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        3780,
+        340
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "bgSmtp01",
+          "name": "BeeGraded SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ evaluation_id: $node['Merge for Response'].json.evaluation_id, status: 'complete' }) }}",
+        "options": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000014",
+      "name": "Respond Evaluate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        440
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Evaluate": {
+      "main": [
+        [
+          {
+            "node": "Get Paper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Paper": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Claude API",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call Gemini API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude API": {
+      "main": [
+        [
+          {
+            "node": "Parse Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Gemini API": {
+      "main": [
+        [
+          {
+            "node": "Parse Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Claude": {
+      "main": [
+        [
+          {
+            "node": "Merge AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gemini": {
+      "main": [
+        [
+          {
+            "node": "Merge AI",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge AI": {
+      "main": [
+        [
+          {
+            "node": "Build Rich Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Rich Report": {
+      "main": [
+        [
+          {
+            "node": "Prepare Eval Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Eval Insert": {
+      "main": [
+        [
+          {
+            "node": "Insert Evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Evaluation": {
+      "main": [
+        [
+          {
+            "node": "Prepare Issues",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Strengths",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Consistency",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare References",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Issues": {
+      "main": [
+        [
+          {
+            "node": "Insert Issues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Strengths": {
+      "main": [
+        [
+          {
+            "node": "Insert Strengths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Consistency": {
+      "main": [
+        [
+          {
+            "node": "Insert Consistency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare References": {
+      "main": [
+        [
+          {
+            "node": "Insert References",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Issues": {
+      "main": [
+        [
+          {
+            "node": "Merge for Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Strengths": {
+      "main": [
+        [
+          {
+            "node": "Merge for Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Consistency": {
+      "main": [
+        [
+          {
+            "node": "Merge for Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert References": {
+      "main": [
+        [
+          {
+            "node": "Merge for Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge for Response": {
+      "main": [
+        [
+          {
+            "node": "Update Token Eval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Token Eval": {
+      "main": [
+        [
+          {
+            "node": "Check Email Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Email Needed": {
+      "main": [
+        [
+          {
+            "node": "Get Token Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token Email": {
+      "main": [
+        [
+          {
+            "node": "Should Send Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send Email?": {
+      "main": [
+        [
+          {
+            "node": "Send Eval Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Evaluate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Eval Email": {
+      "main": [
+        [
+          {
+            "node": "Respond Evaluate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model papers {
+  id              Int           @id @default(autoincrement())
+  user_id         Int?
+  filename        String
+  subject         String
+  assessment_type String
+  num_questions   Int           @default(0)
+  paper_text      String?
+  word_count      Int           @default(0)
+  page_count      Int           @default(0)
+  uploaded_at     DateTime      @default(now())
+  draft_or_final  String        @default("draft")
+  linked_paper_id Int?
+  evaluations     evaluations[]
+  user            users?        @relation(fields: [user_id], references: [id])
+}
+
+model users {
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  name        String?
+  magic_token String?
+  created_at  DateTime  @default(now())
+  papers      papers[]
+  tokens      tokens[]
+}
+
+model rubrics {
+  id                Int       @id @default(autoincrement())
+  source            String?
+  original_filename String?
+  raw_text          String?
+  parsed_json       Json?
+  confirmed         Boolean   @default(false)
+  programme         String?
+  module_name       String?
+  nqf_level         String?
+  assessment_type   String?
+  total_marks       Int?
+  created_at        DateTime  @default(now())
+}
+
+model evaluations {
+  id                Int                    @id @default(autoincrement())
+  paper_id          Int
+  mode              String                 @default("A")
+  draft_or_final    String                 @default("draft")
+  overall_score     Decimal                @default(0) @db.Decimal(5, 2)
+  knowledge_score   Decimal                @default(0) @db.Decimal(5, 2)
+  critical_score    Decimal                @default(0) @db.Decimal(5, 2)
+  application_score Decimal                @default(0) @db.Decimal(5, 2)
+  referencing_score Decimal                @default(0) @db.Decimal(5, 2)
+  structure_score   Decimal                @default(0) @db.Decimal(5, 2)
+  ai_risk_score     Decimal?               @db.Decimal(5, 2)
+  report_html       String?
+  linked_draft_id   Int?
+  created_at        DateTime               @default(now())
+  paper             papers                 @relation(fields: [paper_id], references: [id])
+  issues            evaluation_issues[]
+  strengths         evaluation_strengths[]
+  references        reference_audit[]
+  consistency       consistency_checks[]
+}
+
+model evaluation_issues {
+  id              Int         @id @default(autoincrement())
+  evaluation_id   Int
+  category        String
+  severity        String      @default("important")
+  what_issue      String?
+  where_in_paper  String?
+  why_chain       Json?
+  root_cause      String?
+  how_to_fix      String?
+  who_notices     String?
+  description     String?
+  recommendation  String?
+  example_before  String?
+  example_after   String?
+  fixed_in_final  Boolean?
+  evaluation      evaluations @relation(fields: [evaluation_id], references: [id])
+}
+
+model evaluation_strengths {
+  id               Int         @id @default(autoincrement())
+  evaluation_id    Int
+  category         String
+  what_well        String
+  where_in_paper   String?
+  why_chain        Json?
+  reusable_pattern String?
+  how_it_helps     String?
+  who_notices      String?
+  evaluation       evaluations @relation(fields: [evaluation_id], references: [id])
+}
+
+model reference_audit {
+  id            Int         @id @default(autoincrement())
+  evaluation_id Int
+  citation      String
+  source_type   String      @default("in_text")
+  matched       Boolean     @default(false)
+  issue_type    String?
+  evaluation    evaluations @relation(fields: [evaluation_id], references: [id])
+}
+
+model consistency_checks {
+  id              Int         @id @default(autoincrement())
+  evaluation_id   Int
+  location_a      String?
+  location_b      String?
+  description     String?
+  verdict         String?
+  explanation     String?
+  recommendation  String?
+  evaluation      evaluations @relation(fields: [evaluation_id], references: [id])
+}
+
+model tokens {
+  id                  Int       @id @default(autoincrement())
+  code                String    @unique
+  email               String?
+  status              String    @default("active")
+  price_paid          Decimal?  @db.Decimal(10, 2)
+  tier                String    @default("token")
+  coupon_code         String?
+  rubric_id           Int?
+  draft_paper_id      Int?
+  draft_evaluation_id Int?
+  final_paper_id      Int?
+  final_evaluation_id Int?
+  payment_id          Int?
+  user_id             Int?
+  expires_at          DateTime?
+  created_at          DateTime  @default(now())
+  user                users?    @relation(fields: [user_id], references: [id])
+}
+
+model free_samples {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique
+  paper_id      Int?
+  evaluation_id Int?
+  ip_address    String?
+  created_at    DateTime  @default(now())
+}
+
+model payments {
+  id             Int       @id @default(autoincrement())
+  paper_id       Int?
+  amount         Decimal?  @db.Decimal(10, 2)
+  status         String    @default("pending")
+  provider       String    @default("payfast")
+  provider_ref   String?
+  created_at     DateTime  @default(now())
+}
+
+model coupons {
+  id              Int       @id @default(autoincrement())
+  code            String    @unique
+  discount_pct    Int       @default(0)
+  max_uses        Int?
+  current_uses    Int       @default(0)
+  active          Boolean   @default(true)
+  affiliate_email String?
+  created_at      DateTime  @default(now())
+}

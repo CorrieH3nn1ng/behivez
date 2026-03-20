@@ -1,0 +1,132 @@
+{
+  "name": "Broodz Services CRUD",
+  "nodes": [
+    {
+      "name": "bz-service-create",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-service-create",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Get Talent ID",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id FROM talents WHERE user_id = $1",
+        "options": { "queryParams": "={{ $json.headers.authorization_user_id }}" }
+      }
+    },
+    {
+      "name": "Insert Service",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO services (talent_id, name, description, price, price_label, duration, sort_order) VALUES ($1, $2, $3, $4, $5, $6, COALESCE((SELECT MAX(sort_order) + 1 FROM services WHERE talent_id = $1), 0)) RETURNING *",
+        "options": {
+          "queryParams": "={{ $node['Get Talent ID'].json.id }},={{ $json.body.name }},={{ $json.body.description }},={{ $json.body.price }},={{ $json.body.price_label }},={{ $json.body.duration }}"
+        }
+      }
+    },
+    {
+      "name": "Respond Create",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": { "respondWith": "json" }
+    },
+    {
+      "name": "bz-service-update",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-service-update",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Update Service",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE services SET name = $2, description = $3, price = $4, price_label = $5, duration = $6, updated_at = NOW() WHERE id = $1 RETURNING *",
+        "options": {
+          "queryParams": "={{ $json.body.id }},={{ $json.body.name }},={{ $json.body.description }},={{ $json.body.price }},={{ $json.body.price_label }},={{ $json.body.duration }}"
+        }
+      }
+    },
+    {
+      "name": "Respond Update",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": { "respondWith": "json" }
+    },
+    {
+      "name": "bz-service-delete",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-service-delete",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Delete Service",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM services WHERE id = $1",
+        "options": { "queryParams": "={{ $json.body.id }}" }
+      }
+    },
+    {
+      "name": "Respond Delete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      }
+    },
+    {
+      "name": "bz-service-reorder",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-service-reorder",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Reorder Service",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE services SET sort_order = $2 WHERE id = $1",
+        "options": { "queryParams": "={{ $json.body.id }},={{ $json.body.sort_order }}" }
+      }
+    },
+    {
+      "name": "Respond Reorder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true }"
+      }
+    }
+  ],
+  "connections": {
+    "bz-service-create": { "main": [[ { "node": "Get Talent ID" } ]] },
+    "Get Talent ID": { "main": [[ { "node": "Insert Service" } ]] },
+    "Insert Service": { "main": [[ { "node": "Respond Create" } ]] },
+    "bz-service-update": { "main": [[ { "node": "Update Service" } ]] },
+    "Update Service": { "main": [[ { "node": "Respond Update" } ]] },
+    "bz-service-delete": { "main": [[ { "node": "Delete Service" } ]] },
+    "Delete Service": { "main": [[ { "node": "Respond Delete" } ]] },
+    "bz-service-reorder": { "main": [[ { "node": "Reorder Service" } ]] },
+    "Reorder Service": { "main": [[ { "node": "Respond Reorder" } ]] }
+  }
+}

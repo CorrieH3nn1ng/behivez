@@ -1,0 +1,154 @@
+{
+  "name": "BeeGraded - Rubric Confirm",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-rubric-confirm",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "i1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Confirm",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-rubric-confirm"
+    },
+    {
+      "parameters": {
+        "functionCode": "const body = items[0].json.body || items[0].json;\n\nconst rubricId = parseInt(body.rubric_id) || 0;\nconst tokenCode = (body.token_code || '').trim();\n\nreturn [{\n  json: {\n    rubric_id: rubricId,\n    token_code: tokenCode\n  }\n}];"
+      },
+      "id": "i1000001-0001-0001-0001-000000000002",
+      "name": "Parse Body",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT t.id AS token_id, t.rubric_id FROM tokens t WHERE t.code = '\" + $json.token_code.replace(/'/g, '') + \"' AND t.rubric_id = \" + $json.rubric_id + \" LIMIT 1;\" }}",
+        "additionalFields": {}
+      },
+      "id": "i1000001-0001-0001-0001-000000000003",
+      "name": "Validate Ownership",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.token_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "i1000001-0001-0001-0001-000000000004",
+      "name": "Owns Rubric?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ error: 'Token does not own this rubric' }) }}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "i1000001-0001-0001-0001-000000000005",
+      "name": "Respond Forbidden",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 420]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE rubrics SET confirmed = true WHERE id = \" + $node['Parse Body'].json.rubric_id + \";\" }}",
+        "additionalFields": {}
+      },
+      "id": "i1000001-0001-0001-0001-000000000006",
+      "name": "Confirm Rubric",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1120, 200],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE tokens SET status = 'rubric_uploaded' WHERE id = \" + $node['Validate Ownership'].json.token_id + \";\" }}",
+        "additionalFields": {}
+      },
+      "id": "i1000001-0001-0001-0001-000000000007",
+      "name": "Update Token Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1340, 200],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true }) }}",
+        "options": {}
+      },
+      "id": "i1000001-0001-0001-0001-000000000008",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1560, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Confirm": {
+      "main": [[{ "node": "Parse Body", "type": "main", "index": 0 }]]
+    },
+    "Parse Body": {
+      "main": [[{ "node": "Validate Ownership", "type": "main", "index": 0 }]]
+    },
+    "Validate Ownership": {
+      "main": [[{ "node": "Owns Rubric?", "type": "main", "index": 0 }]]
+    },
+    "Owns Rubric?": {
+      "main": [
+        [{ "node": "Confirm Rubric", "type": "main", "index": 0 }],
+        [{ "node": "Respond Forbidden", "type": "main", "index": 0 }]
+      ]
+    },
+    "Confirm Rubric": {
+      "main": [[{ "node": "Update Token Status", "type": "main", "index": 0 }]]
+    },
+    "Update Token Status": {
+      "main": [[{ "node": "Respond Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

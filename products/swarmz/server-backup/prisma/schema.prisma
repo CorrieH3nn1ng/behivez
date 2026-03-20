@@ -1,0 +1,374 @@
+// Fleetz Database Schema
+// PostgreSQL with Prisma ORM
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum VehicleStatus {
+  READY
+  OUT
+  RETURNED
+  CLEANING
+  WORKSHOP
+  MAINTENANCE
+  TRANSFERRED
+  INACTIVE
+}
+
+enum RentalStatus {
+  RESERVED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum InspectionType {
+  CHECKOUT
+  RETURN
+  DAMAGE
+  ROUTINE
+}
+
+enum DamageSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+}
+
+enum WalkInOutcome {
+  PENDING
+  CONVERTED
+  LOST
+  LEFT
+}
+
+// ============================================
+// CORE TABLES
+// ============================================
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users      User[]
+  vehicles   Vehicle[]
+  rentals    Rental[]
+  walkInLogs WalkInLog[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  role         UserRole @default(STAFF)
+  branchId     String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  branch           Branch             @relation(fields: [branchId], references: [id])
+  refreshTokens    RefreshToken[]
+  inspections      Inspection[]       @relation("PerformedBy")
+  vehicleStatusLog VehicleStatusLog[] @relation("ChangedBy")
+  checkouts        Rental[]           @relation("CheckedOutBy")
+  checkIns         Rental[]           @relation("CheckedInBy")
+  walkInLogs       WalkInLog[]        @relation("LoggedBy")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============================================
+// FLEET MANAGEMENT
+// ============================================
+
+model VehicleCategory {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  code        String  @unique
+  description String?
+  dailyRate   Decimal @db.Decimal(10, 2)
+  sortOrder   Int     @default(0)
+
+  // Relations
+  vehicles Vehicle[]
+  rentals  Rental[]
+}
+
+model Vehicle {
+  id                 String        @id @default(uuid())
+  registration       String        @unique
+  vin                String?       @unique
+  make               String
+  model              String
+  year               Int
+  color              String
+  categoryId         String
+  branchId           String
+  status             VehicleStatus @default(READY)
+  odometer           Int           @default(0)
+  fuelLevel          Int           @default(100)
+  imageUrl           String?
+  licenseDueDate     DateTime?
+  serviceDueDate     DateTime?
+  serviceDueOdometer Int?
+  lastInspectionDate DateTime?
+  isActive           Boolean       @default(true)
+  notes              String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  // Relations
+  category   VehicleCategory    @relation(fields: [categoryId], references: [id])
+  branch     Branch             @relation(fields: [branchId], references: [id])
+  rentals    Rental[]
+  statusLogs VehicleStatusLog[]
+  inspections Inspection[]
+
+  @@index([status])
+  @@index([branchId])
+  @@index([categoryId])
+}
+
+model VehicleStatusLog {
+  id             String        @id @default(uuid())
+  vehicleId      String
+  previousStatus VehicleStatus
+  newStatus      VehicleStatus
+  changedById    String
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  // Relations
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id])
+  changedBy User    @relation("ChangedBy", fields: [changedById], references: [id])
+
+  @@index([vehicleId])
+  @@index([createdAt])
+}
+
+// ============================================
+// CUSTOMERS & RENTALS
+// ============================================
+
+model Customer {
+  id              String   @id @default(uuid())
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String
+  idNumber        String?
+  licenseNumber   String?
+  licenseExpiry   DateTime?
+  address         String?
+  corporateId     String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  corporate CorporateAccount? @relation(fields: [corporateId], references: [id])
+  rentals   Rental[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([licenseNumber])
+}
+
+model CorporateAccount {
+  id              String   @id @default(uuid())
+  name            String
+  accountNumber   String   @unique
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  billingAddress  String?
+  creditLimit     Decimal? @db.Decimal(10, 2)
+  paymentTerms    Int      @default(30)
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  isActive        Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  customers Customer[]
+  rentals   Rental[]
+}
+
+model Rental {
+  id                   String       @id @default(uuid())
+  bookingRef           String       @unique
+  status               RentalStatus @default(RESERVED)
+  customerId           String
+  vehicleId            String?
+  categoryId           String
+  branchId             String
+  corporateId          String?
+  startDate            DateTime
+  endDate              DateTime
+  actualStartDate      DateTime?
+  actualEndDate        DateTime?
+  checkoutOdometer     Int?
+  returnOdometer       Int?
+  checkoutFuel         Int?
+  returnFuel           Int?
+  checkoutInspectionId String?
+  returnInspectionId   String?
+  checkedOutById       String?
+  checkedInById        String?
+  hasDamage            Boolean      @default(false)
+  totalAmount          Decimal?     @db.Decimal(10, 2)
+  notes                String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  // Relations
+  customer           Customer          @relation(fields: [customerId], references: [id])
+  vehicle            Vehicle?          @relation(fields: [vehicleId], references: [id])
+  category           VehicleCategory   @relation(fields: [categoryId], references: [id])
+  branch             Branch            @relation(fields: [branchId], references: [id])
+  corporate          CorporateAccount? @relation(fields: [corporateId], references: [id])
+  checkedOutBy       User?             @relation("CheckedOutBy", fields: [checkedOutById], references: [id])
+  checkedInBy        User?             @relation("CheckedInBy", fields: [checkedInById], references: [id])
+  checkoutInspection Inspection?       @relation("CheckoutInspection", fields: [checkoutInspectionId], references: [id])
+  returnInspection   Inspection?       @relation("ReturnInspection", fields: [returnInspectionId], references: [id])
+
+  @@index([status])
+  @@index([customerId])
+  @@index([vehicleId])
+  @@index([branchId])
+  @@index([startDate, endDate])
+}
+
+// ============================================
+// INSPECTIONS & DAMAGE
+// ============================================
+
+model Inspection {
+  id                String         @id @default(uuid())
+  vehicleId         String
+  rentalId          String?
+  type              InspectionType
+  performedById     String
+  odometer          Int
+  fuelLevel         Int
+  notes             String?
+  customerSignature String?        @db.Text
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  vehicle         Vehicle           @relation(fields: [vehicleId], references: [id])
+  performedBy     User              @relation("PerformedBy", fields: [performedById], references: [id])
+  photos          InspectionPhoto[]
+  damages         DamageRecord[]
+  checkoutRentals Rental[]          @relation("CheckoutInspection")
+  returnRentals   Rental[]          @relation("ReturnInspection")
+
+  @@index([vehicleId])
+  @@index([rentalId])
+  @@index([createdAt])
+}
+
+model InspectionPhoto {
+  id           String   @id @default(uuid())
+  inspectionId String
+  position     String
+  filePath     String
+  originalName String
+  mimeType     String
+  fileSize     Int
+  createdAt    DateTime @default(now())
+
+  // Relations
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+}
+
+model DamageRecord {
+  id           String         @id @default(uuid())
+  inspectionId String
+  location     String
+  description  String
+  severity     DamageSeverity
+  isPreExisting Boolean       @default(false)
+  repairCost   Decimal?       @db.Decimal(10, 2)
+  repairNotes  String?
+  repairedAt   DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+}
+
+// ============================================
+// WALK-IN TRACKING
+// ============================================
+
+model WalkInLog {
+  id                String        @id @default(uuid())
+  customerName      String
+  phone             String?
+  categoryRequested String?
+  startDate         DateTime?
+  endDate           DateTime?
+  outcome           WalkInOutcome @default(PENDING)
+  lostReason        String?
+  notes             String?
+  branchId          String
+  loggedById        String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  branch   Branch @relation(fields: [branchId], references: [id])
+  loggedBy User   @relation("LoggedBy", fields: [loggedById], references: [id])
+
+  @@index([branchId])
+  @@index([createdAt])
+  @@index([outcome])
+}

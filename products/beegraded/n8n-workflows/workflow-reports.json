@@ -1,0 +1,275 @@
+{
+  "name": "BeeGraded - Reports & Status",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bg-evaluations-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Eval Status",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200],
+      "webhookId": "bg-evaluations-status"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'SELECT id, paper_id, mode, draft_or_final, overall_score, report_html IS NOT NULL AS has_report FROM evaluations WHERE id = ' + $json.query.id + ';' }}",
+        "additionalFields": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000002",
+      "name": "Query Eval Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const row = items[0].json;\nif (!row || !row.id) {\n  return [{ json: { error: 'Evaluation not found' } }];\n}\nreturn [{\n  json: {\n    id: row.id,\n    status: row.has_report ? 'complete' : 'processing',\n    paper_id: row.paper_id\n  }\n}];"
+      },
+      "id": "d1000001-0001-0001-0001-000000000003",
+      "name": "Format Status Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0001-000000000004",
+      "name": "Respond Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bg-evaluations-report",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0002-000000000001",
+      "name": "Webhook Eval Report",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 480],
+      "webhookId": "bg-evaluations-report"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'SELECT id, report_html FROM evaluations WHERE id = ' + $json.query.id + ';' }}",
+        "additionalFields": {}
+      },
+      "id": "d1000001-0001-0001-0002-000000000002",
+      "name": "Query Eval Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [460, 480],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const row = items[0].json;\nif (!row || !row.id) {\n  return [{ json: { error: 'Evaluation not found' } }];\n}\nreturn [{\n  json: {\n    report_html: row.report_html || null\n  }\n}];"
+      },
+      "id": "d1000001-0001-0001-0002-000000000003",
+      "name": "Format Report Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 480]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0002-000000000004",
+      "name": "Respond Report",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 480]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bg-user-papers",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0003-000000000001",
+      "name": "Webhook User Papers",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 760],
+      "webhookId": "bg-user-papers"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'SELECT p.id AS paper_id, p.filename, p.subject, p.assessment_type, p.num_questions, p.word_count, p.page_count, p.uploaded_at, e.id AS evaluation_id, e.mode, e.draft_or_final, e.overall_score, e.knowledge_score, e.critical_score, e.application_score, e.referencing_score, e.structure_score, e.ai_risk_score, e.created_at AS eval_created_at FROM papers p LEFT JOIN evaluations e ON e.paper_id = p.id WHERE p.user_id = ' + $json.query.user_id + ' ORDER BY p.uploaded_at DESC;' }}",
+        "additionalFields": {}
+      },
+      "id": "d1000001-0001-0001-0003-000000000002",
+      "name": "Query User Papers",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [460, 760],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "// Group evaluations under their papers\nconst rows = items.map(i => i.json);\n\nif (!rows || rows.length === 0 || !rows[0].paper_id) {\n  return [{ json: { papers: [] } }];\n}\n\nconst papersMap = {};\n\nfor (const row of rows) {\n  const pid = row.paper_id;\n  if (!papersMap[pid]) {\n    papersMap[pid] = {\n      id: pid,\n      filename: row.filename,\n      subject: row.subject,\n      assessment_type: row.assessment_type,\n      num_questions: row.num_questions,\n      word_count: row.word_count,\n      page_count: row.page_count,\n      uploaded_at: row.uploaded_at,\n      evaluations: []\n    };\n  }\n  if (row.evaluation_id) {\n    papersMap[pid].evaluations.push({\n      id: row.evaluation_id,\n      mode: row.mode,\n      draft_or_final: row.draft_or_final,\n      overall_score: row.overall_score,\n      knowledge_score: row.knowledge_score,\n      critical_score: row.critical_score,\n      application_score: row.application_score,\n      referencing_score: row.referencing_score,\n      structure_score: row.structure_score,\n      ai_risk_score: row.ai_risk_score,\n      created_at: row.eval_created_at\n    });\n  }\n}\n\nconst papers = Object.values(papersMap);\nreturn [{ json: { papers } }];"
+      },
+      "id": "d1000001-0001-0001-0003-000000000003",
+      "name": "Group Papers",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 760]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.papers) }}",
+        "options": {}
+      },
+      "id": "d1000001-0001-0001-0003-000000000004",
+      "name": "Respond Papers",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 760]
+    }
+  ],
+  "connections": {
+    "Webhook Eval Status": {
+      "main": [
+        [
+          {
+            "node": "Query Eval Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Eval Status": {
+      "main": [
+        [
+          {
+            "node": "Format Status Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Status Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Eval Report": {
+      "main": [
+        [
+          {
+            "node": "Query Eval Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Eval Report": {
+      "main": [
+        [
+          {
+            "node": "Format Report Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Report Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook User Papers": {
+      "main": [
+        [
+          {
+            "node": "Query User Papers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query User Papers": {
+      "main": [
+        [
+          {
+            "node": "Group Papers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Group Papers": {
+      "main": [
+        [
+          {
+            "node": "Respond Papers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

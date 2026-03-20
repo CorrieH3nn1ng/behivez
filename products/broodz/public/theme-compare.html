@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Broodz — Theme Compare: Afro-Future vs Fresh & Warm vs Hybrid</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: #e8e8e8; }
+h1 { text-align: center; padding: 32px 16px 4px; font-size: 24px; color: #333; }
+p.sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 24px; }
+
+.row { display: flex; gap: 24px; max-width: 1400px; margin: 0 auto 40px; padding: 0 16px; }
+.col { flex: 1; min-width: 0; }
+.section-title { text-align: center; font-size: 20px; font-weight: 800; margin-bottom: 16px; padding-top: 24px; color: #333; }
+.section-sub { text-align: center; font-size: 12px; color: #999; margin-bottom: 24px; }
+
+.mock { border-radius: 12px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,0.12); margin-bottom: 20px; }
+
+/* Header */
+.hdr { display: flex; align-items: center; padding: 10px 16px; gap: 10px; font-size: 13px; }
+.hdr .logo { font-weight: 800; font-size: 17px; }
+.hdr .sp { margin-left: auto; }
+.hdr .btn { padding: 5px 14px; border-radius: 6px; font-weight: 700; font-size: 12px; border: none; cursor: pointer; }
+
+/* Hero */
+.hero { padding: 48px 24px; text-align: center; }
+.hero h2 { font-size: 26px; font-weight: 800; margin-bottom: 8px; line-height: 1.2; }
+.hero p { font-size: 13px; opacity: 0.75; max-width: 340px; margin: 0 auto 18px; }
+.hero .cta { display: inline-block; padding: 10px 28px; border-radius: 8px; font-weight: 700; font-size: 13px; text-decoration: none; }
+
+/* Cards */
+.cards { display: flex; gap: 10px; padding: 16px; }
+.cd { flex: 1; border-radius: 10px; overflow: hidden; }
+.cd .ci { height: 60px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.cd .cb { padding: 8px; }
+.cd .cb h4 { font-size: 12px; margin-bottom: 2px; }
+.cd .cb p { font-size: 10px; opacity: 0.6; }
+.cd .badge { display: inline-block; font-size: 9px; padding: 2px 6px; border-radius: 99px; margin-top: 4px; }
+
+/* Footer */
+.ftr { padding: 8px 16px; text-align: center; font-size: 10px; opacity: 0.5; }
+
+/* Login */
+.login-mock { padding: 32px 24px; text-align: center; }
+.login-mock h3 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.login-mock p { font-size: 12px; opacity: 0.6; margin-bottom: 20px; }
+.login-mock .field { display: block; width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid; margin-bottom: 10px; font-size: 13px; outline: none; }
+.login-mock .lbtn { display: block; width: 100%; padding: 11px; border-radius: 8px; font-weight: 700; font-size: 14px; border: none; cursor: pointer; margin-top: 6px; }
+.login-mock .link { font-size: 12px; margin-top: 12px; display: block; text-decoration: none; }
+
+/* Dashboard sidebar */
+.dash { display: flex; min-height: 260px; }
+.dash .side { width: 160px; padding: 12px; flex-shrink: 0; }
+.dash .side h5 { font-size: 11px; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+.dash .side .si { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; margin-bottom: 3px; font-size: 12px; cursor: pointer; }
+.dash .side .si.active { font-weight: 700; }
+.dash .main { flex: 1; padding: 16px; }
+.dash .main h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.dash .main .stat { display: flex; gap: 10px; }
+.dash .main .stat-card { flex: 1; padding: 12px; border-radius: 8px; text-align: center; }
+.dash .main .stat-card .num { font-size: 22px; font-weight: 800; }
+.dash .main .stat-card .lbl { font-size: 10px; opacity: 0.6; margin-top: 2px; }
+
+/* Mobile preview */
+.mobile-frame { width: 280px; margin: 0 auto; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 8px solid #222; }
+
+@media (max-width: 900px) {
+  .row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<h1>3. Afro-Future vs 4. Fresh & Warm vs Hybrid</h1>
+<p class="sub">Scroll down to see landing, login, dashboard, and mobile for each</p>
+
+<!-- ==================== LANDING PAGE ==================== -->
+<div class="section-title">Landing Page</div>
+<div class="section-sub">Header + Hero + Featured Talents</div>
+<div class="row">
+
+<!-- AFRO-FUTURE -->
+<div class="col">
+  <div style="text-align:center;font-weight:700;margin-bottom:8px;color:#6b5b95;">3. Afro-Future</div>
+  <div class="mock">
+    <div class="hdr" style="background:#0f0e17;color:#fff;">
+      <div class="logo" style="color:#e8b931;">&#x1F41D; Broodz</div>
+      <span class="sp"></span>
+      <span style="color:#a7a9be;">Browse</span>
+      <button class="btn" style="background:#e8b931;color:#0f0e17;">Get Started</button>
+    </div>
+    <div class="hero" style="background:linear-gradient(135deg,#0f0e17,#1a1830,#2a1f4e);color:#fffffe;">
+      <h2>Your talent deserves<br>a <span style="color:#e8b931;">storefront</span></h2>
+      <p>Build your brand. Showcase your work. Get discovered across South Africa.</p>
+      <a class="cta" style="background:#e8b931;color:#0f0e17;">Create Your Storefront</a>
+    </div>
+    <div class="cards" style="background:#0a0914;">
+      <div class="cd" style="background:#171525;border:1px solid #2a2745;">
+        <div class="ci" style="background:linear-gradient(135deg,#1a1830,#2a1f4e);">&#x1F33F;</div>
+        <div class="cb" style="color:#d0cfe0;"><h4>Maggie Senyatsi</h4><p>Landscaping &middot; JHB</p><span class="badge" style="background:#e8b93122;color:#e8b931;">Landscaping</span></div>
+      </div>
+      <div class="cd" style="background:#171525;border:1px solid #2a2745;">
+        <div class="ci" style="background:linear-gradient(135deg,#2a1f4e,#3d2d6b);">&#x1F3A8;</div>
+        <div class="cb" style="color:#d0cfe0;"><h4>Thabo Designs</h4><p>Art &middot; Cape Town</p><span class="badge" style="background:#e8b93122;color:#e8b931;">Art & Design</span></div>
+      </div>
+      <div class="cd" style="background:#171525;border:1px solid #2a2745;">
+        <div class="ci" style="background:linear-gradient(135deg,#3d2d6b,#1a1830);">&#x1F4F8;</div>
+        <div class="cb" style="color:#d0cfe0;"><h4>Lerato Captures</h4><p>Photo &middot; Pretoria</p><span class="badge" style="background:#e8b93122;color:#e8b931;">Photography</span></div>
+      </div>
+    </div>
+    <div class="ftr" style="background:#070611;color:#5a5880;">Broodz &copy; 2026</div>
+  </div>
+</div>
+
+<!-- FRESH & WARM -->
+<div class="col">
+  <div style="text-align:center;font-weight:700;margin-bottom:8px;color:#e85d04;">4. Fresh & Warm</div>
+  <div class="mock">
+    <div class="hdr" style="background:#fff8f0;color:#2d2013;border-bottom:1px solid #f0e0d0;">
+      <div class="logo" style="color:#e85d04;">&#x1F41D; Broodz</div>
+      <span class="sp"></span>
+      <span style="color:#6b5c4e;">Browse</span>
+      <button class="btn" style="background:#e85d04;color:#fff;">Get Started</button>
+    </div>
+    <div class="hero" style="background:linear-gradient(135deg,#fff8f0,#fef0e0,#fde8d0);color:#2d2013;">
+      <h2>Your talent deserves<br>a <span style="color:#e85d04;">storefront</span></h2>
+      <p style="color:#6b5c4e;">Build your brand. Showcase your work. Get discovered across South Africa.</p>
+      <a class="cta" style="background:#e85d04;color:#fff;">Create Your Storefront</a>
+    </div>
+    <div class="cards" style="background:#fffcf5;">
+      <div class="cd" style="background:#fff;border:1px solid #f0e0d0;">
+        <div class="ci" style="background:linear-gradient(135deg,#e85d04,#f09040);">&#x1F33F;</div>
+        <div class="cb" style="color:#2d2013;"><h4>Maggie Senyatsi</h4><p>Landscaping &middot; JHB</p><span class="badge" style="background:#0d9488;color:#fff;">Landscaping</span></div>
+      </div>
+      <div class="cd" style="background:#fff;border:1px solid #f0e0d0;">
+        <div class="ci" style="background:linear-gradient(135deg,#f09040,#f5b060);">&#x1F3A8;</div>
+        <div class="cb" style="color:#2d2013;"><h4>Thabo Designs</h4><p>Art &middot; Cape Town</p><span class="badge" style="background:#0d9488;color:#fff;">Art & Design</span></div>
+      </div>
+      <div class="cd" style="background:#fff;border:1px solid #f0e0d0;">
+        <div class="ci" style="background:linear-gradient(135deg,#f5b060,#e85d04);">&#x1F4F8;</div>
+        <div class="cb" style="color:#2d2013;"><h4>Lerato Captures</h4><p>Photo &middot; Pretoria</p><span class="badge" style="background:#0d9488;color:#fff;">Photography</span></div>
+      </div>
+    </div>
+    <div class="ftr" style="background:#2d2013;color:#a09080;">Broodz &copy; 2026</div>
+  </div>
+</div>
+
+<!-- HYBRID -->
+<div class="col">
+  <div style="text-align:center;font-weight:700;margin-bottom:8px;color:#d4851e;">5. Hybrid (Dark + Warm Gold)</div>
+  <div class="mock">
+    <div class="hdr" style="background:#1a1520;color:#fff;">
+      <div class="logo" style="color:#f0a030;">&#x1F41D; Broodz</div>
+      <span class="sp"></span>
+      <span style="color:#b0a090;">Browse</span>
+      <button class="btn" style="background:#f0a030;color:#1a1520;">Get Started</button>
+    </div>
+    <div class="hero" style="background:linear-gradient(135deg,#1a1520 0%,#2a1e30 40%,#3a2520 100%);color:#fff8f0;">
+      <h2>Your talent deserves<br>a <span style="color:#f0a030;">storefront</span></h2>
+      <p>Build your brand. Showcase your work. Get discovered across South Africa.</p>
+      <a class="cta" style="background:linear-gradient(135deg,#e85d04,#f0a030);color:#fff;">Create Your Storefront</a>
+    </div>
+    <div class="cards" style="background:#faf5ef;">
+      <div class="cd" style="background:#fff;border:1px solid #e8ddd0;border-radius:10px;">
+        <div class="ci" style="background:linear-gradient(135deg,#2a1e30,#3a2520);">&#x1F33F;</div>
+        <div class="cb" style="color:#2d2013;"><h4>Maggie Senyatsi</h4><p>Landscaping &middot; JHB</p><span class="badge" style="background:#1a152020;color:#1a1520;">Landscaping</span></div>
+      </div>
+      <div class="cd" style="background:#fff;border:1px solid #e8ddd0;border-radius:10px;">
+        <div class="ci" style="background:linear-gradient(135deg,#3a2520,#5a3830);">&#x1F3A8;</div>
+        <div class="cb" style="color:#2d2013;"><h4>Thabo Designs</h4><p>Art &middot; Cape Town</p><span class="badge" style="background:#1a152020;color:#1a1520;">Art & Design</span></div>
+      </div>
+      <div class="cd" style="background:#fff;border:1px solid #e8ddd0;border-radius:10px;">
+        <div class="ci" style="background:linear-gradient(135deg,#5a3830,#2a1e30);">&#x1F4F8;</div>
+        <div class="cb" style="color:#2d2013;"><h4>Lerato Captures</h4><p>Photo &middot; Pretoria</p><span class="badge" style="background:#1a152020;color:#1a1520;">Photography</span></div>
+      </div>
+    </div>
+    <div class="ftr" style="background:#1a1520;color:#806858;">Broodz &copy; 2026</div>
+  </div>
+</div>
+</div>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div class="section-title">Login Page</div>
+<div class="section-sub">First impression for new users</div>
+<div class="row">
+
+<!-- AFRO-FUTURE LOGIN -->
+<div class="col">
+  <div class="mock">
+    <div class="hdr" style="background:#0f0e17;color:#fff;">
+      <div class="logo" style="color:#e8b931;">&#x1F41D; Broodz</div>
+    </div>
+    <div class="login-mock" style="background:#0f0e17;color:#fffffe;">
+      <h3>Welcome back</h3>
+      <p style="color:#a7a9be;">Sign in to your storefront</p>
+      <input class="field" style="background:#1a1830;border-color:#2a2745;color:#fff;" placeholder="Email" />
+      <input class="field" style="background:#1a1830;border-color:#2a2745;color:#fff;" placeholder="Password" type="password" />
+      <button class="lbtn" style="background:#e8b931;color:#0f0e17;">Sign In</button>
+      <a class="link" style="color:#e8b931;">Forgot password?</a>
+      <a class="link" style="color:#a7a9be;">Don't have an account? <span style="color:#e8b931;">Sign up</span></a>
+    </div>
+  </div>
+</div>
+
+<!-- FRESH LOGIN -->
+<div class="col">
+  <div class="mock">
+    <div class="hdr" style="background:#fff8f0;color:#2d2013;border-bottom:1px solid #f0e0d0;">
+      <div class="logo" style="color:#e85d04;">&#x1F41D; Broodz</div>
+    </div>
+    <div class="login-mock" style="background:#fff8f0;color:#2d2013;">
+      <h3>Welcome back</h3>
+      <p style="color:#6b5c4e;">Sign in to your storefront</p>
+      <input class="field" style="background:#fff;border-color:#e0d0c0;color:#2d2013;" placeholder="Email" />
+      <input class="field" style="background:#fff;border-color:#e0d0c0;color:#2d2013;" placeholder="Password" type="password" />
+      <button class="lbtn" style="background:#e85d04;color:#fff;">Sign In</button>
+      <a class="link" style="color:#e85d04;">Forgot password?</a>
+      <a class="link" style="color:#6b5c4e;">Don't have an account? <span style="color:#e85d04;">Sign up</span></a>
+    </div>
+  </div>
+</div>
+
+<!-- HYBRID LOGIN -->
+<div class="col">
+  <div class="mock">
+    <div class="hdr" style="background:#1a1520;color:#fff;">
+      <div class="logo" style="color:#f0a030;">&#x1F41D; Broodz</div>
+    </div>
+    <div class="login-mock" style="background:linear-gradient(180deg,#1a1520,#251d28);color:#fff8f0;">
+      <h3>Welcome back</h3>
+      <p style="color:#b0a090;">Sign in to your storefront</p>
+      <input class="field" style="background:#2a2230;border-color:#3a3040;color:#fff;" placeholder="Email" />
+      <input class="field" style="background:#2a2230;border-color:#3a3040;color:#fff;" placeholder="Password" type="password" />
+      <button class="lbtn" style="background:linear-gradient(135deg,#e85d04,#f0a030);color:#fff;">Sign In</button>
+      <a class="link" style="color:#f0a030;">Forgot password?</a>
+      <a class="link" style="color:#b0a090;">Don't have an account? <span style="color:#f0a030;">Sign up</span></a>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ==================== DASHBOARD ==================== -->
+<div class="section-title">Dashboard</div>
+<div class="section-sub">Where artists manage their storefront daily</div>
+<div class="row">
+
+<!-- AFRO-FUTURE DASHBOARD -->
+<div class="col">
+  <div class="mock">
+    <div class="hdr" style="background:#0f0e17;color:#fff;">
+      <div class="logo" style="color:#e8b931;">&#x1F41D; Broodz</div>
+      <span class="sp"></span>
+      <span style="color:#a7a9be;font-size:12px;">View Storefront</span>
+    </div>
+    <div class="dash">
+      <div class="side" style="background:#151320;color:#a7a9be;">
+        <h5 style="color:#e8b931;">Dashboard</h5>
+        <div class="si active" style="background:#e8b93118;color:#e8b931;">&#x1F3E0; Home</div>
+        <div class="si">&#x1F464; Profile</div>
+        <div class="si">&#x1F527; Services</div>
+        <div class="si">&#x1F6CD; Shop</div>
+        <div class="si">&#x1F4F7; Portfolio</div>
+        <div class="si">&#x2709; Enquiries</div>
+        <div style="border-top:1px solid #2a2745;margin:8px 0;"></div>
+        <div class="si">&#x1F4B0; Finances &#x2197;</div>
+      </div>
+      <div class="main" style="background:#0f0e17;color:#fffffe;">
+        <h3>Welcome, Maggie!</h3>
+        <div class="stat">
+          <div class="stat-card" style="background:#1a1830;">
+            <div class="num" style="color:#e8b931;">3</div>
+            <div class="lbl" style="color:#a7a9be;">Services</div>
+          </div>
+          <div class="stat-card" style="background:#1a1830;">
+            <div class="num" style="color:#e8b931;">12</div>
+            <div class="lbl" style="color:#a7a9be;">Portfolio</div>
+          </div>
+          <div class="stat-card" style="background:#1a1830;">
+            <div class="num" style="color:#e8b931;">5</div>
+            <div class="lbl" style="color:#a7a9be;">Enquiries</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FRESH DASHBOARD -->
+<div class="col">
+  <div class="mock">
+    <div class="hdr" style="background:#fff8f0;color:#2d2013;border-bottom:1px solid #f0e0d0;">
+      <div class="logo" style="color:#e85d04;">&#x1F41D; Broodz</div>
+      <span class="sp"></span>
+      <span style="color:#6b5c4e;font-size:12px;">View Storefront</span>
+    </div>
+    <div class="dash">
+      <div class="side" style="background:#fef8f0;color:#6b5c4e;border-right:1px solid #f0e0d0;">
+        <h5 style="color:#e85d04;">Dashboard</h5>
+        <div class="si active" style="background:#e85d0415;color:#e85d04;">&#x1F3E0; Home</div>
+        <div class="si">&#x1F464; Profile</div>
+        <div class="si">&#x1F527; Services</div>
+        <div class="si">&#x1F6CD; Shop</div>
+        <div class="si">&#x1F4F7; Portfolio</div>
+        <div class="si">&#x2709; Enquiries</div>
+        <div style="border-top:1px solid #e8ddd0;margin:8px 0;"></div>
+        <div class="si">&#x1F4B0; Finances &#x2197;</div>
+      </div>
+      <div class="main" style="background:#fffcf5;color:#2d2013;">
+        <h3>Welcome, Maggie!</h3>
+        <div class="stat">
+          <div class="stat-card" style="background:#fff;border:1px solid #f0e0d0;">
+            <div class="num" style="color:#e85d04;">3</div>
+            <div class="lbl" style="color:#6b5c4e;">Services</div>
+          </div>
+          <div class="stat-card" style="background:#fff;border:1px solid #f0e0d0;">
+            <div class="num" style="color:#e85d04;">12</div>
+            <div class="lbl" style="color:#6b5c4e;">Portfolio</div>
+          </div>
+          <div class="stat-card" style="background:#fff;border:1px solid #f0e0d0;">
+            <div class="num" style="color:#0d9488;">5</div>
+            <div class="lbl" style="color:#6b5c4e;">Enquiries</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HYBRID DASHBOARD -->
+<div class="col">
+  <div class="mock">
+    <div class="hdr" style="background:#1a1520;color:#fff;">
+      <div class="logo" style="color:#f0a030;">&#x1F41D; Broodz</div>
+      <span class="sp"></span>
+      <span style="color:#b0a090;font-size:12px;">View Storefront</span>
+    </div>
+    <div class="dash">
+      <div class="side" style="background:#1e1825;color:#c0b0a0;">
+        <h5 style="color:#f0a030;">Dashboard</h5>
+        <div class="si active" style="background:#f0a03018;color:#f0a030;">&#x1F3E0; Home</div>
+        <div class="si">&#x1F464; Profile</div>
+        <div class="si">&#x1F527; Services</div>
+        <div class="si">&#x1F6CD; Shop</div>
+        <div class="si">&#x1F4F7; Portfolio</div>
+        <div class="si">&#x2709; Enquiries</div>
+        <div style="border-top:1px solid #3a3040;margin:8px 0;"></div>
+        <div class="si">&#x1F4B0; Finances &#x2197;</div>
+      </div>
+      <div class="main" style="background:#faf5ef;color:#2d2013;">
+        <h3>Welcome, Maggie!</h3>
+        <div class="stat">
+          <div class="stat-card" style="background:#fff;border:1px solid #e8ddd0;">
+            <div class="num" style="color:#e85d04;">3</div>
+            <div class="lbl" style="color:#6b5c4e;">Services</div>
+          </div>
+          <div class="stat-card" style="background:#fff;border:1px solid #e8ddd0;">
+            <div class="num" style="color:#e85d04;">12</div>
+            <div class="lbl" style="color:#6b5c4e;">Portfolio</div>
+          </div>
+          <div class="stat-card" style="background:#fff;border:1px solid #e8ddd0;">
+            <div class="num" style="color:#f0a030;">5</div>
+            <div class="lbl" style="color:#6b5c4e;">Enquiries</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ==================== QUICK SUMMARY ==================== -->
+<div style="max-width:900px;margin:0 auto 64px;padding:0 16px;">
+  <div class="section-title" style="margin-bottom:16px;">Quick Summary</div>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <tr style="background:#f5f5f5;">
+      <th style="padding:12px;text-align:left;"></th>
+      <th style="padding:12px;text-align:center;">3. Afro-Future</th>
+      <th style="padding:12px;text-align:center;">4. Fresh & Warm</th>
+      <th style="padding:12px;text-align:center;">5. Hybrid</th>
+    </tr>
+    <tr><td style="padding:10px;font-weight:600;">Mood</td>
+      <td style="padding:10px;text-align:center;">Premium, aspirational</td>
+      <td style="padding:10px;text-align:center;">Friendly, approachable</td>
+      <td style="padding:10px;text-align:center;">Bold but warm</td>
+    </tr>
+    <tr style="background:#fafafa;"><td style="padding:10px;font-weight:600;">Header</td>
+      <td style="padding:10px;text-align:center;">Dark navy + gold</td>
+      <td style="padding:10px;text-align:center;">Light cream + orange</td>
+      <td style="padding:10px;text-align:center;">Dark plum + warm gold</td>
+    </tr>
+    <tr><td style="padding:10px;font-weight:600;">Dashboard</td>
+      <td style="padding:10px;text-align:center;">Full dark mode</td>
+      <td style="padding:10px;text-align:center;">Full light mode</td>
+      <td style="padding:10px;text-align:center;">Dark sidebar + light content</td>
+    </tr>
+    <tr style="background:#fafafa;"><td style="padding:10px;font-weight:600;">Target user feel</td>
+      <td style="padding:10px;text-align:center;">"This is premium"</td>
+      <td style="padding:10px;text-align:center;">"This is easy & fun"</td>
+      <td style="padding:10px;text-align:center;">"This is creative & pro"</td>
+    </tr>
+    <tr><td style="padding:10px;font-weight:600;">Best for</td>
+      <td style="padding:10px;text-align:center;">High-end positioning</td>
+      <td style="padding:10px;text-align:center;">Mass market, mobile-first</td>
+      <td style="padding:10px;text-align:center;">Best of both worlds</td>
+    </tr>
+    <tr style="background:#fafafa;"><td style="padding:10px;font-weight:600;">Risk</td>
+      <td style="padding:10px;text-align:center;">Can feel distant</td>
+      <td style="padding:10px;text-align:center;">Can feel generic</td>
+      <td style="padding:10px;text-align:center;">None — balances both</td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>

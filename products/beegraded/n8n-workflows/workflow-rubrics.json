@@ -1,0 +1,137 @@
+{
+  "name": "bgRubric01 — Rubric Weights",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bg-rubric-get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "rubric-get-webhook",
+      "name": "GET /bg-rubric-get",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM rubrics WHERE paper_id = {{ $json.query.paper_id }} LIMIT 1",
+        "options": {}
+      },
+      "id": "rubric-get-query",
+      "name": "Get Rubric",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [400, 200],
+      "credentials": {
+        "postgres": { "id": "1", "name": "BeeGraded DB" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.knowledge_weight ? $json : { knowledge_weight: 25, critical_weight: 25, application_weight: 20, referencing_weight: 15, structure_weight: 15 } }}",
+        "options": {}
+      },
+      "id": "rubric-get-response",
+      "name": "Respond Get",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-rubric-save",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "rubric-save-webhook",
+      "name": "POST /bg-rubric-save",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.body.knowledge_weight + $json.body.critical_weight + $json.body.application_weight + $json.body.referencing_weight + $json.body.structure_weight }}",
+              "value2": 100
+            }
+          ]
+        }
+      },
+      "id": "rubric-validate-sum",
+      "name": "Validate Sum=100",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO rubrics (paper_id, user_id, knowledge_weight, critical_weight, application_weight, referencing_weight, structure_weight) VALUES ({{ $json.body.paper_id }}, {{ $json.body.user_id }}, {{ $json.body.knowledge_weight }}, {{ $json.body.critical_weight }}, {{ $json.body.application_weight }}, {{ $json.body.referencing_weight }}, {{ $json.body.structure_weight }}) ON CONFLICT (paper_id) DO UPDATE SET knowledge_weight = EXCLUDED.knowledge_weight, critical_weight = EXCLUDED.critical_weight, application_weight = EXCLUDED.application_weight, referencing_weight = EXCLUDED.referencing_weight, structure_weight = EXCLUDED.structure_weight RETURNING *",
+        "options": {}
+      },
+      "id": "rubric-upsert",
+      "name": "Upsert Rubric",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [600, 450],
+      "credentials": {
+        "postgres": { "id": "1", "name": "BeeGraded DB" }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: true, rubric: $json } }}",
+        "options": {}
+      },
+      "id": "rubric-save-response",
+      "name": "Respond Save OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [800, 450]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { success: false, message: 'Weights must sum to 100' } }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "rubric-save-error",
+      "name": "Respond Save Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [600, 600]
+    }
+  ],
+  "connections": {
+    "GET /bg-rubric-get": {
+      "main": [[{ "node": "Get Rubric", "type": "main", "index": 0 }]]
+    },
+    "Get Rubric": {
+      "main": [[{ "node": "Respond Get", "type": "main", "index": 0 }]]
+    },
+    "POST /bg-rubric-save": {
+      "main": [[{ "node": "Validate Sum=100", "type": "main", "index": 0 }]]
+    },
+    "Validate Sum=100": {
+      "main": [
+        [{ "node": "Upsert Rubric", "type": "main", "index": 0 }],
+        [{ "node": "Respond Save Error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Upsert Rubric": {
+      "main": [[{ "node": "Respond Save OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

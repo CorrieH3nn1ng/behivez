@@ -1,0 +1,86 @@
+{
+  "name": "Extract Vehicle Receipt",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "extract-vehicle-receipt",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-vehicle-receipt",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "extract-vehicle-receipt"
+    },
+    {
+      "parameters": {
+        "model": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.1,
+          "maxOutputTokens": 2048
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Analyze this vehicle-related receipt, invoice, or document and extract expense information. Return ONLY valid JSON with no markdown formatting or code blocks.\n\nThis could be: a fuel slip, vehicle service invoice, tyre receipt, insurance document, toll receipt, licence renewal, parking ticket, or rental contract.\n\nExtract these fields:\n- vendor: Name of the business/vendor\n- date: Date of the transaction (format: YYYY-MM-DD)\n- amount: Total amount paid (number only, no currency symbols)\n- category: One of: Fuel, Service, Tyres, Insurance, Toll, Licence, Parking, Other\n- litres: Litres of fuel (if fuel receipt, number only)\n- price_per_litre: Price per litre (if fuel receipt, number only)\n- odometer_km: Odometer reading if shown (number only)\n- description: Brief description of the expense\n\nIf this is a rental contract, also extract:\n- rental_start: Start date of rental (format: YYYY-MM-DD)\n- rental_end: End date of rental (format: YYYY-MM-DD)\n- rental_total: Total rental cost (number only)\n- vehicle_make: Vehicle make\n- vehicle_model: Vehicle model\n- vehicle_year: Vehicle year\n- vehicle_registration: Registration/licence plate number\n\nIf a field is not found or unclear, use null.\nFor amounts, use numbers only (no currency symbols).\nCurrency is assumed ZAR unless otherwise stated.\n\nReturn JSON:\n{\"vendor\": \"string or null\", \"date\": \"YYYY-MM-DD or null\", \"amount\": number or null, \"category\": \"Fuel|Service|Tyres|Insurance|Toll|Licence|Parking|Other\", \"litres\": number or null, \"price_per_litre\": number or null, \"odometer_km\": number or null, \"description\": \"string or null\", \"rental_start\": \"YYYY-MM-DD or null\", \"rental_end\": \"YYYY-MM-DD or null\", \"rental_total\": number or null, \"vehicle_make\": \"string or null\", \"vehicle_model\": \"string or null\", \"vehicle_year\": number or null, \"vehicle_registration\": \"string or null\", \"confidence\": number between 0 and 100, \"notes\": \"string or null\"}"
+            }
+          ]
+        },
+        "inputType": "fromPrevious"
+      },
+      "id": "gemini-extract",
+      "name": "Gemini Extract",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the Gemini response and clean amounts\nconst input = $input.first().json;\nlet text = input.text || input.output || '';\n\n// Strip markdown code blocks\ntext = text.replace(/```json\\s*/g, '').replace(/```\\s*/g, '').trim();\n\nfunction parseAmt(v) {\n  if (v === null || v === undefined) return null;\n  if (typeof v === 'number') return v;\n  const cleaned = String(v).replace(/[^0-9.-]/g, '');\n  const n = parseFloat(cleaned);\n  return isNaN(n) ? null : Math.round(n * 100) / 100;\n}\n\ntry {\n  const data = JSON.parse(text);\n  \n  return [{\n    json: {\n      success: true,\n      data: {\n        vendor: data.vendor || null,\n        date: data.date || null,\n        amount: parseAmt(data.amount),\n        category: data.category || 'Other',\n        litres: parseAmt(data.litres),\n        price_per_litre: parseAmt(data.price_per_litre),\n        odometer_km: data.odometer_km ? parseInt(data.odometer_km) : null,\n        description: data.description || null,\n        rental_start: data.rental_start || null,\n        rental_end: data.rental_end || null,\n        rental_total: parseAmt(data.rental_total),\n        vehicle_make: data.vehicle_make || null,\n        vehicle_model: data.vehicle_model || null,\n        vehicle_year: data.vehicle_year ? parseInt(data.vehicle_year) : null,\n        vehicle_registration: data.vehicle_registration || null,\n        confidence: data.confidence || null,\n        notes: data.notes || null\n      }\n    }\n  }];\n} catch (e) {\n  return [{\n    json: {\n      success: false,\n      error: 'Failed to parse extraction: ' + e.message,\n      raw: text\n    }\n  }];\n}"
+      },
+      "id": "parse-response",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Gemini Extract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Extract": {
+      "main": [
+        [
+          {
+            "node": "Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "pollenz"
+    },
+    {
+      "name": "vehicle"
+    }
+  ]
+}

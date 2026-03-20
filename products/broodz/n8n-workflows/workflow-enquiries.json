@@ -1,0 +1,118 @@
+{
+  "name": "Broodz Enquiries",
+  "nodes": [
+    {
+      "name": "bz-enquiry-submit",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-enquiry-submit",
+        "responseMode": "responseNode"
+      },
+      "notes": "No auth required. Receives { talent_id, visitor_name, visitor_email, visitor_phone, message }"
+    },
+    {
+      "name": "Insert Enquiry",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO enquiries (talent_id, visitor_name, visitor_email, visitor_phone, message) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+        "options": {
+          "queryParams": "={{ $json.body.talent_id }},={{ $json.body.visitor_name }},={{ $json.body.visitor_email }},={{ $json.body.visitor_phone }},={{ $json.body.message }}"
+        }
+      }
+    },
+    {
+      "name": "Get Talent Email",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT u.email, t.name as talent_name FROM talents t JOIN users u ON u.id = t.user_id WHERE t.id = $1",
+        "options": { "queryParams": "={{ $json.body.talent_id }}" }
+      }
+    },
+    {
+      "name": "Send Notification Email",
+      "type": "n8n-nodes-base.sendEmail",
+      "parameters": {
+        "fromEmail": "noreply@broodz.co.za",
+        "toEmail": "={{ $node['Get Talent Email'].json.email }}",
+        "subject": "New enquiry on Broodz from {{ $node['Insert Enquiry'].json.visitor_name }}",
+        "html": "<h2>New Enquiry</h2><p><strong>From:</strong> {{ $node['Insert Enquiry'].json.visitor_name }} ({{ $node['Insert Enquiry'].json.visitor_email }})</p><p><strong>Message:</strong></p><p>{{ $node['Insert Enquiry'].json.message }}</p><p><a href='https://broodz.co.za/dashboard/enquiries'>View in Dashboard</a></p>"
+      }
+    },
+    {
+      "name": "Respond Submit",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Enquiry sent\" }"
+      }
+    },
+    {
+      "name": "bz-enquiry-list",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bz-enquiry-list",
+        "responseMode": "responseNode"
+      },
+      "notes": "Auth required. Returns talent's enquiries."
+    },
+    {
+      "name": "Get My Enquiries",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT e.* FROM enquiries e JOIN talents t ON t.id = e.talent_id WHERE t.user_id = $1 ORDER BY e.created_at DESC",
+        "options": { "queryParams": "={{ $json.headers.authorization_user_id }}" }
+      }
+    },
+    {
+      "name": "Respond List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($node['Get My Enquiries'].json) }}"
+      }
+    },
+    {
+      "name": "bz-enquiry-status",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-enquiry-status",
+        "responseMode": "responseNode"
+      },
+      "notes": "Auth required. Receives { id, status }."
+    },
+    {
+      "name": "Update Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE enquiries SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *",
+        "options": { "queryParams": "={{ $json.body.id }},={{ $json.body.status }}" }
+      }
+    },
+    {
+      "name": "Respond Status",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": { "respondWith": "json" }
+    }
+  ],
+  "connections": {
+    "bz-enquiry-submit": { "main": [[ { "node": "Insert Enquiry" } ]] },
+    "Insert Enquiry": { "main": [[ { "node": "Get Talent Email" } ]] },
+    "Get Talent Email": { "main": [[ { "node": "Send Notification Email" } ]] },
+    "Send Notification Email": { "main": [[ { "node": "Respond Submit" } ]] },
+    "bz-enquiry-list": { "main": [[ { "node": "Get My Enquiries" } ]] },
+    "Get My Enquiries": { "main": [[ { "node": "Respond List" } ]] },
+    "bz-enquiry-status": { "main": [[ { "node": "Update Status" } ]] },
+    "Update Status": { "main": [[ { "node": "Respond Status" } ]] }
+  }
+}

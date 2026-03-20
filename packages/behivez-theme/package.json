@@ -1,0 +1,13 @@
+{
+  "name": "@behivez/theme",
+  "version": "1.0.0",
+  "description": "Shared BeHivez brand theme — amber/honeycomb palette",
+  "private": true,
+  "main": "src/_brand.ts",
+  "exports": {
+    ".": "./src/_brand.ts",
+    "./brand": "./src/_brand.ts",
+    "./variables": "./src/_variables.scss",
+    "./base": "./src/base.scss"
+  }
+}

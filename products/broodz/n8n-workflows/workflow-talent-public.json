@@ -1,0 +1,117 @@
+{
+  "name": "Broodz Talent Public",
+  "nodes": [
+    {
+      "name": "bz-talent-by-slug",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bz-talent-by-slug",
+        "responseMode": "responseNode"
+      },
+      "notes": "GET ?slug=maggie-senyatsi → talent + services + portfolio"
+    },
+    {
+      "name": "Get Talent",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.*, c.name as category_name, c.slug as category_slug FROM talents t LEFT JOIN categories c ON c.id = t.category_id WHERE t.slug = $1 AND t.is_published = true",
+        "options": { "queryParams": "={{ $json.query.slug }}" }
+      }
+    },
+    {
+      "name": "Get Services",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM services WHERE talent_id = $1 ORDER BY sort_order",
+        "options": { "queryParams": "={{ $json.id }}" }
+      }
+    },
+    {
+      "name": "Get Portfolio",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM portfolio_items WHERE talent_id = $1 ORDER BY sort_order",
+        "options": { "queryParams": "={{ $json.id }}" }
+      }
+    },
+    {
+      "name": "Respond Talent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ...($node['Get Talent'].json), services: $node['Get Services'].json, portfolio: $node['Get Portfolio'].json }) }}"
+      }
+    },
+    {
+      "name": "bz-talents-browse",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bz-talents-browse",
+        "responseMode": "responseNode"
+      },
+      "notes": "GET ?category=landscaping&page=1 → published talents list"
+    },
+    {
+      "name": "Browse Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.*, c.name as category_name, c.slug as category_slug FROM talents t LEFT JOIN categories c ON c.id = t.category_id WHERE t.is_published = true {{ $json.query.category ? 'AND c.slug = $1' : '' }} ORDER BY t.updated_at DESC LIMIT 20 OFFSET {{ (($json.query.page || 1) - 1) * 20 }}",
+        "options": { "queryParams": "={{ $json.query.category || '' }}" }
+      }
+    },
+    {
+      "name": "Respond Browse",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ talents: $node['Browse Query'].json }) }}"
+      }
+    },
+    {
+      "name": "bz-categories-list",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bz-categories-list",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "name": "Get Categories",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM categories ORDER BY sort_order"
+      }
+    },
+    {
+      "name": "Respond Categories",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($node['Get Categories'].json) }}"
+      }
+    }
+  ],
+  "connections": {
+    "bz-talent-by-slug": { "main": [[ { "node": "Get Talent" } ]] },
+    "Get Talent": { "main": [[ { "node": "Get Services" } ]] },
+    "Get Services": { "main": [[ { "node": "Get Portfolio" } ]] },
+    "Get Portfolio": { "main": [[ { "node": "Respond Talent" } ]] },
+    "bz-talents-browse": { "main": [[ { "node": "Browse Query" } ]] },
+    "Browse Query": { "main": [[ { "node": "Respond Browse" } ]] },
+    "bz-categories-list": { "main": [[ { "node": "Get Categories" } ]] },
+    "Get Categories": { "main": [[ { "node": "Respond Categories" } ]] }
+  }
+}

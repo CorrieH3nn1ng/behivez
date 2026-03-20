@@ -1,0 +1,110 @@
+{
+  "name": "BeeGraded - Distinction Guide",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-guide",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "g1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Guide",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-guide"
+    },
+    {
+      "parameters": {
+        "query": "={{ 'SELECT p.id, p.paper_text, p.subject, p.assessment_type, p.word_count, e.overall_score, e.knowledge_score, e.critical_score, e.application_score, e.referencing_score, e.structure_score, e.ai_risk_score FROM papers p JOIN evaluations e ON e.paper_id = p.id WHERE e.id = ' + $json.body.evaluation_id + ' LIMIT 1;' }}",
+        "operation": "executeQuery",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "postgres": {
+          "id": "ALbJcHF4sN2TVToB",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "id": "g1000001-0001-0001-0001-000000000002",
+      "name": "Get Paper + Scores",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [460, 300],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const paper = items[0].json;\nconst evalId = $node['Webhook Guide'].json.body.evaluation_id;\n\nif (!paper || !paper.paper_text) {\n  return [{ json: { error: 'Paper not found or no text available' } }];\n}\n\n// Truncate paper text to ~6000 words to fit in context\nconst words = paper.paper_text.split(/\\s+/);\nconst truncated = words.length > 6000 ? words.slice(0, 6000).join(' ') + '\\n[...truncated]' : paper.paper_text;\n\nconst scores = {\n  overall: Number(paper.overall_score) || 0,\n  knowledge: Number(paper.knowledge_score) || 0,\n  critical: Number(paper.critical_score) || 0,\n  application: Number(paper.application_score) || 0,\n  referencing: Number(paper.referencing_score) || 0,\n  structure: Number(paper.structure_score) || 0,\n  ai_risk: paper.ai_risk_score !== null ? Number(paper.ai_risk_score) : null\n};\n\n// Find weakest areas (below 80)\nconst areas = [\n  { key: 'knowledge', label: 'Knowledge & Understanding', score: scores.knowledge },\n  { key: 'critical', label: 'Critical Thinking', score: scores.critical },\n  { key: 'application', label: 'Application', score: scores.application },\n  { key: 'referencing', label: 'Referencing', score: scores.referencing },\n  { key: 'structure', label: 'Structure & Flow', score: scores.structure }\n].filter(a => a.score < 80).sort((a, b) => a.score - b.score);\n\nconst weakAreas = areas.map(a => `${a.label}: ${a.score}%`).join(', ');\n\nconst systemPrompt = `You are a South African academic writing coach helping university students improve their papers to distinction level (80%+).\n\nYou will receive a student's paper and their evaluation scores. Your job is to:\n1. Find SPECIFIC passages in their actual text that can be improved\n2. Rewrite those passages to distinction level\n3. Explain what you changed and why it earns more marks\n\nRules:\n- Use the student's ACTUAL text — quote their exact words in \"before\" examples\n- Rewrites must be realistic improvements, not perfect prose\n- Focus on the weakest scoring areas first\n- Maximum 5 improvement examples\n- Each example must target a different scoring criterion\n- South African academic context (use SA examples where relevant)\n- Be encouraging but honest\n- Keep the student's voice — improve, don't replace\n\nRespond ONLY with valid JSON in this format:\n{\n  \"target_score\": 80,\n  \"current_score\": <number>,\n  \"gap\": <number>,\n  \"improvements\": [\n    {\n      \"criterion\": \"Knowledge\" | \"Critical Thinking\" | \"Application\" | \"Referencing\" | \"Structure\",\n      \"current_score\": <number>,\n      \"location\": \"<where in the paper — e.g. Introduction paragraph 2>\",\n      \"before\": \"<exact quote from student's paper>\",\n      \"after\": \"<your improved rewrite>\",\n      \"why_better\": \"<1-2 sentences explaining what changed and why it scores higher>\",\n      \"marks_impact\": \"<estimated mark gain — e.g. +3-5 marks>\"\n    }\n  ],\n  \"overall_advice\": \"<2-3 sentences of general advice for this student>\"\n}`;\n\nconst userMessage = `Student paper (${paper.subject}, ${paper.assessment_type}, ${paper.word_count} words):\n\nScores: Overall ${scores.overall}%, Knowledge ${scores.knowledge}%, Critical ${scores.critical}%, Application ${scores.application}%, Referencing ${scores.referencing}%, Structure ${scores.structure}%${scores.ai_risk !== null ? ', AI Risk ' + scores.ai_risk + '%' : ''}\n\nWeakest areas: ${weakAreas || 'All above 80%'}\n\n---PAPER START---\n${truncated}\n---PAPER END---\n\nGenerate the distinction improvement guide. Focus on the weakest areas. Use EXACT quotes from the paper in your \"before\" examples.`;\n\nreturn [{\n  json: {\n    systemPrompt,\n    userMessage,\n    paper_id: paper.id,\n    evaluation_id: evalId,\n    scores,\n    subject: paper.subject\n  }\n}];"
+      },
+      "id": "g1000001-0001-0001-0001-000000000003",
+      "name": "Build Guide Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4096, system: $json.systemPrompt, messages: [{ role: 'user', content: $json.userMessage }] }) }}",
+        "options": { "timeout": 120000 }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "beeGradedAnthropicKey",
+          "name": "BeeGraded Anthropic Key"
+        }
+      },
+      "id": "g1000001-0001-0001-0001-000000000004",
+      "name": "Call Claude Sonnet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = items[0].json;\nconst upstream = $node['Build Guide Prompt'].json;\n\ntry {\n  let text = '';\n  if (response.content && response.content[0]) {\n    text = response.content[0].text || '';\n  }\n\n  // Extract JSON from response (handle markdown code blocks)\n  let jsonStr = text;\n  const jsonMatch = text.match(/```(?:json)?\\s*([\\s\\S]*?)```/);\n  if (jsonMatch) jsonStr = jsonMatch[1];\n  \n  // Try to find JSON object\n  const objMatch = jsonStr.match(/\\{[\\s\\S]*\\}/);\n  if (objMatch) jsonStr = objMatch[0];\n\n  const guide = JSON.parse(jsonStr);\n\n  return [{\n    json: {\n      status: 'complete',\n      evaluation_id: upstream.evaluation_id,\n      paper_id: upstream.paper_id,\n      subject: upstream.subject,\n      target_score: guide.target_score || 80,\n      current_score: guide.current_score || upstream.scores.overall,\n      gap: guide.gap || (80 - (upstream.scores.overall || 0)),\n      improvements: guide.improvements || [],\n      overall_advice: guide.overall_advice || '',\n      scores: upstream.scores\n    }\n  }];\n} catch(e) {\n  return [{\n    json: {\n      status: 'complete',\n      evaluation_id: upstream.evaluation_id,\n      paper_id: upstream.paper_id,\n      subject: upstream.subject,\n      target_score: 80,\n      current_score: upstream.scores.overall,\n      gap: 80 - (upstream.scores.overall || 0),\n      improvements: [],\n      overall_advice: 'We could not generate specific rewrites for this paper. Focus on the weakest areas identified in your evaluation report.',\n      scores: upstream.scores,\n      parse_error: e.message\n    }\n  }];\n}"
+      },
+      "id": "g1000001-0001-0001-0001-000000000005",
+      "name": "Parse Guide",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "g1000001-0001-0001-0001-000000000006",
+      "name": "Respond Guide",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Guide": { "main": [[{ "node": "Get Paper + Scores", "type": "main", "index": 0 }]] },
+    "Get Paper + Scores": { "main": [[{ "node": "Build Guide Prompt", "type": "main", "index": 0 }]] },
+    "Build Guide Prompt": { "main": [[{ "node": "Call Claude Sonnet", "type": "main", "index": 0 }]] },
+    "Call Claude Sonnet": { "main": [[{ "node": "Parse Guide", "type": "main", "index": 0 }]] },
+    "Parse Guide": { "main": [[{ "node": "Respond Guide", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "id": "bgGuide01",
+  "active": true
+}

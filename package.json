@@ -1,0 +1,36 @@
+{
+  "name": "behivez-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BeHivez — A hive of SaaS tools for South African entrepreneurs",
+  "scripts": {
+    "dev:beegraded": "pnpm --filter @behivez/beegraded dev",
+    "dev:pollenz": "pnpm --filter @behivez/pollenz dev",
+    "dev:swarmz": "pnpm --filter @behivez/swarmz dev",
+    "dev:broodz": "pnpm --filter @behivez/broodz dev",
+    "dev:landing": "pnpm --filter @behivez/landing dev",
+    "build:beegraded": "pnpm --filter @behivez/beegraded build",
+    "build:pollenz": "pnpm --filter @behivez/pollenz build",
+    "build:swarmz": "pnpm --filter @behivez/swarmz build",
+    "build:broodz": "pnpm --filter @behivez/broodz build",
+    "build:landing": "pnpm --filter @behivez/landing build",
+    "build:all": "pnpm -r build",
+    "lint:all": "pnpm -r lint",
+    "deploy:beegraded": "bash server-config/scripts/deploy-product.sh beegraded products/beegraded/dist/spa",
+    "deploy:pollenz": "bash server-config/scripts/deploy-product.sh pollenz products/pollenz/dist/spa",
+    "deploy:swarmz": "bash server-config/scripts/deploy-product.sh swarmz products/swarmz/dist/spa",
+    "deploy:broodz": "bash server-config/scripts/deploy-product.sh broodz products/broodz/dist/ssr",
+    "deploy:landing": "bash server-config/scripts/deploy-product.sh behivez products/behivez/dist/spa",
+    "dev:auth": "pnpm --filter @behivez/auth-api dev",
+    "build:auth": "pnpm --filter @behivez/auth-api build",
+    "db:auth:migrate": "pnpm --filter @behivez/auth-api db:migrate",
+    "db:auth:seed": "pnpm --filter @behivez/auth-api db:seed"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma"
+    ]
+  }
+}

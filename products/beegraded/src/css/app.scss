@@ -1,0 +1,15 @@
+// BeeGraded Theme — imports shared BeHivez base + BeeGraded-specific styles
+@use '@behivez/theme/base';
+
+// Score colors (BeeGraded-specific)
+.score-excellent { color: #22c55e; }
+.score-good { color: #3b82f6; }
+.score-fair { color: #f59e0b; }
+.score-poor { color: #ef4444; }
+
+// Print styles
+@media print {
+  body { background: white; }
+  .q-header, .q-drawer, .q-footer { display: none !important; }
+  .page-container { max-width: 100%; padding: 0; }
+}

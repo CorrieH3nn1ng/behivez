@@ -1,0 +1,56 @@
+// Broodz Global Styles — Hybrid Theme (Dark Plum + Warm Gold)
+
+// Theme variables
+:root {
+  --bz-header: #1a1520;
+  --bz-sidebar: #1e1825;
+  --bz-accent: #f0a030;
+  --bz-accent-hover: #e89020;
+  --bz-cta-start: #e85d04;
+  --bz-cta-end: #f0a030;
+  --bz-surface: #faf5ef;
+  --bz-card: #fff;
+  --bz-card-border: #e8ddd0;
+  --bz-text: #2d2013;
+  --bz-text-secondary: #6b5c4e;
+  --bz-sidebar-text: #c0b0a0;
+  --bz-footer: #1a1520;
+  --bz-footer-text: #806858;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+}
+
+// Accent button
+.btn-broodz {
+  background: linear-gradient(135deg, var(--bz-cta-start), var(--bz-cta-end)) !important;
+  color: #fff !important;
+  font-weight: 700;
+  border: none;
+}
+
+// Utility
+.ellipsis-2-lines {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// Override Quasar brown with Broodz plum for header/drawer
+.bz-header {
+  background: var(--bz-header) !important;
+}
+
+.bz-sidebar {
+  background: var(--bz-sidebar) !important;
+}
+
+.bz-surface {
+  background: var(--bz-surface);
+}
+
+.bz-accent {
+  color: var(--bz-accent);
+}

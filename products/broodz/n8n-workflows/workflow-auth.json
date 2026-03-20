@@ -1,0 +1,97 @@
+{
+  "name": "Broodz Auth",
+  "nodes": [
+    {
+      "name": "bz-auth-magic-link",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-auth-magic-link",
+        "responseMode": "responseNode"
+      },
+      "notes": "Receives { email }. Upserts user, generates magic token, sends email, responds."
+    },
+    {
+      "name": "Upsert User",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO users (email, magic_token, magic_token_expires, updated_at) VALUES ($1, $2, NOW() + INTERVAL '15 minutes', NOW()) ON CONFLICT (email) DO UPDATE SET magic_token = $2, magic_token_expires = NOW() + INTERVAL '15 minutes', updated_at = NOW() RETURNING id, email, name",
+        "options": {
+          "queryParams": "={{ $json.body.email }},={{ $randomString }}"
+        }
+      },
+      "notes": "Postgres v2.5 parameterized — safe from injection"
+    },
+    {
+      "name": "Send Magic Link Email",
+      "type": "n8n-nodes-base.sendEmail",
+      "parameters": {
+        "fromEmail": "noreply@broodz.co.za",
+        "toEmail": "={{ $json.body.email }}",
+        "subject": "Your Broodz login link",
+        "html": "<p>Click the link below to sign in to Broodz:</p><p><a href='https://broodz.co.za/verify?token={{ $node[\"Upsert User\"].json.magic_token }}'>Sign in to Broodz</a></p><p>This link expires in 15 minutes.</p>"
+      }
+    },
+    {
+      "name": "Respond Magic Link",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"success\": true, \"message\": \"Magic link sent\" }"
+      }
+    },
+    {
+      "name": "bz-auth-verify",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-auth-verify",
+        "responseMode": "responseNode"
+      },
+      "notes": "Receives { token }. Validates magic token, generates JWT, creates talent stub if needed."
+    },
+    {
+      "name": "Validate Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE users SET magic_token = NULL, magic_token_expires = NULL, jwt_token = $2, updated_at = NOW() WHERE magic_token = $1 AND magic_token_expires > NOW() RETURNING id, email, name",
+        "options": {
+          "queryParams": "={{ $json.body.token }},={{ $randomString }}"
+        }
+      }
+    },
+    {
+      "name": "Create Talent Stub",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO talents (user_id, name, slug) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO NOTHING",
+        "options": {
+          "queryParams": "={{ $json.id }},={{ $json.email.split('@')[0] }},={{ $json.email.split('@')[0].replace(/[^a-z0-9-]/g, '-') }}"
+        }
+      },
+      "notes": "Creates a minimal talent profile on first login"
+    },
+    {
+      "name": "Respond Verify",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"token\": \"{{ $node[\"Validate Token\"].json.jwt_token }}\", \"user\": { \"id\": {{ $node[\"Validate Token\"].json.id }}, \"email\": \"{{ $node[\"Validate Token\"].json.email }}\", \"name\": \"{{ $node[\"Validate Token\"].json.name }}\" } }"
+      }
+    }
+  ],
+  "connections": {
+    "bz-auth-magic-link": { "main": [[ { "node": "Upsert User" } ]] },
+    "Upsert User": { "main": [[ { "node": "Send Magic Link Email" } ]] },
+    "Send Magic Link Email": { "main": [[ { "node": "Respond Magic Link" } ]] },
+    "bz-auth-verify": { "main": [[ { "node": "Validate Token" } ]] },
+    "Validate Token": { "main": [[ { "node": "Create Talent Stub" } ]] },
+    "Create Talent Stub": { "main": [[ { "node": "Respond Verify" } ]] }
+  }
+}

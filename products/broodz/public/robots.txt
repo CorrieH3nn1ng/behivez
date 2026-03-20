@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Talent profiles
+Allow: /*/gallery
+
+# Dashboard is behind auth
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /change-password
+
+# Sitemap (Phase 2)
+# Sitemap: https://broodz.co.za/sitemap.xml

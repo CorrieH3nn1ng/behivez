@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["src/*"],
+      "pages/*": ["src/pages/*"],
+      "layouts/*": ["src/layouts/*"],
+      "components/*": ["src/components/*"],
+      "stores/*": ["src/stores/*"],
+      "boot/*": ["src/boot/*"],
+      "composables/*": ["src/composables/*"]
+    },
+    "types": ["node", "quasar", "vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "src-ssr/**/*.ts"]
+}

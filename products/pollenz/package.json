@@ -1,0 +1,45 @@
+{
+  "name": "pollenz-frontend",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "quasar dev",
+    "build": "quasar build",
+    "lint": "eslint --ext .js,.ts,.vue ./src",
+    "type-check": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@behivez/theme": "workspace:*",
+    "@quasar/extras": "^1.16.9",
+    "axios": "^1.6.2",
+    "date-fns": "^3.2.0",
+    "jspdf": "^3.0.4",
+    "papaparse": "^5.5.3",
+    "pinia": "^2.1.7",
+    "quasar": "^2.14.2",
+    "vue": "^3.4.10",
+    "vue-router": "^4.2.5",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@quasar/app-vite": "^2.1.0",
+    "@types/node": "^20.10.6",
+    "@types/papaparse": "^5.5.2",
+    "@typescript-eslint/eslint-plugin": "^6.17.0",
+    "@typescript-eslint/parser": "^6.17.0",
+    "@vitejs/plugin-vue": "^5.0.3",
+    "@vue/eslint-config-typescript": "^12.0.0",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-vue": "^9.19.2",
+    "prettier": "^3.1.1",
+    "sass": "^1.97.3",
+    "typescript": "~5.7.0",
+    "vue-tsc": "^2.0.0"
+  },
+  "optionalDependencies": {
+    "@esbuild/win32-x64": "^0.27.3"
+  }
+}

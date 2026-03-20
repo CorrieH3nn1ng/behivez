@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── User (fleet owner / solo owner) ──────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  plan         Plan     @default(SOLO)
+  fleetName    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vehicles     Vehicle[]
+  statusLogs   StatusLogEntry[]
+  drivers      Driver[]
+  refreshTokens RefreshToken[]
+}
+
+enum Plan {
+  SOLO
+  FLEET
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ── Vehicle ──────────────────────────────────────────────────
+
+model Vehicle {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registration  String
+  make          String
+  model         String
+  year          Int
+  color         String        @default("")
+  photoUrl      String?
+  currentStatus VehicleStatus @default(AVAILABLE)
+  odometer      Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  statusLogs    StatusLogEntry[]
+  driverAssignments DriverVehicle[]
+
+  @@unique([userId, registration])
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  OUT
+  FUELING
+  SERVICE
+  REPAIR
+  CLEANING
+  ACCIDENT
+  TOWED
+}
+
+// ── Status Log (every action is a status change) ─────────────
+
+model StatusLogEntry {
+  id            String        @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        VehicleStatus
+  timestamp     DateTime      @default(now())
+  odometer      Int?
+  costAmount    Float?
+  costCategory  CostCategory?
+  vendor        String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  receiptPhotos ReceiptPhoto[]
+}
+
+enum CostCategory {
+  FUEL
+  SERVICE
+  REPAIR
+  CLEANING
+  ACCIDENT
+  OTHER
+}
+
+// ── Receipt Photos ───────────────────────────────────────────
+
+model ReceiptPhoto {
+  id             String         @id @default(uuid())
+  statusLogId    String
+  statusLog      StatusLogEntry @relation(fields: [statusLogId], references: [id], onDelete: Cascade)
+  filePath       String
+  originalName   String
+  mimeType       String
+  fileSize       Int
+  createdAt      DateTime       @default(now())
+}
+
+// ── Drivers (Fleet plan) ─────────────────────────────────────
+
+model Driver {
+  id            String          @id @default(uuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  email         String
+  phone         String          @default("")
+  inviteStatus  InviteStatus    @default(PENDING)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  vehicleAssignments DriverVehicle[]
+
+  @@unique([userId, email])
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+}
+
+model DriverVehicle {
+  id        String   @id @default(uuid())
+  driverId  String
+  driver    Driver   @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([driverId, vehicleId])
+}

@@ -1,0 +1,129 @@
+{
+  "name": "BeeGraded - Token ITN (PayFast)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-token-itn",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "f1000001-0001-0001-0001-000000000001",
+      "name": "Webhook ITN",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-token-itn"
+    },
+    {
+      "parameters": {
+        "functionCode": "const body = items[0].json.body || items[0].json;\n\nconst paymentStatus = body.payment_status || '';\nconst tokenCode = body.custom_str1 || '';\nconst email = body.custom_str2 || '';\nconst pfPaymentId = body.pf_payment_id || '';\nconst amountGross = body.amount_gross || '0';\n\nreturn [{\n  json: {\n    payment_status: paymentStatus,\n    token_code: tokenCode,\n    email,\n    pf_payment_id: pfPaymentId,\n    amount_gross: amountGross,\n    is_complete: paymentStatus === 'COMPLETE'\n  }\n}];"
+      },
+      "id": "f1000001-0001-0001-0001-000000000002",
+      "name": "Parse ITN Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_complete }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "f1000001-0001-0001-0001-000000000003",
+      "name": "Payment Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"UPDATE tokens SET status = 'active', pf_payment_id = '\" + $json.pf_payment_id.replace(/'/g, '') + \"', expires_at = NOW() + INTERVAL '30 days', activated_at = NOW() WHERE code = '\" + $json.token_code.replace(/'/g, '') + \"' AND status = 'pending_payment' RETURNING id, code, email;\" }}",
+        "additionalFields": {}
+      },
+      "id": "f1000001-0001-0001-0001-000000000004",
+      "name": "Activate Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@beegraded.co.za",
+        "toEmail": "={{ $node['Parse ITN Data'].json.email }}",
+        "subject": "Your BeeGraded Token is Ready!",
+        "text": "={{ 'Hi there!\\n\\nYour BeeGraded evaluation token has been activated.\\n\\nToken Code: ' + $node['Parse ITN Data'].json.token_code + '\\n\\nGet started here: https://beegraded.co.za/t/' + $node['Parse ITN Data'].json.token_code + '\\n\\nSteps:\\n1. Upload your rubric PDF\\n2. Upload your draft paper\\n3. Get your full evaluation report\\n4. Upload your final version for comparison\\n\\nYour token is valid for 30 days.\\n\\n— BeeGraded Team' }}",
+        "options": {}
+      },
+      "id": "f1000001-0001-0001-0001-000000000007",
+      "name": "Send Token Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [1120, 200],
+      "credentials": {
+        "smtp": {
+          "id": "bgSmtp01",
+          "name": "BeeGraded SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log success and return OK\nreturn [{ json: { status: 'ok', message: 'Token activated, email sent' } }];"
+      },
+      "id": "f1000001-0001-0001-0001-000000000005",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Payment not complete, log and ignore\nreturn [{ json: { status: 'ignored', message: 'Payment status not COMPLETE' } }];"
+      },
+      "id": "f1000001-0001-0001-0001-000000000006",
+      "name": "Log Ignored",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 420]
+    }
+  ],
+  "connections": {
+    "Webhook ITN": {
+      "main": [[{ "node": "Parse ITN Data", "type": "main", "index": 0 }]]
+    },
+    "Parse ITN Data": {
+      "main": [[{ "node": "Payment Complete?", "type": "main", "index": 0 }]]
+    },
+    "Payment Complete?": {
+      "main": [
+        [{ "node": "Activate Token", "type": "main", "index": 0 }],
+        [{ "node": "Log Ignored", "type": "main", "index": 0 }]
+      ]
+    },
+    "Activate Token": {
+      "main": [[{ "node": "Send Token Email", "type": "main", "index": 0 }]]
+    },
+    "Send Token Email": {
+      "main": [[{ "node": "Log Success", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

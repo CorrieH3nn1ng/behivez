@@ -1,0 +1,17 @@
+// BeHivez — unified theme (same as Pollenz/BeeGraded)
+@use '@behivez/theme/base';
+
+// Card styling — match other products
+.q-card {
+  border-radius: 12px;
+}
+
+// Drawer styling — warm cream background
+.q-drawer {
+  background-color: #fffbeb;
+}
+
+// Login card — amber accent top border
+.q-card.login-card {
+  border-top: 3px solid #f59e0b;
+}

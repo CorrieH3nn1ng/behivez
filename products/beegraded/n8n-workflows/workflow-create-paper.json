@@ -1,0 +1,72 @@
+{
+  "name": "BeeGraded - Create Paper",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-create-paper",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cp000001-0001-0001-0001-000000000001",
+      "name": "Webhook Create Paper",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-create-paper"
+    },
+    {
+      "parameters": {
+        "functionCode": "const body = items[0].json.body || items[0].json;\n\nconst subject = (body.subject || 'Unknown').replace(/'/g, \"''\");\nconst mode = body.mode || 'A';\nconst draftOrFinal = body.draft_or_final || 'draft';\nconst userId = parseInt(body.user_id) || null;\nconst rubricId = parseInt(body.rubric_id) || null;\nconst linkedPaperId = parseInt(body.linked_paper_id) || null;\n\nreturn [{ json: { subject, mode, draft_or_final: draftOrFinal, user_id: userId, rubric_id: rubricId, linked_paper_id: linkedPaperId } }];"
+      },
+      "id": "cp000001-0001-0001-0001-000000000002",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'INSERT INTO papers (subject, draft_or_final, filename) VALUES (\\'' + $json.subject + '\\', \\'' + $json.draft_or_final + '\\', \\'pending_upload\\') RETURNING id;' }}",
+        "additionalFields": {}
+      },
+      "id": "cp000001-0001-0001-0001-000000000003",
+      "name": "Insert Paper",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ paper_id: $json.id }) }}",
+        "options": {}
+      },
+      "id": "cp000001-0001-0001-0001-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Create Paper": {
+      "main": [[{ "node": "Parse Input", "type": "main", "index": 0 }]]
+    },
+    "Parse Input": {
+      "main": [[{ "node": "Insert Paper", "type": "main", "index": 0 }]]
+    },
+    "Insert Paper": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": true
+}

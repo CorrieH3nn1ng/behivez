@@ -1,0 +1,74 @@
+{
+  "name": "BeeGraded - Coupon Validation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bg-coupon-validate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Coupon",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200],
+      "webhookId": "bg-coupon-validate"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, code, affiliate_name, affiliate_email, discount_percent, max_uses, times_used, is_active, expires_at FROM coupons WHERE UPPER(code) = UPPER('\" + ($json.query.code || '').replace(/'/g, '') + \"') LIMIT 1;\" }}",
+        "additionalFields": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000002",
+      "name": "Query Coupon",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [460, 200],
+      "credentials": {
+        "postgres": {
+          "id": "ALbJcHF4sN2TVToB",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const row = items[0].json;\nif (!row || !row.id) {\n  return [{ json: { valid: false, message: 'Invalid coupon code' } }];\n}\nif (!row.is_active) {\n  return [{ json: { valid: false, message: 'This coupon has been deactivated' } }];\n}\nif (row.max_uses && row.times_used >= row.max_uses) {\n  return [{ json: { valid: false, message: 'This coupon has reached its usage limit' } }];\n}\nif (row.expires_at && new Date(row.expires_at) < new Date()) {\n  return [{ json: { valid: false, message: 'This coupon has expired' } }];\n}\nreturn [{\n  json: {\n    valid: true,\n    discount_percent: row.discount_percent,\n    affiliate_name: row.affiliate_name,\n    coupon_id: row.id\n  }\n}];"
+      },
+      "id": "c1000001-0001-0001-0001-000000000003",
+      "name": "Validate Coupon",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "c1000001-0001-0001-0001-000000000004",
+      "name": "Respond Coupon",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 200]
+    }
+  ],
+  "connections": {
+    "Webhook Coupon": {
+      "main": [[{ "node": "Query Coupon", "type": "main", "index": 0 }]]
+    },
+    "Query Coupon": {
+      "main": [[{ "node": "Validate Coupon", "type": "main", "index": 0 }]]
+    },
+    "Validate Coupon": {
+      "main": [[{ "node": "Respond Coupon", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "id": "bgCoupon01",
+  "active": true
+}

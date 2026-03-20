@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # Shared n8n instance — all product webhooks
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: saas-n8n-1
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=behivez.co.za
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - WEBHOOK_URL=https://behivez.co.za
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=${N8N_DB_PASSWORD}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+    networks:
+      - saas-network
+
+  # BeeGraded API — text extraction service
+  beegraded-api:
+    image: beegraded-api:latest
+    container_name: beegraded-api
+    restart: always
+    ports:
+      - "5001:5001"
+    volumes:
+      - beegraded_uploads:/app/uploads
+    networks:
+      - saas-network
+
+  # Shared PostgreSQL — one database per product
+  postgres:
+    image: postgres:16-alpine
+    container_name: saas-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: saas_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: n8n
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    networks:
+      - saas-network
+
+  # Central Auth API
+  auth-api:
+    build:
+      context: ../packages/auth-api
+      dockerfile: Dockerfile
+    container_name: saas-auth-api
+    restart: always
+    ports:
+      - "3100:3100"
+    environment:
+      - DATABASE_URL=postgresql://saas_admin:${POSTGRES_PASSWORD}@postgres:5432/behivez_auth?schema=public
+      - JWT_SECRET=${AUTH_JWT_SECRET}
+      - JWT_EXPIRES_IN=15m
+      - PORT=3100
+      - NODE_ENV=production
+      - SMTP_HOST=smtp
+      - SMTP_PORT=1025
+      - SMTP_FROM=BeHivez <noreply@behivez.co.za>
+      - RESET_PASSWORD_URL=https://behivez.co.za/auth/reset-password
+    depends_on:
+      - postgres
+    networks:
+      - saas-network
+
+  # SMTP relay for transactional emails
+  smtp:
+    image: axllent/mailpit:latest
+    container_name: saas-smtp-1
+    restart: always
+    ports:
+      - "8025:8025"   # Web UI for viewing sent emails
+    environment:
+      - MP_SMTP_AUTH_ACCEPT_ANY=true
+      - MP_SMTP_RELAY_HOST=${SMTP_RELAY_HOST:-}
+      - MP_SMTP_RELAY_PORT=${SMTP_RELAY_PORT:-587}
+      - MP_SMTP_RELAY_USERNAME=${SMTP_RELAY_USER:-}
+      - MP_SMTP_RELAY_PASSWORD=${SMTP_RELAY_PASS:-}
+      - MP_SMTP_RELAY_STARTTLS=true
+    networks:
+      - saas-network
+
+volumes:
+  n8n_data:
+  postgres_data:
+  beegraded_uploads:
+  broodz_uploads:
+
+networks:
+  saas-network:
+    driver: bridge

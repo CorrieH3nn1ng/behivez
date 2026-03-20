@@ -1,0 +1,248 @@
+{
+  "name": "BeeGraded - Token Purchase",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-token-purchase",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Purchase",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-token-purchase"
+    },
+    {
+      "parameters": {
+        "functionCode": "const body = items[0].json.body || items[0].json;\n\nconst email = (body.email || '').toLowerCase().trim();\nconst couponCode = (body.coupon_code || '').trim();\n\n// Generate token code BGT-XXXX-XXXX\nconst chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';\nlet tokenCode = 'BGT-';\nfor (let i = 0; i < 4; i++) tokenCode += chars[Math.floor(Math.random() * chars.length)];\ntokenCode += '-';\nfor (let i = 0; i < 4; i++) tokenCode += chars[Math.floor(Math.random() * chars.length)];\n\nreturn [{\n  json: {\n    email,\n    coupon_code: couponCode,\n    token_code: tokenCode\n  }\n}];"
+      },
+      "id": "e1000001-0001-0001-0001-000000000002",
+      "name": "Parse Body & Generate Code",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.coupon_code }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "e1000001-0001-0001-0001-000000000003",
+      "name": "Has Coupon?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"SELECT id, code, discount_percent, max_uses, times_used, is_active, expires_at FROM coupons WHERE UPPER(code) = UPPER('\" + $node['Parse Body & Generate Code'].json.coupon_code.replace(/'/g, '') + \"') AND is_active = true LIMIT 1;\" }}",
+        "additionalFields": {}
+      },
+      "id": "e1000001-0001-0001-0001-000000000004",
+      "name": "Query Coupon",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [900, 200],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "functionCode": "const coupon = items[0].json;\nconst purchaseData = $node['Parse Body & Generate Code'].json;\nlet discountPercent = 0;\nlet couponId = null;\n\nif (coupon && coupon.id) {\n  // Validate coupon\n  if (coupon.max_uses && coupon.times_used >= coupon.max_uses) {\n    discountPercent = 0;\n  } else if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {\n    discountPercent = 0;\n  } else {\n    discountPercent = coupon.discount_percent || 0;\n    couponId = coupon.id;\n  }\n}\n\nreturn [{\n  json: {\n    email: purchaseData.email,\n    token_code: purchaseData.token_code,\n    coupon_id: couponId,\n    discount_percent: discountPercent\n  }\n}];"
+      },
+      "id": "e1000001-0001-0001-0001-000000000005",
+      "name": "Validate Coupon",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// No coupon path — pass through with 0 discount\nconst purchaseData = $node['Parse Body & Generate Code'].json;\n\nreturn [{\n  json: {\n    email: purchaseData.email,\n    token_code: purchaseData.token_code,\n    coupon_id: null,\n    discount_percent: 0\n  }\n}];"
+      },
+      "id": "e1000001-0001-0001-0001-000000000006",
+      "name": "No Coupon",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 420]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT price_cents FROM pricing_rules WHERE is_active = true ORDER BY id LIMIT 1;",
+        "additionalFields": {}
+      },
+      "id": "e1000001-0001-0001-0001-000000000007",
+      "name": "Get Price",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const pricing = items[0].json;\nconst prevData = $node['Validate Coupon'].json || $node['No Coupon'].json;\n\n// Merge: take whichever path had data\nconst email = prevData.email;\nconst tokenCode = prevData.token_code;\nconst couponId = prevData.coupon_id;\nconst discountPercent = prevData.discount_percent || 0;\n\nconst basePriceCents = pricing.price_cents || 9900; // fallback R99.00\nconst discountAmount = Math.round(basePriceCents * discountPercent / 100);\nconst finalPriceCents = basePriceCents - discountAmount;\nconst isFree = finalPriceCents <= 0;\n\nreturn [{\n  json: {\n    email,\n    token_code: tokenCode,\n    coupon_id: couponId,\n    discount_percent: discountPercent,\n    base_price_cents: basePriceCents,\n    final_price_cents: isFree ? 0 : finalPriceCents,\n    is_free: isFree\n  }\n}];"
+      },
+      "id": "e1000001-0001-0001-0001-000000000008",
+      "name": "Calculate Price",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_free }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "e1000001-0001-0001-0001-000000000009",
+      "name": "Is Free?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO tokens (code, email, status, price_paid, coupon_id, expires_at) VALUES ('\" + $json.token_code + \"', '\" + $json.email.replace(/'/g, \"''\") + \"', 'active', 0, \" + ($json.coupon_id ? $json.coupon_id : 'NULL') + \", NOW() + INTERVAL '30 days') RETURNING id, code;\" }}",
+        "additionalFields": {}
+      },
+      "id": "e1000001-0001-0001-0001-000000000010",
+      "name": "Insert Free Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2000, 200],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ token_code: $node['Calculate Price'].json.token_code, free: true }) }}",
+        "options": {}
+      },
+      "id": "e1000001-0001-0001-0001-000000000011",
+      "name": "Respond Free Token",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\nconst amountRands = (data.final_price_cents / 100).toFixed(2);\n\nconst fields = {\n  merchant_id: '10000100',\n  merchant_key: '46f0cd694581a',\n  return_url: 'https://beegraded.co.za/thank-you?token_code=' + data.token_code,\n  cancel_url: 'https://beegraded.co.za/cancel',\n  notify_url: 'https://beegraded.co.za/webhook/bg-token-itn',\n  email_address: data.email,\n  amount: amountRands,\n  item_name: 'BeeGraded Evaluation Token',\n  item_description: 'Token code: ' + data.token_code,\n  custom_str1: data.token_code,\n  custom_str2: data.email\n};\n\n// Insert pending token\nreturn [{\n  json: {\n    ...data,\n    payfast_fields: fields,\n    payfast_url: 'https://sandbox.payfast.co.za/eng/process',\n    amount_rands: amountRands\n  }\n}];"
+      },
+      "id": "e1000001-0001-0001-0001-000000000012",
+      "name": "Build PayFast Fields",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 420]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ \"INSERT INTO tokens (code, email, status, price_paid, coupon_id) VALUES ('\" + $json.token_code + \"', '\" + $json.email.replace(/'/g, \"''\") + \"', 'pending_payment', \" + $json.final_price_cents + \", \" + ($json.coupon_id ? $json.coupon_id : 'NULL') + \") RETURNING id, code;\" }}",
+        "additionalFields": {}
+      },
+      "id": "e1000001-0001-0001-0001-000000000013",
+      "name": "Insert Pending Token",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2220, 420],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ token_code: $node['Build PayFast Fields'].json.token_code, fields: $node['Build PayFast Fields'].json.payfast_fields, payfast_url: $node['Build PayFast Fields'].json.payfast_url }) }}",
+        "options": {}
+      },
+      "id": "e1000001-0001-0001-0001-000000000014",
+      "name": "Respond PayFast",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2440, 420]
+    }
+  ],
+  "connections": {
+    "Webhook Purchase": {
+      "main": [[{ "node": "Parse Body & Generate Code", "type": "main", "index": 0 }]]
+    },
+    "Parse Body & Generate Code": {
+      "main": [[{ "node": "Has Coupon?", "type": "main", "index": 0 }]]
+    },
+    "Has Coupon?": {
+      "main": [
+        [{ "node": "Query Coupon", "type": "main", "index": 0 }],
+        [{ "node": "No Coupon", "type": "main", "index": 0 }]
+      ]
+    },
+    "Query Coupon": {
+      "main": [[{ "node": "Validate Coupon", "type": "main", "index": 0 }]]
+    },
+    "Validate Coupon": {
+      "main": [[{ "node": "Get Price", "type": "main", "index": 0 }]]
+    },
+    "No Coupon": {
+      "main": [[{ "node": "Get Price", "type": "main", "index": 0 }]]
+    },
+    "Get Price": {
+      "main": [[{ "node": "Calculate Price", "type": "main", "index": 0 }]]
+    },
+    "Calculate Price": {
+      "main": [[{ "node": "Is Free?", "type": "main", "index": 0 }]]
+    },
+    "Is Free?": {
+      "main": [
+        [{ "node": "Insert Free Token", "type": "main", "index": 0 }],
+        [{ "node": "Build PayFast Fields", "type": "main", "index": 0 }]
+      ]
+    },
+    "Insert Free Token": {
+      "main": [[{ "node": "Respond Free Token", "type": "main", "index": 0 }]]
+    },
+    "Build PayFast Fields": {
+      "main": [[{ "node": "Insert Pending Token", "type": "main", "index": 0 }]]
+    },
+    "Insert Pending Token": {
+      "main": [[{ "node": "Respond PayFast", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

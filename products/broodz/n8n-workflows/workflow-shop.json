@@ -1,0 +1,72 @@
+{
+  "name": "Broodz — Shop CRUD",
+  "nodes": [
+    {
+      "name": "bz-product-list",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bz-product-list",
+        "responseMode": "responseNode"
+      },
+      "notes": "GET /bz-product-list?talent_id=123 — List all products for a talent (public, sorted by sort_order)"
+    },
+    {
+      "name": "bz-product-upsert",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-product-upsert",
+        "responseMode": "responseNode"
+      },
+      "notes": "POST /bz-product-upsert — Create or update a product. Body: { talent_id, name, description?, price?, price_label?, image_url?, in_stock?, id? (for update) }. Requires JWT."
+    },
+    {
+      "name": "bz-product-delete",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-product-delete",
+        "responseMode": "responseNode"
+      },
+      "notes": "POST /bz-product-delete — Delete a product. Body: { id }. Requires JWT."
+    },
+    {
+      "name": "bz-product-reorder",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-product-reorder",
+        "responseMode": "responseNode"
+      },
+      "notes": "POST /bz-product-reorder — Reorder a product. Body: { id, sort_order }. Requires JWT."
+    },
+    {
+      "name": "bz-product-image",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bz-product-image",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "notes": "POST /bz-product-image — Upload product image. Multipart form with 'file' field. Returns { url }. Requires JWT."
+    }
+  ],
+  "connections": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "Shop CRUD webhooks for Broodz product listings. 5 endpoints: list, upsert, delete, reorder, image upload.",
+    "sql": {
+      "list": "SELECT * FROM products WHERE talent_id = $1 ORDER BY sort_order, id",
+      "upsert_insert": "INSERT INTO products (talent_id, name, description, price, price_label, image_url, in_stock, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE((SELECT MAX(sort_order) FROM products WHERE talent_id = $1), 0) + 1) RETURNING *",
+      "upsert_update": "UPDATE products SET name = $2, description = $3, price = $4, price_label = $5, image_url = $6, in_stock = $7, updated_at = NOW() WHERE id = $1 RETURNING *",
+      "delete": "DELETE FROM products WHERE id = $1",
+      "reorder": "UPDATE products SET sort_order = $2 WHERE id = $1"
+    }
+  }
+}

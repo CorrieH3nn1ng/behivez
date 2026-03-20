@@ -1,0 +1,216 @@
+{
+  "name": "BeeGraded - Paper Upload",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-papers-upload",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "b1000001-0001-0001-0001-000000000001",
+      "name": "Webhook Upload",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-papers-upload"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract form fields from the webhook\nconst body = items[0].json.body || items[0].json;\n\nconst subject = body.subject || 'Unknown';\nconst assessmentType = body.assessment_type || 'exam';\nconst numQuestions = parseInt(body.num_questions) || 0;\nconst userId = parseInt(body.user_id) || null;\nconst tokenCode = body.token_code || null;\nconst draftOrFinal = body.draft_or_final || 'draft';\nconst linkedPaperId = parseInt(body.linked_paper_id) || null;\nconst mode = body.mode || 'A';\n\n// Get original filename from binary data\nconst binaryKey = Object.keys(items[0].binary || {})[0] || 'file';\nconst filename = (items[0].binary && items[0].binary[binaryKey]) ? items[0].binary[binaryKey].fileName || 'upload.docx' : 'upload.docx';\n\nreturn [{\n  json: {\n    subject,\n    assessment_type: assessmentType,\n    num_questions: numQuestions,\n    user_id: userId,\n    token_code: tokenCode,\n    draft_or_final: draftOrFinal,\n    linked_paper_id: linkedPaperId,\n    mode: mode,\n    filename,\n    binaryKey\n  },\n  binary: items[0].binary\n}];"
+      },
+      "id": "b1000001-0001-0001-0001-000000000002",
+      "name": "Parse Upload Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://beegraded-api:5001/extract-text",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "={{ $json.binaryKey }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "b1000001-0001-0001-0001-000000000003",
+      "name": "Extract Text via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse the response from the text extraction API\nconst apiResponse = items[0].json;\nconst uploadData = $node['Parse Upload Data'].json;\n\nconst text = apiResponse.text || apiResponse.paper_text || '';\nconst wordCount = apiResponse.word_count || text.split(/\\s+/).filter(w => w.length > 0).length;\nconst pageCount = apiResponse.page_count || 1;\n\n// Escape single quotes for SQL\nconst safeSubject = (uploadData.subject || '').replace(/'/g, \"''\");\nconst safeAssessmentType = (uploadData.assessment_type || '').replace(/'/g, \"''\");\nconst safeFilename = (uploadData.filename || '').replace(/'/g, \"''\");\nconst safeText = text.replace(/'/g, \"''\");\n\nreturn [{\n  json: {\n    user_id: uploadData.user_id,\n    subject: safeSubject,\n    assessment_type: safeAssessmentType,\n    num_questions: uploadData.num_questions,\n    filename: safeFilename,\n    paper_text: safeText,\n    word_count: wordCount,\n    page_count: pageCount,\n    token_code: uploadData.token_code,\n    draft_or_final: uploadData.draft_or_final || 'draft',\n    linked_paper_id: uploadData.linked_paper_id,\n    mode: uploadData.mode\n  }\n}];"
+      },
+      "id": "b1000001-0001-0001-0001-000000000004",
+      "name": "Parse Extraction",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ 'INSERT INTO papers (user_id, filename, subject, assessment_type, num_questions, paper_text, word_count, page_count, draft_or_final, linked_paper_id) VALUES (' + ($json.user_id ? $json.user_id : 'NULL') + ', \\'' + $json.filename + '\\', \\'' + $json.subject + '\\', \\'' + $json.assessment_type + '\\', ' + $json.num_questions + ', \\'' + $json.paper_text + '\\', ' + $json.word_count + ', ' + $json.page_count + ', \\'' + ($json.draft_or_final || 'draft') + '\\', ' + ($json.linked_paper_id ? $json.linked_paper_id : 'NULL') + ') RETURNING id;' }}",
+        "additionalFields": {}
+      },
+      "id": "b1000001-0001-0001-0001-000000000005",
+      "name": "Insert Paper",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const paperId = items[0].json.id;\nconst tokenCode = $node['Parse Extraction'].json.token_code;\nconst draftOrFinal = $node['Parse Extraction'].json.draft_or_final || 'draft';\n\nif (tokenCode) {\n  const col = draftOrFinal === 'final' ? 'final_paper_id' : 'draft_paper_id';\n  return [{ json: { paper_id: paperId, token_code: tokenCode, update_col: col, has_token: true } }];\n}\nreturn [{ json: { paper_id: paperId, has_token: false } }];"
+      },
+      "id": "b1000001-0001-0001-0001-000000000007",
+      "name": "Check Token Link",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ $json.has_token ? 'UPDATE tokens SET ' + $json.update_col + ' = ' + $json.paper_id + ' WHERE code = \\'' + $json.token_code + '\\';' : 'SELECT 1;' }}",
+        "additionalFields": {}
+      },
+      "id": "b1000001-0001-0001-0001-000000000008",
+      "name": "Update Token Paper",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "id": "RwGl9RX2FyWfj4I7",
+          "name": "BeeGraded Postgres"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ paper_id: $node['Check Token Link'].json.paper_id, word_count: $node['Parse Extraction'].json.word_count, page_count: $node['Parse Extraction'].json.page_count }) }}",
+        "options": {}
+      },
+      "id": "b1000001-0001-0001-0001-000000000006",
+      "name": "Respond Upload",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Upload": {
+      "main": [
+        [
+          {
+            "node": "Parse Upload Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Upload Data": {
+      "main": [
+        [
+          {
+            "node": "Extract Text via API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text via API": {
+      "main": [
+        [
+          {
+            "node": "Parse Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Extraction": {
+      "main": [
+        [
+          {
+            "node": "Insert Paper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Paper": {
+      "main": [
+        [
+          {
+            "node": "Check Token Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Token Link": {
+      "main": [
+        [
+          {
+            "node": "Update Token Paper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Token Paper": {
+      "main": [
+        [
+          {
+            "node": "Respond Upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

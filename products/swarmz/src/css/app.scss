@@ -1,0 +1,16 @@
+// Swarmz app styles
+@use '@behivez/theme/base';
+
+body {
+  font-family: 'Roboto', sans-serif;
+}
+
+.vehicle-card {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}

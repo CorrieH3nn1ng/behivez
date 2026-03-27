@@ -1,10 +1,10 @@
 import { ref } from 'vue'
-import { useApi } from './useApi'
+import { api, backendApi } from 'src/boot/axios'
 import { useEvalSessionStore } from 'src/stores/evaluation-session'
 import type { ParsedRubric } from 'src/stores/token'
+import type { AxiosProgressEvent } from 'axios'
 
 export function useWorkspaceRubric() {
-  const { post, upload } = useApi()
   const evalSession = useEvalSessionStore()
 
   const uploading = ref(false)
@@ -17,13 +17,24 @@ export function useWorkspaceRubric() {
 
     const formData = new FormData()
     formData.append('file', file)
-    // No token_code — workspace mode
 
     try {
-      const data = await upload<ParsedRubric>('/bg-rubric-upload', formData, (pct) => {
-        uploadProgress.value = pct
+      // 1. Call n8n for AI rubric parsing (no DB access)
+      const { data: parsed } = await api.post<ParsedRubric & { error?: string }>('/bg-rubric-parse', formData, {
+        timeout: 120000,
+        onUploadProgress: (e: AxiosProgressEvent) => {
+          if (e.total) uploadProgress.value = Math.round((e.loaded * 100) / e.total)
+        },
       })
-      // Store rubric in eval session
+
+      if (parsed.error) throw new Error(parsed.error)
+
+      // 2. Save parsed rubric to Express backend DB
+      const { data } = await backendApi.post<ParsedRubric>('/rubrics', {
+        original_filename: file.name,
+        parsed_json: parsed,
+      })
+
       if (data.id) {
         evalSession.update({
           rubric_id: data.id,
@@ -39,9 +50,8 @@ export function useWorkspaceRubric() {
   async function confirmRubric(rubricId: number): Promise<boolean> {
     confirming.value = true
     try {
-      const data = await post<{ success: boolean }>('/bg-rubric-confirm', {
+      const { data } = await backendApi.post<{ success: boolean }>('/rubrics/confirm', {
         rubric_id: rubricId,
-        // No token_code — workspace mode
       })
       if (data.success) {
         evalSession.update({

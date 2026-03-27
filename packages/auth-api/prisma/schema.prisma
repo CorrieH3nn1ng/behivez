@@ -22,6 +22,8 @@ model User {
   refreshTokens  RefreshToken[]
   passwordResets PasswordReset[]
   subscriptions  Subscription[]
+  payments       Payment[]
+  contentDrafts  ContentDraft[]
 }
 
 enum Role {
@@ -58,15 +60,20 @@ model PasswordReset {
 // ── Subscriptions (per product) ──────────────────────────────
 
 model Subscription {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   String
-  status    SubStatus @default(ACTIVE)
-  plan      String    @default("free")
-  meta      Json?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product          String
+  status           SubStatus @default(ACTIVE)
+  plan             String    @default("free")
+  priceCents       Int?
+  pfSubscriptionId String?
+  currentPeriodEnd DateTime?
+  meta             Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  payments Payment[]
 
   @@unique([userId, product])
 }
@@ -76,4 +83,46 @@ enum SubStatus {
   TRIAL
   EXPIRED
   CANCELLED
+}
+
+// ── Payments ────────────────────────────────────────────────
+
+model Payment {
+  id               String        @id @default(uuid())
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId   String?
+  subscription     Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  pfPaymentId      String?       @unique
+  pfSubscriptionId String?
+  amountCents      Int
+  status           PaymentStatus @default(PENDING)
+  rawItn           Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETE
+  FAILED
+  REFUNDED
+}
+
+// ── Content Drafts ──────────────────────────────────────────
+
+model ContentDraft {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic     String
+  insight   String?
+  message   String?
+  caption   String?
+  hashtags  String[]
+  imageData String?
+  style     String   @default("witty")
+  status    String   @default("draft")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

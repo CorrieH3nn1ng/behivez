@@ -19,7 +19,7 @@ export default route(function () {
   });
 
   Router.beforeEach((to, _from, next) => {
-    const isAuthenticated = !!localStorage.getItem('accessToken');
+    const isAuthenticated = !!localStorage.getItem('sz_access_token');
     const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
     const isAuthPage = to.name === 'login' || to.name === 'register';
 

@@ -5,7 +5,7 @@ export default boot(() => {
   // Axios interceptor: attach JWT from localStorage to /admin/* and /auth/* requests
   axios.interceptors.request.use((config) => {
     const token = localStorage.getItem('bh_access_token')
-    if (token && (config.url?.startsWith('/admin') || config.url?.startsWith('/auth'))) {
+    if (token && (config.url?.startsWith('/admin') || config.url?.startsWith('/auth') || config.url?.startsWith('/payments') || config.url?.startsWith('/content'))) {
       config.headers.Authorization = `Bearer ${token}`
     }
     return config

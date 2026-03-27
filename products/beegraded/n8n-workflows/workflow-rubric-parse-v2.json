@@ -1,0 +1,119 @@
+{
+  "id": "bg-rubric-parse-v2",
+  "name": "BeeGraded - Rubric Parse V2 (AI Only)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-rubric-parse",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "v2-rubric-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-rubric-parse"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "v2-rubric-0002",
+      "name": "Extract Text from PDF",
+      "type": "n8n-nodes-base.readPdf",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = items[0].json.text || '';\n\nif (!text || text.trim().length < 50) {\n  return [{ json: { error: 'Could not extract enough text from the rubric file. Please ensure the PDF contains readable text.' } }];\n}\n\nconst prompt = `You are an academic rubric parser. Extract the structured rubric from this document.\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"programme\": \"programme name or empty string\",\n  \"module_name\": \"module/subject name\",\n  \"nqf_level\": null or number,\n  \"assessment_type\": \"Case Study\" or \"Essay\" or \"Assignment\" etc,\n  \"total_marks\": total marks as number,\n  \"questions\": [\n    {\n      \"number\": 1,\n      \"title\": \"question title/description\",\n      \"marks\": marks allocated as number,\n      \"criteria\": [\"criterion 1\", \"criterion 2\", ...]\n    }\n  ],\n  \"structure_notes\": [\"any important notes about the rubric structure\"],\n  \"grading_scale\": [\n    {\n      \"label\": \"Distinction\",\n      \"range\": \"75-100%\",\n      \"criteria\": {}\n    }\n  ]\n}\n\nRules:\n- Extract ALL questions/sections with their mark allocations\n- Each question should have specific criteria that will be assessed\n- total_marks should equal the sum of all question marks\n- If grading scale/levels are provided, include them\n- If the document doesn't look like a rubric, still extract what you can\n- Return ONLY the JSON, no markdown, no explanation\n\nDocument text:\n${text.substring(0, 15000)}`;\n\nreturn [{ json: { prompt } }];"
+      },
+      "id": "v2-rubric-0003",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "v2-rubric-0004",
+      "name": "Call Gemini",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [900, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = items[0].json;\nlet text = response.text || response.output || '';\n\nif (!text && response.candidates && response.candidates.length > 0) {\n  const parts = response.candidates[0].content.parts;\n  if (parts && parts.length > 0) text = parts[0].text;\n}\n\nif (!text) {\n  return [{ json: { error: 'AI failed to parse the rubric. Please try a clearer PDF.' } }];\n}\n\nlet jsonStr = text.trim();\nif (jsonStr.startsWith('```')) {\n  jsonStr = jsonStr.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '');\n}\n\nconst firstBrace = jsonStr.indexOf('{');\nif (firstBrace > 0) jsonStr = jsonStr.substring(firstBrace);\nif (!jsonStr.endsWith('}')) {\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (lastBrace > 0) jsonStr = jsonStr.substring(0, lastBrace + 1);\n}\n\ntry {\n  const parsed = JSON.parse(jsonStr);\n  return [{ json: {\n    programme: parsed.programme || '',\n    module_name: parsed.module_name || '',\n    nqf_level: parsed.nqf_level || null,\n    assessment_type: parsed.assessment_type || '',\n    total_marks: parsed.total_marks || 0,\n    questions: parsed.questions || [],\n    structure_notes: parsed.structure_notes || [],\n    grading_scale: parsed.grading_scale || []\n  } }];\n} catch (e) {\n  return [{ json: { error: 'AI failed to parse the rubric. Please try a clearer PDF.' } }];\n}"
+      },
+      "id": "v2-rubric-0005",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "v2-rubric-0006",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Extract Text from PDF", "type": "main", "index": 0 }]]
+    },
+    "Extract Text from PDF": {
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Prompt": {
+      "main": [[{ "node": "Call Gemini", "type": "main", "index": 0 }]]
+    },
+    "Call Gemini": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0
+}

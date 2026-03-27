@@ -1,0 +1,6 @@
+REGISTER: 
+ERR: wget: server returned error: HTTP/1.1 409 Conflict
+CODE: 1
+LOGIN: {"accessToken":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3NTEwZmY0ZS00OGY1LTQzNzYtOTNiOS1hNjI1NGU0NTdhZTAiLCJlbWFpbCI6Im1haGxvZGltYWdnaWUwNkBnbWFpbC5jb20iLCJuYW1lIjoiTWFnZ2llIFNlbnlhdHNpIiwicm9sZSI6IlVTRVIiLCJwcm9kdWN0cyI6WyJicm9vZHoiXSwiaWF0IjoxNzc0MzUxNjIzLCJleHAiOjE3NzQzNTI1MjN9.Gq3S6APcwuTAm5cfgHucgBXhmL599OdGYZDL9f_F1nk","refreshToken":"cbec2751-f4de-459a-a0d5-64bc19b74582","user":{"id":"7510ff4e-48f5-4376-93b9-a6254e457ae0","name":"Maggie Senyatsi","email":"mahlodimaggie06@gmail.com","role":"USER","products":["broodz"],"mustChangePassword":false}}
+ERR: 
+CODE: 0

@@ -1,9 +1,9 @@
 import { ref } from 'vue'
-import { useApi } from './useApi'
+import { api, backendApi } from 'src/boot/axios'
 import { useTokenStore, type ParsedRubric } from 'src/stores/token'
+import type { AxiosProgressEvent } from 'axios'
 
 export function useRubric() {
-  const { post, upload } = useApi()
   const tokenStore = useTokenStore()
 
   const uploading = ref(false)
@@ -16,13 +16,25 @@ export function useRubric() {
 
     const formData = new FormData()
     formData.append('file', file)
-    formData.append('token_code', tokenCode)
 
     try {
-      const data = await upload<ParsedRubric>('/bg-rubric-upload', formData, (pct) => {
-        uploadProgress.value = pct
+      // 1. Call n8n for AI rubric parsing (no DB access)
+      const { data: parsed } = await api.post<ParsedRubric & { error?: string }>('/bg-rubric-parse', formData, {
+        timeout: 120000,
+        onUploadProgress: (e: AxiosProgressEvent) => {
+          if (e.total) uploadProgress.value = Math.round((e.loaded * 100) / e.total)
+        },
       })
-      // Update store with rubric data
+
+      if (parsed.error) throw new Error(parsed.error)
+
+      // 2. Save parsed rubric to Express backend DB
+      const { data } = await backendApi.post<ParsedRubric>('/rubrics', {
+        token_code: tokenCode,
+        original_filename: file.name,
+        parsed_json: parsed,
+      })
+
       if (data.id) {
         tokenStore.updateTokenData({
           rubric_id: data.id,
@@ -38,7 +50,7 @@ export function useRubric() {
   async function confirmRubric(rubricId: number, tokenCode: string): Promise<boolean> {
     confirming.value = true
     try {
-      const data = await post<{ success: boolean }>('/bg-rubric-confirm', {
+      const { data } = await backendApi.post<{ success: boolean }>('/rubrics/confirm', {
         rubric_id: rubricId,
         token_code: tokenCode,
       })

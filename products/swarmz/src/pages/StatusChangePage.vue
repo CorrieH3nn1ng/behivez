@@ -148,7 +148,8 @@ async function confirm() {
     receiptPhotos: [],
   }, files.length ? files : undefined);
 
-  vehiclesStore.updateStatus(vehicle.value.id, selectedStatus.value, form.odometer || undefined);
+  // Refresh vehicles from server so status persists
+  await vehiclesStore.fetchVehicles();
   router.push(`/vehicle/${vehicle.value.id}`);
 }
 

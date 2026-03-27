@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { api } from 'src/boot/axios'
+import { backendApi } from 'src/boot/axios'
 
 interface PayFastFields {
   merchant_id: string
@@ -24,7 +24,7 @@ export function usePayment() {
     try {
       const payload: Record<string, unknown> = { paper_id: paperId, mode, email, name }
       if (tokenCode) payload.token_code = tokenCode
-      const { data } = await api.post('/bg-payments-initiate', payload)
+      const { data } = await backendApi.post('/payments/initiate', payload)
       return data as { fields: PayFastFields; payfast_url: string }
     } finally {
       loading.value = false
@@ -36,7 +36,7 @@ export function usePayment() {
     try {
       const payload: Record<string, string> = { email, purchase_type: 'token' }
       if (couponCode) payload.coupon_code = couponCode
-      const { data } = await api.post('/bg-token-purchase', payload)
+      const { data } = await backendApi.post('/tokens/purchase', payload)
       return data as {
         token_code: string
         fields?: PayFastFields
@@ -49,7 +49,6 @@ export function usePayment() {
   }
 
   function submitToPayFast(fields: PayFastFields, payfastUrl: string) {
-    // Create hidden form and auto-submit to PayFast
     const form = document.createElement('form')
     form.method = 'POST'
     form.action = payfastUrl

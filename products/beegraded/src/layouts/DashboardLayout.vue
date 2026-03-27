@@ -14,7 +14,14 @@
           {{ couponStore.discount_percent === 100 ? 'Free' : `${couponStore.discount_percent}% off` }}
         </q-badge>
 
-        <q-btn flat dense no-caps label="Workspace" to="/workspace" color="amber" class="q-mr-sm" />
+        <q-btn flat dense no-caps to="/workspace/children" color="amber" class="q-mr-sm">
+          <q-icon name="family_restroom" size="18px" class="q-mr-xs" />
+          <span>{{ lang === 'af' ? 'My Kinders' : 'My Children' }}</span>
+        </q-btn>
+        <q-btn flat dense no-caps to="/workspace/papers" class="q-mr-sm">
+          <q-icon name="description" size="18px" class="q-mr-xs" />
+          <span class="gt-xs">{{ lang === 'af' ? 'Werkruimte' : 'Papers' }}</span>
+        </q-btn>
         <q-btn flat dense no-caps class="btn-bee q-ml-sm" label="New Evaluation" @click="handleNewEvaluation" />
         <q-btn flat dense icon="person" class="q-ml-md text-grey-4" to="/workspace/account" />
         <q-btn flat dense icon="logout" class="q-ml-md text-grey-4" @click="handleLogout" />
@@ -36,7 +43,9 @@ import { useAuthStore } from 'src/stores/auth'
 import { useCouponStore } from 'src/stores/coupon'
 import { useRouter } from 'vue-router'
 import { useEvalSessionStore } from 'src/stores/evaluation-session'
+import { useI18n } from 'src/i18n'
 
+const { lang } = useI18n()
 const authStore = useAuthStore()
 const couponStore = useCouponStore()
 const router = useRouter()

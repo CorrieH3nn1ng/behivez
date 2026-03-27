@@ -1,0 +1,103 @@
+{
+  "id": "bg-evaluate-v2",
+  "name": "BeeGraded - Evaluate V2 (AI Only)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-evaluate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "v2-eval-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-evaluate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = items[0].json.body || items[0].json;\n\nconst paper_text = (body.paper_text || '').substring(0, 30000);\nconst subject = body.subject || 'General';\nconst assessment_type = body.assessment_type || 'Assessment';\nconst mode = body.mode || 'A';\nconst num_questions = body.num_questions || '4';\nconst rubric_json = body.rubric_json || null;\n\nlet rubricContext = '';\nif (rubric_json) {\n  rubricContext = '\\nRUBRIC:\\n' + JSON.stringify(rubric_json, null, 2) + '\\n\\nEvaluate against this rubric\\'s specific criteria and mark allocation.\\n';\n}\n\nconst prompt = `You are an expert academic evaluator. Evaluate this student paper and return ONLY valid JSON.\n\nPaper details:\n- Subject: ${subject}\n- Assessment type: ${assessment_type}\n- Mode: ${mode}\n- Number of questions: ${num_questions}\n\n${rubricContext}\n\nReturn this exact JSON structure:\n{\n  \"overall_score\": number (0-100),\n  \"knowledge_score\": number (0-100),\n  \"critical_score\": number (0-100),\n  \"application_score\": number (0-100),\n  \"referencing_score\": number (0-100),\n  \"structure_score\": number (0-100),\n  \"ai_risk_score\": number or null (0-100, only for Mode B),\n  \"report_html\": \"full HTML report with styling\",\n  \"issues\": [{\"category\":\"...\",\"severity\":\"critical|important|polish\",\"what_issue\":\"...\",\"where_in_paper\":\"...\",\"why_chain\":[\"...\"],\"root_cause\":\"...\",\"how_to_fix\":\"...\",\"who_notices\":\"...\",\"description\":\"...\",\"recommendation\":\"...\",\"example_before\":\"...\",\"example_after\":\"...\"}],\n  \"strengths\": [{\"category\":\"...\",\"what_well\":\"...\",\"where_in_paper\":\"...\",\"why_chain\":[\"...\"],\"reusable_pattern\":\"...\",\"how_it_helps\":\"...\",\"who_notices\":\"...\"}],\n  \"references\": [{\"citation\":\"...\",\"source_type\":\"in_text|bibliography\",\"matched\":true|false,\"issue_type\":\"...\"}],\n  \"consistency\": [{\"location_a\":\"...\",\"location_b\":\"...\",\"description\":\"...\",\"verdict\":\"consistent|inconsistent\",\"explanation\":\"...\",\"recommendation\":\"...\"}]\n}\n\nThe report_html should be a comprehensive evaluation report with:\n- Executive summary with overall score\n- Detailed scoring breakdown by category\n- Key issues found with severity levels\n- Strengths identified\n- Reference audit results\n- Actionable recommendations\n- Use inline CSS for styling (amber/cream theme, clean academic look)\n\nFor Mode B (Turnitin Ready), also include AI detection risk analysis.\n\nPAPER TEXT:\n${paper_text}`;\n\nreturn [{ json: { prompt } }];"
+      },
+      "id": "v2-eval-0002",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "v2-eval-0003",
+      "name": "Call Gemini",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = items[0].json;\nlet text = response.text || response.output || '';\n\nif (!text && response.candidates && response.candidates.length > 0) {\n  const parts = response.candidates[0].content.parts;\n  if (parts && parts.length > 0) text = parts[0].text;\n}\n\nif (!text) {\n  return [{ json: { error: 'AI evaluation failed to return results. Please try again.' } }];\n}\n\nlet jsonStr = text.trim();\nif (jsonStr.startsWith('```')) {\n  jsonStr = jsonStr.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '');\n}\n\nconst firstBrace = jsonStr.indexOf('{');\nif (firstBrace > 0) jsonStr = jsonStr.substring(firstBrace);\nif (!jsonStr.endsWith('}')) {\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (lastBrace > 0) jsonStr = jsonStr.substring(0, lastBrace + 1);\n}\n\ntry {\n  const parsed = JSON.parse(jsonStr);\n  return [{ json: {\n    overall_score: parsed.overall_score || 0,\n    knowledge_score: parsed.knowledge_score || 0,\n    critical_score: parsed.critical_score || 0,\n    application_score: parsed.application_score || 0,\n    referencing_score: parsed.referencing_score || 0,\n    structure_score: parsed.structure_score || 0,\n    ai_risk_score: parsed.ai_risk_score ?? null,\n    report_html: parsed.report_html || '',\n    issues: parsed.issues || [],\n    strengths: parsed.strengths || [],\n    references: parsed.references || [],\n    consistency: parsed.consistency || []\n  } }];\n} catch (e) {\n  return [{ json: { error: 'AI evaluation failed to return valid results. Please try again.' } }];\n}"
+      },
+      "id": "v2-eval-0004",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "v2-eval-0005",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Prompt": {
+      "main": [[{ "node": "Call Gemini", "type": "main", "index": 0 }]]
+    },
+    "Call Gemini": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0
+}

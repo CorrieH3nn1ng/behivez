@@ -242,9 +242,12 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
     role: user.role,
     mustChangePassword: user.mustChangePassword,
     subscriptions: user.subscriptions.map((s) => ({
+      id: s.id,
       product: s.product,
       status: s.status,
       plan: s.plan,
+      priceCents: s.priceCents,
+      currentPeriodEnd: s.currentPeriodEnd,
     })),
   });
 });

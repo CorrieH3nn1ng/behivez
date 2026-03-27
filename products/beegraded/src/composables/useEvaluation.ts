@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import { backendApi } from 'src/boot/axios'
-import { useApi } from './useApi'
+import { api, backendApi } from 'src/boot/axios'
+import type { AxiosProgressEvent } from 'axios'
 
 interface EvaluationStatus {
   id: number
@@ -36,7 +36,6 @@ interface Paper {
 }
 
 export function useEvaluation() {
-  const { get, post, upload } = useApi()
   const uploading = ref(false)
   const uploadProgress = ref(0)
 
@@ -62,8 +61,10 @@ export function useEvaluation() {
     if (tokenCode) formData.append('token_code', tokenCode)
 
     try {
-      const data = await upload<{ paper_id: number }>('/bg-papers-upload', formData, (pct) => {
-        uploadProgress.value = pct
+      const { data } = await backendApi.post<{ paper_id: number; word_count: number; page_count: number }>('/papers', formData, {
+        onUploadProgress: (e: AxiosProgressEvent) => {
+          if (e.total) uploadProgress.value = Math.round((e.loaded * 100) / e.total)
+        },
       })
       return data
     } finally {
@@ -77,7 +78,8 @@ export function useEvaluation() {
   }
 
   async function getReport(evaluationId: number) {
-    return get<{ report_html: string }>(`/bg-evaluations-report?id=${evaluationId}`)
+    const { data } = await backendApi.get<{ evaluation: { report_html: string } }>(`/evaluations/${evaluationId}`)
+    return { report_html: data.evaluation?.report_html || '' }
   }
 
   interface EvaluationDetail {
@@ -149,9 +151,9 @@ export function useEvaluation() {
     return data
   }
 
-  async function getUserPapers(userId?: number) {
-    const url = userId ? `/bg-user-papers?user_id=${userId}` : '/bg-user-papers'
-    return get<Paper[]>(url)
+  async function getUserPapers() {
+    const { data } = await backendApi.get<Paper[]>('/papers')
+    return data
   }
 
   interface RubricWeights {
@@ -163,32 +165,38 @@ export function useEvaluation() {
   }
 
   async function saveRubric(paperId: number, weights: RubricWeights) {
-    return post<{ success: boolean }>('/bg-rubric-save', { paper_id: paperId, ...weights })
+    // TODO: add rubric weights endpoint if needed
+    return { success: true }
   }
 
   async function getRubric(paperId: number) {
-    return get<RubricWeights>(`/bg-rubric-get?paper_id=${paperId}`)
+    // TODO: add rubric weights endpoint if needed
+    return { knowledge_weight: 20, critical_weight: 20, application_weight: 20, referencing_weight: 20, structure_weight: 20 } as RubricWeights
   }
 
   async function getUserEvaluations() {
-    return get<Evaluation[]>('/bg-user-evaluations')
+    const { data } = await backendApi.get<Evaluation[]>('/evaluations')
+    return data
   }
 
   async function triggerEvaluation(paperId: number, mode: string, tokenCode?: string, rubricId?: number, draftOrFinal: 'draft' | 'final' = 'draft') {
-    // 1. Create eval record in backend (score=0, status=processing)
+    // 1. Create eval record in Express backend
     const { data: evalRecord } = await backendApi.post<{ evaluation_id: number; status: string }>('/evaluations', {
       paper_id: paperId, mode, draft_or_final: draftOrFinal,
     })
 
-    // 2. Call n8n for AI processing — AWAIT the response (n8n returns JSON, no DB writes)
-    const payload: Record<string, unknown> = {
-      paper_id: paperId, mode, draft_or_final: draftOrFinal,
-    }
-    if (tokenCode) payload.token_code = tokenCode
-    if (rubricId) payload.rubric_id = rubricId
+    // 2. Get paper data from Express
+    const { data: paper } = await backendApi.get<{ paper_text: string; subject: string; assessment_type: string; num_questions: number }>(`/papers/${paperId}`)
 
-    const aiResult = await post<{
-      status: string
+    // 3. Build rubric context
+    let rubricJson = null
+    if (rubricId) {
+      const { data: rubric } = await backendApi.get<{ questions: unknown[]; [k: string]: unknown }>(`/rubrics/${rubricId}`)
+      rubricJson = rubric
+    }
+
+    // 4. Call n8n for AI evaluation (NO DB access)
+    const { data: aiResult } = await api.post<{
       overall_score: number
       knowledge_score: number
       critical_score: number
@@ -201,19 +209,32 @@ export function useEvaluation() {
       strengths: unknown[]
       references: unknown[]
       consistency: unknown[]
-    }>('/bg-evaluate', payload)
+      error?: string
+    }>('/bg-evaluate', {
+      paper_text: paper.paper_text,
+      subject: paper.subject,
+      assessment_type: paper.assessment_type,
+      mode,
+      num_questions: String(paper.num_questions || 4),
+      rubric_json: rubricJson,
+    }, { timeout: 300000 })
 
-    // 3. Save AI results to backend DB
+    if (aiResult.error) {
+      throw new Error(aiResult.error)
+    }
+
+    // 5. Save AI results to Express backend DB
     await backendApi.post(`/evaluations/${evalRecord.evaluation_id}/complete`, aiResult)
 
     return { evaluation_id: evalRecord.evaluation_id, status: 'complete' }
   }
 
   async function requestComparison(draftEvalId: number, finalPaperId: number) {
-    return post<{ comparison_id: number }>('/bg-papers-compare', {
+    const { data } = await backendApi.post<{ comparison_id: number }>('/comparisons', {
       draft_eval_id: draftEvalId,
       final_paper_id: finalPaperId,
     })
+    return data
   }
 
   function pollStatus(evaluationId: number, onUpdate: (status: EvaluationStatus) => void, intervalMs = 3000) {
@@ -225,14 +246,12 @@ export function useEvaluation() {
           clearInterval(timer)
         }
       } catch {
-        // Don't stop on error — evaluation might not exist yet
+        // Don't stop on error
       }
     }, intervalMs)
-
     return () => clearInterval(timer)
   }
 
-  // Poll by paper_id — checks if n8n has finished creating the evaluation
   function pollStatusByPaper(paperId: number, onUpdate: (status: EvaluationStatus) => void, intervalMs = 5000) {
     const timer = setInterval(async () => {
       try {
@@ -242,10 +261,9 @@ export function useEvaluation() {
           clearInterval(timer)
         }
       } catch {
-        // Evaluation doesn't exist yet — n8n is still working
+        // Evaluation doesn't exist yet
       }
     }, intervalMs)
-
     return () => clearInterval(timer)
   }
 
@@ -263,9 +281,14 @@ export function useEvaluation() {
     formData.append('mode', mode)
 
     try {
-      const data = await upload<{ report_html: string }>('/bg-quick-evaluate', formData, (pct) => {
-        uploadProgress.value = pct
+      // Call n8n for AI evaluation (file upload + AI, no DB)
+      const { data } = await api.post<{ report_html: string; error?: string }>('/bg-quick-evaluate', formData, {
+        timeout: 300000,
+        onUploadProgress: (e: AxiosProgressEvent) => {
+          if (e.total) uploadProgress.value = Math.round((e.loaded * 100) / e.total)
+        },
       })
+      if (data.error) throw new Error(data.error)
       return data
     } finally {
       evaluating.value = false

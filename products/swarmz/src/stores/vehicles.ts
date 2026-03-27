@@ -10,7 +10,7 @@ const MOCK_VEHICLES: Vehicle[] = [
 ];
 
 function isDemo() {
-  return localStorage.getItem('accessToken') === 'demo-token';
+  return localStorage.getItem('sz_access_token') === 'demo-token';
 }
 
 interface VehiclesState {

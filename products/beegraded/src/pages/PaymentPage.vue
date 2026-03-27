@@ -77,7 +77,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePayment } from 'src/composables/usePayment'
-import { useApi } from 'src/composables/useApi'
+import { backendApi } from 'src/boot/axios'
 import { useAuthStore } from 'src/stores/auth'
 import { useCouponStore } from 'src/stores/coupon'
 import { Notify } from 'quasar'
@@ -139,8 +139,7 @@ async function checkCoupon() {
   couponChecking.value = true
   couponMessage.value = ''
   try {
-    const { get } = useApi()
-    const result = await get<{ valid: boolean; discount_percent: number; affiliate_name: string; message?: string }>(`/bg-coupon-validate?code=${encodeURIComponent(code)}`)
+    const { data: result } = await backendApi.get<{ valid: boolean; discount_percent: number; affiliate_name: string; message?: string }>(`/coupons/validate?code=${encodeURIComponent(code)}`)
     if (result.valid) {
       couponValid.value = true
       couponDiscount.value = result.discount_percent

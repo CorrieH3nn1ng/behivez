@@ -148,7 +148,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { api } from 'src/boot/axios'
+import { api, backendApi } from 'src/boot/axios'
 import { Notify } from 'quasar'
 
 interface EvalScores {
@@ -226,9 +226,33 @@ function criterionColor(criterion: string) {
 async function generateGuide() {
   guideLoading.value = true
   try {
-    const { data } = await api.post('/bg-guide', {
-      evaluation_id: props.evaluationId,
-    })
+    // 1. Get evaluation data from Express backend
+    const { data: evalDetail } = await backendApi.get(`/evaluations/${props.evaluationId}`)
+    const ev = evalDetail.evaluation
+    const evalData = {
+      overall_score: ev?.overall_score || 0,
+      knowledge_score: ev?.knowledge_score || 0,
+      critical_score: ev?.critical_score || 0,
+      application_score: ev?.application_score || 0,
+      referencing_score: ev?.referencing_score || 0,
+      structure_score: ev?.structure_score || 0,
+      subject: ev?.subject || '',
+      issues: (evalDetail.issues || []).map((i: any) => ({
+        category: i.category,
+        severity: i.severity,
+        description: i.description,
+        recommendation: i.recommendation,
+      })),
+      strengths: (evalDetail.strengths || []).map((s: any) => ({
+        category: s.category,
+        what_well: s.what_well,
+      })),
+    }
+
+    // 2. Call n8n for AI guide generation (no DB access)
+    const { data } = await api.post('/bg-guide', evalData, { timeout: 120000 })
+
+    if (data.error) throw new Error(data.error)
     guide.value = data as GuideData
     guideLoaded.value = true
   } catch (err) {

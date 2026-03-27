@@ -1,0 +1,85 @@
+{
+  "id": "bgProblem01",
+  "name": "BG - Problem Solving Generate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-problem-generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "gem1",
+      "name": "Call Gemini",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [440, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "7jOwccZ2rpWMt3vV",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = items[0].json;\nlet text = response.text || response.output || '';\n\nif (!text && response.candidates && response.candidates.length > 0) {\n  const parts = response.candidates[0].content.parts;\n  if (parts && parts.length > 0) text = parts[0].text;\n}\n\nif (!text) {\n  return [{ json: { error: 'AI failed to generate questions' } }];\n}\n\nlet jsonStr = text.trim();\nif (jsonStr.startsWith('```')) {\n  jsonStr = jsonStr.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '');\n}\njsonStr = jsonStr.trim();\n\nconst match = jsonStr.match(/\\[\\s*\\{[\\s\\S]*\\}\\s*\\]/);\nif (match) jsonStr = match[0];\n\ntry {\n  const questions = JSON.parse(jsonStr);\n  return [{ json: { questions: questions, count: questions.length } }];\n} catch (e) {\n  return [{ json: { error: 'Failed to parse questions', raw: text.substring(0, 500) } }];\n}"
+      },
+      "id": "code1",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "resp1",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [880, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Call Gemini", "type": "main", "index": 0}]]
+    },
+    "Call Gemini": {
+      "main": [[{"node": "Parse Response", "type": "main", "index": 0}]]
+    },
+    "Parse Response": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

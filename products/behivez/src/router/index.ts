@@ -8,6 +8,21 @@ const routes = [
     component: () => import('layouts/MainLayout.vue'),
     children: [
       { path: '', component: () => import('pages/LandingPage.vue') },
+      { path: 'pricing', component: () => import('pages/PricingPage.vue') },
+      { path: 'login', component: () => import('pages/LoginPage.vue') },
+      { path: 'register', component: () => import('pages/RegisterPage.vue') },
+      { path: 'payment/success', component: () => import('pages/PaymentSuccessPage.vue') },
+      { path: 'payment/cancel', component: () => import('pages/PaymentCancelPage.vue') },
+    ],
+  },
+  {
+    path: '/my',
+    component: () => import('layouts/UserLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      { path: 'subscriptions', component: () => import('pages/MySubscriptionsPage.vue') },
+      { path: 'content-creator', component: () => import('pages/ContentCreatorPage.vue') },
+      { path: 'content-drafts', component: () => import('pages/ContentDraftsPage.vue') },
     ],
   },
   {
@@ -23,6 +38,7 @@ const routes = [
       { path: 'dashboard', component: () => import('pages/admin/DashboardPage.vue') },
       { path: 'users', component: () => import('pages/admin/UsersPage.vue') },
       { path: 'users/:id', component: () => import('pages/admin/UserDetailPage.vue') },
+      { path: 'revenue', component: () => import('pages/admin/RevenuePage.vue') },
       { path: 'health', component: () => import('pages/admin/HealthPage.vue') },
     ],
   },
@@ -44,8 +60,17 @@ export default route(function () {
   })
 
   router.beforeEach((to) => {
+    const token = localStorage.getItem('bh_access_token')
+
+    // /my/* routes require any authenticated user
+    if (to.matched.some((r) => r.meta.requiresAuth)) {
+      if (!token) {
+        return { path: '/login', query: { redirect: to.fullPath } }
+      }
+    }
+
+    // /admin/* routes require OWNER or ADMIN role
     if (to.path.startsWith('/admin') && to.path !== '/admin/login') {
-      const token = localStorage.getItem('bh_access_token')
       if (!token) {
         return '/admin/login'
       }

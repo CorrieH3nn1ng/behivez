@@ -1,8 +1,8 @@
 <template>
   <q-page v-if="talent">
-    <!-- 1. HERO — cover, avatar, name, tagline, location, category, theme -->
+    <!-- 1. HERO BANNER -->
     <section class="profile-hero" :style="heroStyle">
-      <div class="hero-overlay q-pa-xl" :style="overlayStyle">
+      <div v-if="!talent.cover_image" class="hero-overlay q-pa-xl">
         <div class="row items-end q-col-gutter-md" style="max-width: 900px; margin: 0 auto;">
           <div class="col-auto">
             <q-avatar size="120px" class="shadow-4">
@@ -11,13 +11,13 @@
             </q-avatar>
           </div>
           <div class="col">
-            <h1 class="text-h4 text-weight-bold q-mb-none q-mt-none" :style="{ color: heroTextColor }">{{ talent.name }}</h1>
+            <h1 class="text-h4 text-weight-bold q-mb-none q-mt-none text-white">{{ talent.name }}</h1>
             <p v-if="talent.tagline" class="text-subtitle1 q-mb-xs" :style="{ color: themeAccent }">{{ talent.tagline }}</p>
-            <div class="row items-center q-gutter-sm" :style="{ color: heroSubTextColor }">
-              <q-chip v-if="talent.category_name" dense outline :color="isLightTheme ? 'brown-8' : 'white'" :text-color="isLightTheme ? 'brown-8' : 'white'">
+            <div class="row items-center q-gutter-sm">
+              <q-chip v-if="talent.category_name" dense outline color="white" text-color="white">
                 {{ talent.category_name }}
               </q-chip>
-              <q-chip v-if="talent.location" dense outline :color="isLightTheme ? 'brown-8' : 'white'" :text-color="isLightTheme ? 'brown-8' : 'white'" icon="place">
+              <q-chip v-if="talent.location" dense outline color="white" text-color="white" icon="place">
                 {{ talent.location }}
               </q-chip>
             </div>
@@ -25,6 +25,29 @@
         </div>
       </div>
     </section>
+
+    <!-- Profile info bar (shown when cover image has its own design) -->
+    <div v-if="talent.cover_image" class="profile-info-bar q-pa-md">
+      <div class="row items-center q-col-gutter-md" style="max-width: 900px; margin: 0 auto;">
+        <div class="col-auto">
+          <q-avatar size="64px" class="shadow-2">
+            <img v-if="talent.profile_image" :src="talent.profile_image" :alt="talent.name" />
+            <q-icon v-else name="person" size="32px" color="brown-3" />
+          </q-avatar>
+        </div>
+        <div class="col">
+          <h1 class="text-h5 text-weight-bold q-mb-none q-mt-none" style="color: #2d2013;">{{ talent.name }}</h1>
+          <div class="row items-center q-gutter-sm q-mt-xs">
+            <q-chip v-if="talent.category_name" dense color="brown-1" text-color="brown-8">
+              {{ talent.category_name }}
+            </q-chip>
+            <q-chip v-if="talent.location" dense color="brown-1" text-color="brown-8" icon="place">
+              {{ talent.location }}
+            </q-chip>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div style="max-width: 900px; margin: 0 auto;" class="q-pa-md">
       <!-- 2. WHAT I DO — bio + social links -->
@@ -160,21 +183,12 @@ const themeMap: Record<string, { heroBg: string; accent: string }> = {
 const currentTheme = computed(() => themeMap[talent.value?.theme || 'earth'] || themeMap.earth)
 const themeAccent = computed(() => currentTheme.value.accent)
 const isLightTheme = computed(() => (talent.value?.theme || '').includes('-light'))
-const heroTextColor = computed(() => isLightTheme.value ? '#2d2013' : '#ffffff')
-const heroSubTextColor = computed(() => isLightTheme.value ? '#5d4037' : 'rgba(255,255,255,0.85)')
 
 const heroStyle = computed(() => {
   if (talent.value?.cover_image) {
     return { backgroundImage: `url(${talent.value.cover_image})` }
   }
   return { backgroundColor: currentTheme.value.heroBg }
-})
-
-const overlayStyle = computed(() => {
-  if (isLightTheme.value) {
-    return { background: 'rgba(255,255,255,0.3)' }
-  }
-  return { background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 100%)' }
 })
 
 // Gallery preview — first 6 items
@@ -312,8 +326,13 @@ onMounted(async () => {
 
 .hero-overlay {
   min-height: 280px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.2) 100%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.1) 100%);
   display: flex;
   align-items: flex-end;
+}
+
+.profile-info-bar {
+  background: #fff8f0;
+  border-bottom: 1px solid #e8ddd0;
 }
 </style>

@@ -60,6 +60,21 @@
         <template #prepend><q-icon name="mail" /></template>
       </q-input>
 
+      <!-- Home Language (register only) -->
+      <q-select
+        v-if="isRegister"
+        v-model="homeLanguage"
+        outlined dense
+        label="Home Language / Huistaal"
+        :options="languageOptions"
+        emit-value
+        map-options
+        class="q-mb-md"
+        :disable="loading"
+      >
+        <template #prepend><q-icon name="language" /></template>
+      </q-select>
+
       <!-- Password -->
       <q-input
         v-model="password"
@@ -135,9 +150,16 @@ const isRegister = ref(false)
 const name = ref('')
 const email = ref('')
 const password = ref('')
+const homeLanguage = ref('af')
 const showPassword = ref(false)
 const loading = ref(false)
 const errorMsg = ref('')
+
+const languageOptions = [
+  { label: 'Afrikaans', value: 'af' },
+  { label: 'English', value: 'en' },
+  { label: 'Setswana', value: 'tn' },
+]
 
 // Coupon
 const couponCode = ref('')
@@ -197,6 +219,8 @@ async function handleSubmit() {
     let user
     if (isRegister.value) {
       user = await authStore.register(name.value.trim(), email.value.trim(), password.value)
+      // Save home language preference
+      localStorage.setItem('bg_math_lang', homeLanguage.value)
     } else {
       user = await authStore.login(email.value.trim(), password.value)
     }

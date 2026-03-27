@@ -17,6 +17,14 @@
         <q-spinner-gears size="48px" color="amber" />
       </div>
 
+      <q-banner v-else-if="error" class="bg-red-1 text-red-8 q-mb-lg" rounded>
+        <template #avatar><q-icon name="error" color="negative" /></template>
+        <strong>{{ error }}</strong>
+        <template #action>
+          <q-btn flat no-caps label="Back to Workspace" color="red" to="/workspace" />
+        </template>
+      </q-banner>
+
       <template v-else>
         <!-- Score Overview -->
         <q-card flat class="bee-card q-pa-lg q-mb-lg">
@@ -91,6 +99,7 @@ import { backendApi } from 'src/boot/axios'
 
 const props = defineProps<{ draftId: string; finalId: string }>()
 const loading = ref(true)
+const error = ref('')
 
 const comparison = ref({
   draftScore: 0,
@@ -108,7 +117,10 @@ onMounted(async () => {
   try {
     const { data } = await backendApi.get<typeof comparison.value>(`/comparisons/${props.draftId}/${props.finalId}`)
     comparison.value = data
-  } catch { /* handle error */ } finally {
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || 'Failed to load comparison data'
+    error.value = msg
+  } finally {
     loading.value = false
   }
 })

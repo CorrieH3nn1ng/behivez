@@ -80,11 +80,14 @@ onMounted(async () => {
 <style lang="scss" scoped>
 .hero-section {
   background: linear-gradient(135deg, #1a1520 0%, #2a1e30 40%, #3a2520 100%);
-  min-height: 360px;
+  min-height: 400px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding-top: 60px;
+  padding-bottom: 60px;
+  gap: 8px;
 }
 
 .category-card {

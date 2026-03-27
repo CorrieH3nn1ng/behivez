@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia';
-import { api } from 'boot/axios';
+import { authApi } from 'boot/axios';
 import type { PlanType } from 'src/types';
 
 export interface User {
   id: string;
   email: string;
   name: string;
+  role: string;
   plan: PlanType;
   fleetName?: string;
 }
@@ -19,14 +20,14 @@ interface AuthState {
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
     user: null,
-    isAuthenticated: !!localStorage.getItem('accessToken'),
+    isAuthenticated: !!localStorage.getItem('sz_access_token'),
     isLoading: false,
   }),
 
   getters: {
     fullName: (state) => state.user?.name || '',
     isFleetPlan: (state) => state.user?.plan === 'fleet',
-    isDemoMode: () => localStorage.getItem('accessToken') === 'demo-token',
+    isDemoMode: () => localStorage.getItem('sz_access_token') === 'demo-token',
   },
 
   actions: {
@@ -35,10 +36,12 @@ export const useAuthStore = defineStore('auth', {
         id: 'demo-001',
         email: 'demo@swarmz.co.za',
         name: 'Demo User',
+        role: 'USER',
         plan: 'fleet',
         fleetName: 'Demo Fleet',
       };
-      localStorage.setItem('accessToken', 'demo-token');
+      localStorage.setItem('sz_access_token', 'demo-token');
+      localStorage.setItem('sz_user', JSON.stringify(demoUser));
       this.user = demoUser;
       this.isAuthenticated = true;
       return { success: true };
@@ -47,11 +50,14 @@ export const useAuthStore = defineStore('auth', {
     async register(name: string, email: string, password: string, plan: PlanType) {
       this.isLoading = true;
       try {
-        const response = await api.post('/auth/register', { name, email, password, plan });
+        const response = await authApi.post('/register', {
+          name, email, password, product: 'swarmz',
+        });
         const { accessToken, refreshToken, user } = response.data;
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        this.user = user;
+        localStorage.setItem('sz_access_token', accessToken);
+        localStorage.setItem('sz_refresh_token', refreshToken);
+        localStorage.setItem('sz_user', JSON.stringify({ ...user, plan }));
+        this.user = { ...user, plan };
         this.isAuthenticated = true;
         return { success: true };
       } catch (error: unknown) {
@@ -65,11 +71,12 @@ export const useAuthStore = defineStore('auth', {
     async login(email: string, password: string) {
       this.isLoading = true;
       try {
-        const response = await api.post('/auth/login', { email, password });
+        const response = await authApi.post('/login', { email, password });
         const { accessToken, refreshToken, user } = response.data;
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        this.user = user;
+        localStorage.setItem('sz_access_token', accessToken);
+        localStorage.setItem('sz_refresh_token', refreshToken);
+        localStorage.setItem('sz_user', JSON.stringify(user));
+        this.user = { ...user, plan: user.plan || 'solo' };
         this.isAuthenticated = true;
         return { success: true };
       } catch (error: unknown) {
@@ -82,38 +89,53 @@ export const useAuthStore = defineStore('auth', {
 
     async logout() {
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = localStorage.getItem('sz_refresh_token');
         if (refreshToken) {
-          await api.post('/auth/logout', { refreshToken });
+          await authApi.post('/logout', { refreshToken });
         }
       } catch {
         // Ignore
       } finally {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('sz_access_token');
+        localStorage.removeItem('sz_refresh_token');
+        localStorage.removeItem('sz_user');
         this.user = null;
         this.isAuthenticated = false;
       }
     },
 
     async fetchUser() {
-      if (!localStorage.getItem('accessToken')) return;
+      if (!localStorage.getItem('sz_access_token')) return;
       if (this.isDemoMode) {
         this.enterDemoMode();
         return;
       }
       this.isLoading = true;
       try {
-        const response = await api.get('/auth/me');
-        this.user = response.data;
+        const response = await authApi.get('/me');
+        this.user = { ...response.data, plan: response.data.plan || 'solo' };
         this.isAuthenticated = true;
+        localStorage.setItem('sz_user', JSON.stringify(this.user));
       } catch {
         this.user = null;
         this.isAuthenticated = false;
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('sz_access_token');
+        localStorage.removeItem('sz_refresh_token');
+        localStorage.removeItem('sz_user');
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    loadFromStorage() {
+      const stored = localStorage.getItem('sz_user');
+      if (stored) {
+        try {
+          this.user = JSON.parse(stored);
+          this.isAuthenticated = true;
+        } catch {
+          // Ignore
+        }
       }
     },
   },

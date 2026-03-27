@@ -67,11 +67,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useApi } from 'src/composables/useApi'
+import { api, backendApi } from 'src/boot/axios'
 import { Notify } from 'quasar'
+import type { AxiosProgressEvent } from 'axios'
 
 const router = useRouter()
-const { upload } = useApi()
 
 const email = ref('')
 const file = ref<File | null>(null)
@@ -101,19 +101,49 @@ async function handleSubmit() {
   formData.append('assessment_type', assessmentType.value)
 
   try {
-    const data = await upload<{ sample_id: number; error?: string }>('/bg-free-sample', formData, (pct) => {
-      uploadProgress.value = pct
+    // 1. Create DB records via Express (check email, save paper/eval/sample)
+    const { data: sampleData } = await backendApi.post<{
+      sample_id: number
+      evaluation_id: number
+      paper_text: string
+      subject: string
+      assessment_type: string
+      error?: string
+    }>('/free-samples', formData, {
+      timeout: 60000,
+      onUploadProgress: (e: AxiosProgressEvent) => {
+        if (e.total) uploadProgress.value = Math.round((e.loaded * 50) / e.total)
+      },
     })
 
-    if (data.error) {
-      errorMsg.value = data.error
+    if (sampleData.error) {
+      errorMsg.value = sampleData.error
       return
+    }
+
+    // 2. Call n8n for AI evaluation (no DB access)
+    try {
+      const { data: aiResult } = await api.post('/bg-evaluate', {
+        paper_text: sampleData.paper_text,
+        subject: sampleData.subject,
+        assessment_type: sampleData.assessment_type,
+        mode: 'A',
+        num_questions: '4',
+        rubric_json: null,
+      }, { timeout: 300000 })
+
+      if (!aiResult.error) {
+        // 3. Save AI results to Express backend
+        await backendApi.post(`/evaluations/${sampleData.evaluation_id}/complete`, aiResult)
+      }
+    } catch {
+      // AI failed but sample record exists — user can retry
     }
 
     // Navigate to processing page
     router.push({
       name: 'free-sample-processing',
-      params: { sampleId: String(data.sample_id) },
+      params: { sampleId: String(sampleData.sample_id) },
     })
   } catch (err: any) {
     const msg = err?.response?.data?.error || err?.response?.data?.message

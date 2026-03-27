@@ -5,6 +5,8 @@ import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
+import paymentRoutes from './routes/payments.js';
+import contentRoutes from './routes/content.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -14,6 +16,8 @@ const PORT = process.env.PORT || 3100;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.set('trust proxy', true);
 
 // Make prisma available to routes
 app.locals.prisma = prisma;
@@ -26,6 +30,8 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
+app.use('/payments', paymentRoutes);
+app.use('/content', contentRoutes);
 
 // Error handler
 app.use(errorHandler);

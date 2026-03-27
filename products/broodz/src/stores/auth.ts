@@ -41,6 +41,33 @@ export const useAuthStore = defineStore('auth', () => {
     if (savedUser) {
       try { user.value = JSON.parse(savedUser) } catch { /* ignore */ }
     }
+
+    // Check if saved token is expired — if so, clear auth
+    if (accessToken.value) {
+      try {
+        const parts = accessToken.value.split('.')
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]))
+          if (payload.exp && payload.exp * 1000 < Date.now()) {
+            // Token expired — try refresh or clear
+            if (refreshTokenValue.value) {
+              // Attempt refresh on next tick (async)
+              setTimeout(async () => {
+                try {
+                  await refreshAuth()
+                } catch {
+                  clearAuth()
+                }
+              }, 0)
+            } else {
+              clearAuth()
+            }
+          }
+        }
+      } catch {
+        clearAuth()
+      }
+    }
   }
 
   function setAuth(tokens: AuthTokens, newUser: User) {

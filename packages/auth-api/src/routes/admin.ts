@@ -259,6 +259,115 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
   });
 });
 
+// GET /admin/payments — list all payments (paginated)
+router.get('/payments', async (req: AuthRequest, res: Response) => {
+  const prisma = getPrisma(req);
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+  const { product, status } = req.query;
+
+  const where: any = {};
+  if (product) where.subscription = { product };
+  if (status) where.status = status;
+
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where,
+      include: {
+        user: { select: { name: true, email: true } },
+        subscription: { select: { product: true, plan: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.payment.count({ where }),
+  ]);
+
+  res.json({
+    payments: payments.map((p: any) => ({
+      id: p.id,
+      userName: p.user?.name,
+      userEmail: p.user?.email,
+      product: p.subscription?.product || null,
+      plan: p.subscription?.plan || null,
+      amountCents: p.amountCents,
+      status: p.status,
+      createdAt: p.createdAt,
+    })),
+    total,
+    page,
+    limit,
+  });
+});
+
+// GET /admin/revenue — revenue statistics
+router.get('/revenue', async (req: AuthRequest, res: Response) => {
+  const prisma = getPrisma(req);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+  // MRR: sum of priceCents for all active paid subscriptions
+  const activeSubscriptions = await prisma.subscription.findMany({
+    where: { status: 'ACTIVE', priceCents: { gt: 0 } },
+    select: { product: true, priceCents: true },
+  });
+
+  const mrr = activeSubscriptions.reduce((sum: number, s: any) => sum + (s.priceCents || 0), 0);
+  const activePaidCount = activeSubscriptions.length;
+
+  const mrrByProduct: Record<string, number> = {};
+  for (const s of activeSubscriptions) {
+    mrrByProduct[s.product] = (mrrByProduct[s.product] || 0) + (s.priceCents || 0);
+  }
+
+  // Total revenue: sum of complete payments
+  const totalResult = await prisma.payment.aggregate({
+    where: { status: 'COMPLETE' },
+    _sum: { amountCents: true },
+  });
+  const totalRevenue = totalResult._sum.amountCents || 0;
+
+  // Revenue this month vs last month
+  const thisMonthResult = await prisma.payment.aggregate({
+    where: { status: 'COMPLETE', createdAt: { gte: thirtyDaysAgo } },
+    _sum: { amountCents: true },
+  });
+  const lastMonthResult = await prisma.payment.aggregate({
+    where: { status: 'COMPLETE', createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo } },
+    _sum: { amountCents: true },
+  });
+
+  // Recent payments
+  const recentPayments = await prisma.payment.findMany({
+    where: { status: 'COMPLETE' },
+    include: {
+      user: { select: { name: true, email: true } },
+      subscription: { select: { product: true, plan: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+
+  res.json({
+    mrr,
+    activePaidCount,
+    mrrByProduct,
+    totalRevenue,
+    revenueThisMonth: thisMonthResult._sum.amountCents || 0,
+    revenueLastMonth: lastMonthResult._sum.amountCents || 0,
+    recentPayments: recentPayments.map((p: any) => ({
+      id: p.id,
+      userName: p.user?.name,
+      product: p.subscription?.product,
+      plan: p.subscription?.plan,
+      amountCents: p.amountCents,
+      createdAt: p.createdAt,
+    })),
+  });
+});
+
 // GET /admin/health — ping all product domains
 router.get('/health', async (_req: AuthRequest, res: Response) => {
   const domains = [

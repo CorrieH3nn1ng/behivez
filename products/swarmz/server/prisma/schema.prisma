@@ -19,10 +19,12 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  vehicles     Vehicle[]
-  statusLogs   StatusLogEntry[]
-  drivers      Driver[]
-  refreshTokens RefreshToken[]
+  vehicles        Vehicle[]
+  statusLogs      StatusLogEntry[]
+  drivers         Driver[]
+  refreshTokens   RefreshToken[]
+  trips           Trip[]
+  vehicleExpenses VehicleExpense[]
 }
 
 enum Plan {
@@ -46,21 +48,65 @@ model Vehicle {
   id            String        @id @default(uuid())
   userId        String
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Identity
+  name          String        @default("")   // Display name e.g. "2022 Renault Duster 1.5 DCI"
   registration  String
   make          String
   model         String
   year          Int
   color         String        @default("")
+  vin           String?                      // Chassis / VIN number
   photoUrl      String?
+
+  // Type & ownership
+  type          VehicleType   @default(OWNED)
+  purchasePrice Float?                       // Purchase price (incl VAT)
+  purchaseDate  DateTime?     @db.Date       // Date of purchase
+  purchaseMileage Int?                       // Odometer at purchase
+
+  // SARS Fixed Cost Method rates (from cost scale based on purchase price)
+  fixedCostPa          Float?               // Fixed cost per annum from SARS table
+  fuelCostPerKm        Float?               // Fuel cost c/km from SARS table
+  maintenanceCostPerKm Float?               // Maintenance cost c/km from SARS table
+
+  // KM tracking (synced from trips for tax year)
+  openingOdometer   Int?                     // Odometer reading at start of use period
+  totalKmYear       Int        @default(0)   // Total km driven in tax year
+  businessKmYear    Int        @default(0)   // Business km in tax year
+  businessUsePercent Float     @default(0)   // Business use percentage
+
+  // Use period (for pro-rata calculations)
+  useStartDate  DateTime?     @db.Date       // When vehicle started being used this tax year
+  useEndDate    DateTime?     @db.Date       // When vehicle stopped being used (divorce, sold, etc.)
+
+  // Rental vehicle fields
+  rentalStart   DateTime?     @db.Date
+  rentalEnd     DateTime?     @db.Date
+  rentalTotal   Float?                       // Total rental cost
+
+  // Fleet status
   currentStatus VehicleStatus @default(AVAILABLE)
-  odometer      Int           @default(0)
+  odometer      Int           @default(0)    // Current/latest odometer reading
+  isDefault     Boolean       @default(false)
+  isActive      Boolean       @default(true)
+
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  statusLogs    StatusLogEntry[]
+  // Relations
+  statusLogs        StatusLogEntry[]
   driverAssignments DriverVehicle[]
+  trips             Trip[]
+  expenses          VehicleExpense[]
+  documents         VehicleDocument[]
 
   @@unique([userId, registration])
+}
+
+enum VehicleType {
+  OWNED
+  RENTAL
 }
 
 enum VehicleStatus {
@@ -74,7 +120,7 @@ enum VehicleStatus {
   TOWED
 }
 
-// ── Status Log (every action is a status change) ─────────────
+// ── Status Log (every action is a status change — fleet ops) ──
 
 model StatusLogEntry {
   id            String        @id @default(uuid())
@@ -103,7 +149,7 @@ enum CostCategory {
   OTHER
 }
 
-// ── Receipt Photos ───────────────────────────────────────────
+// ── Receipt Photos (attached to status log entries) ──────────
 
 model ReceiptPhoto {
   id             String         @id @default(uuid())
@@ -114,6 +160,164 @@ model ReceiptPhoto {
   mimeType       String
   fileSize       Int
   createdAt      DateTime       @default(now())
+}
+
+// ── Vehicle Documents (photos, invoices, contracts — onboarding) ──
+
+model VehicleDocument {
+  id            String       @id @default(uuid())
+  vehicleId     String
+  vehicle       Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  docType       DocType                     // What kind of document
+  filePath      String
+  originalName  String
+  mimeType      String
+  fileSize      Int
+  rawExtraction Json?                       // AI-extracted data from the photo/document
+  createdAt     DateTime     @default(now())
+}
+
+enum DocType {
+  VEHICLE_PHOTO          // Photo of the car itself
+  LICENSE_DISK           // SA license disk (registration, VIN, expiry)
+  REGISTRATION_PAPER     // Registration certificate
+  PURCHASE_INVOICE       // Purchase invoice (price, date, dealer)
+  RENTAL_AGREEMENT       // Rental contract (dates, cost, terms)
+  INSURANCE_CERTIFICATE  // Insurance docs
+  ROADWORTHY             // Roadworthy certificate
+  OTHER
+}
+
+// ── Trips (travel logbook — SARS compliance) ─────────────────
+
+model Trip {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleId     String?
+  vehicle       Vehicle?     @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  // Core logbook fields (SARS requirement)
+  date          DateTime     @db.Date
+  origin        String
+  destination   String
+  distanceKm    Float
+  category      TripCategory @default(BUSINESS)
+  isBusiness    Boolean      @default(true)
+
+  // Odometer (photo-captured or manual)
+  odometerStart Int?
+  odometerEnd   Int?
+
+  // GPS evidence
+  originLat     Float?
+  originLng     Float?
+  destLat       Float?
+  destLng       Float?
+  routePolyline String?                     // Encoded polyline from GPS breadcrumb
+
+  // Trip details
+  purpose       String?                     // e.g. "Client meeting", "Passenger pickup"
+  client        String?                     // Client name or rider reference
+  startTime     DateTime?
+  endTime       DateTime?
+  durationMin   Int?
+
+  // Import source — distinguishes how the trip was recorded
+  source        TripSource   @default(MANUAL)
+
+  // For ride-hailing: fare info
+  fareAmount    Float?
+  fareCurrency  String?      @default("ZAR")
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([userId, date])
+  @@index([vehicleId, date])
+}
+
+enum TripCategory {
+  BUSINESS
+  PRIVATE
+}
+
+enum TripSource {
+  MANUAL           // User typed it
+  GPS_RECORDED     // Breadcrumb GPS tracking on phone
+  GOOGLE_TIMELINE  // Google Timeline JSON import
+  UBER_CSV         // Uber trip export
+  BOLT_CSV         // Bolt trip export
+  UBER_API         // Uber API sync
+  BOLT_API         // Bolt API sync
+  IMPORTED         // Generic CSV/JSON import
+  ODOMETER_PHOTO   // Captured from odometer photos (start + end)
+}
+
+// ── Vehicle Expenses (for Actual Cost Method — tax deductions) ──
+
+model VehicleExpense {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicleId     String
+  vehicle       Vehicle       @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  date          DateTime      @db.Date
+  category      ExpenseCategory
+  amount        Float
+  vendor        String?
+  description   String?
+
+  // Fuel-specific
+  litres        Float?
+  pricePerLitre Float?
+  odometerKm    Int?
+
+  // Receipt / proof
+  receiptPath   String?
+  rawExtraction Json?                       // AI-extracted data from receipt photo
+  source        ExpenseSource @default(MANUAL)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId, date])
+  @@index([vehicleId, date])
+}
+
+enum ExpenseCategory {
+  FUEL
+  SERVICE
+  TYRES
+  INSURANCE
+  TOLL
+  LICENCE
+  PARKING
+  FINANCE       // Vehicle finance/lease payments
+  DEPRECIATION  // Calculated depreciation
+  OTHER
+}
+
+enum ExpenseSource {
+  MANUAL        // User typed it
+  AI_EXTRACTED  // From receipt photo via Gemini
+  IMPORTED      // From CSV/bank statement
+}
+
+// ── SARS Cost Scale (tax year brackets) ──────────────────────
+
+model SarsCostScale {
+  id                  String   @id @default(uuid())
+  taxYear             String                // e.g. "2025/2026"
+  minValue            Float                 // Vehicle value bracket min
+  maxValue            Float?                // null = no upper limit
+  fixedCostPa         Float                 // Fixed cost per annum
+  fuelCostPerKm       Float                 // Fuel cost cents per km
+  maintenanceCostPerKm Float               // Maintenance cost cents per km
+  createdAt           DateTime @default(now())
+
+  @@unique([taxYear, minValue])
 }
 
 // ── Drivers (Fleet plan) ─────────────────────────────────────

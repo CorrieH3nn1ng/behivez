@@ -1,0 +1,119 @@
+{
+  "id": "bg-quick-evaluate-v2",
+  "name": "BeeGraded - Quick Evaluate V2 (AI Only)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-quick-evaluate",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "v2-quick-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-quick-evaluate"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "v2-quick-0002",
+      "name": "Extract Text from PDF",
+      "type": "n8n-nodes-base.readPdf",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $node['Webhook'].json.body || $node['Webhook'].json || {};\nconst text = items[0].json.text || '';\n\nconst subject = body.subject || 'General';\nconst assessment_type = body.assessment_type || 'Assessment';\nconst mode = body.mode || 'A';\nconst num_questions = body.num_questions || '4';\n\nconst prompt = `You are an expert academic evaluator. Evaluate this student paper and return ONLY valid JSON.\n\nPaper details:\n- Subject: ${subject}\n- Assessment type: ${assessment_type}\n- Mode: ${mode}\n- Number of questions: ${num_questions}\n\n\n\nReturn this exact JSON structure:\n{\n  \"overall_score\": number (0-100),\n  \"knowledge_score\": number (0-100),\n  \"critical_score\": number (0-100),\n  \"application_score\": number (0-100),\n  \"referencing_score\": number (0-100),\n  \"structure_score\": number (0-100),\n  \"ai_risk_score\": number or null (0-100, only for Mode B),\n  \"report_html\": \"full HTML report with styling\",\n  \"issues\": [{\"category\":\"...\",\"severity\":\"critical|important|polish\",\"what_issue\":\"...\",\"where_in_paper\":\"...\",\"why_chain\":[\"...\"],\"root_cause\":\"...\",\"how_to_fix\":\"...\",\"who_notices\":\"...\",\"description\":\"...\",\"recommendation\":\"...\",\"example_before\":\"...\",\"example_after\":\"...\"}],\n  \"strengths\": [{\"category\":\"...\",\"what_well\":\"...\",\"where_in_paper\":\"...\",\"why_chain\":[\"...\"],\"reusable_pattern\":\"...\",\"how_it_helps\":\"...\",\"who_notices\":\"...\"}],\n  \"references\": [{\"citation\":\"...\",\"source_type\":\"in_text|bibliography\",\"matched\":true|false,\"issue_type\":\"...\"}],\n  \"consistency\": [{\"location_a\":\"...\",\"location_b\":\"...\",\"description\":\"...\",\"verdict\":\"consistent|inconsistent\",\"explanation\":\"...\",\"recommendation\":\"...\"}]\n}\n\nThe report_html should be a comprehensive evaluation report with:\n- Executive summary with overall score\n- Detailed scoring breakdown by category\n- Key issues found with severity levels\n- Strengths identified\n- Reference audit results\n- Actionable recommendations\n- Use inline CSS for styling (amber/cream theme, clean academic look)\n\nFor Mode B (Turnitin Ready), also include AI detection risk analysis.\n\nPAPER TEXT:\n${text.substring(0, 30000)}`;\n\nreturn [{ json: { prompt } }];"
+      },
+      "id": "v2-quick-0003",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "v2-quick-0004",
+      "name": "Call Gemini",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [900, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = items[0].json;\nlet text = response.text || response.output || '';\n\nif (!text && response.candidates && response.candidates.length > 0) {\n  const parts = response.candidates[0].content.parts;\n  if (parts && parts.length > 0) text = parts[0].text;\n}\n\nif (!text) {\n  return [{ json: { error: 'AI evaluation failed. Please try again.' } }];\n}\n\nlet jsonStr = text.trim();\nif (jsonStr.startsWith('```')) {\n  jsonStr = jsonStr.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '');\n}\n\nconst firstBrace = jsonStr.indexOf('{');\nif (firstBrace > 0) jsonStr = jsonStr.substring(firstBrace);\nif (!jsonStr.endsWith('}')) {\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (lastBrace > 0) jsonStr = jsonStr.substring(0, lastBrace + 1);\n}\n\ntry {\n  const parsed = JSON.parse(jsonStr);\n  return [{ json: { report_html: parsed.report_html || '' } }];\n} catch (e) {\n  return [{ json: { error: 'AI evaluation failed. Please try again.' } }];\n}"
+      },
+      "id": "v2-quick-0005",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "v2-quick-0006",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Extract Text from PDF", "type": "main", "index": 0 }]]
+    },
+    "Extract Text from PDF": {
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Prompt": {
+      "main": [[{ "node": "Call Gemini", "type": "main", "index": 0 }]]
+    },
+    "Call Gemini": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0
+}

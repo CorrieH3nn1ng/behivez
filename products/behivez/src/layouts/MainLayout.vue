@@ -8,7 +8,10 @@
         </q-btn>
         <q-space />
         <q-btn flat no-caps label="Products" class="text-grey-8" @click="scrollTo('products')" />
+        <q-btn flat no-caps label="Pricing" class="text-grey-8" to="/pricing" />
         <q-btn flat no-caps label="About" class="text-grey-8" @click="scrollTo('about')" />
+        <q-btn v-if="!isLoggedIn" flat no-caps label="Sign In" class="text-amber-9" to="/login" />
+        <q-btn v-else flat no-caps label="My Account" class="text-amber-9" to="/my/subscriptions" />
       </q-toolbar>
     </q-header>
 
@@ -24,6 +27,10 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
+const isLoggedIn = computed(() => !!localStorage.getItem('bh_access_token'))
+
 function scrollTo(id: string) {
   const el = document.getElementById(id);
   if (el) {

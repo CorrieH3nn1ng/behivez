@@ -11,6 +11,10 @@
 
         <q-btn flat dense no-caps label="How It Works" to="/#how-it-works" class="q-mr-sm gt-xs" />
         <q-btn flat dense no-caps label="Pricing" to="/#pricing" class="q-mr-sm gt-xs" />
+        <q-btn flat dense no-caps to="/math" class="q-mr-sm" color="amber">
+          <q-icon name="calculate" size="18px" class="q-mr-xs" />
+          <span class="gt-xs">{{ lang === 'af' ? 'Toets My' : 'Test Me' }}</span>
+        </q-btn>
 
         <template v-if="authStore.isLoggedIn">
           <q-btn flat dense no-caps label="Workspace" to="/workspace" class="q-mr-sm" />
@@ -21,6 +25,12 @@
         </template>
 
         <q-btn flat dense no-caps class="btn-bee q-ml-sm" label="Try Free" to="/free-sample" />
+
+        <!-- Language Toggle -->
+        <q-btn flat dense no-caps size="sm" class="q-ml-sm" @click="toggleLanguage" color="grey-4">
+          <q-icon name="language" size="18px" class="q-mr-xs" />
+          {{ lang === 'af' ? 'EN' : 'AF' }}
+        </q-btn>
       </q-toolbar>
     </q-header>
 
@@ -38,9 +48,11 @@
 <script setup lang="ts">
 import { useAuthStore } from 'src/stores/auth'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'src/i18n'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { t, lang, toggleLanguage } = useI18n()
 
 function handleLogout() {
   authStore.logout()

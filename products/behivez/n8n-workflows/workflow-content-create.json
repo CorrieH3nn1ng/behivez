@@ -1,0 +1,73 @@
+{
+  "name": "BeHivez - Content Create",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bh-content-create",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cc-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bh-content-create"
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "models/gemini-2.0-flash", "mode": "list" },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ 'You are a sharp South African content creator known for finding the irony, paradox, or hidden insight in any topic. You create content for Instagram/social media.\n\nTopic: ' + $json.body.topic + '\nStyle: ' + ($json.body.style || 'witty') + '\n\nGenerate:\n1. A punchy message (max 2 sentences, Instagram-caption style). Make it hit hard.\n2. The core insight/irony in one short line.\n3. A longer caption with context (2-3 sentences) that makes people think.\n4. 5 relevant hashtags (South African audience).\n5. A visual mood description for the image background (describe colors, mood, abstract shapes — NO text in the image, the text will be overlaid separately).\n6. A suggested color scheme: pick 2 colors that match the mood (hex codes).\n\nReturn ONLY raw JSON, no markdown:\n{\"message\": \"...\", \"insight\": \"...\", \"caption\": \"...\", \"hashtags\": [\"#tag1\", ...], \"visualMood\": \"...\", \"colors\": [\"#hex1\", \"#hex2\"]}' }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.9
+        }
+      },
+      "id": "cc-002",
+      "name": "Gemini - Generate Content",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "GEMINI_CREDENTIAL_ID",
+          "name": "Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "let text = items[0].json.text || items[0].json.output || JSON.stringify(items[0].json);\ntext = text.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(text);\n} catch (e) {\n  return [{ json: { error: 'Failed to parse AI response', raw: text.substring(0, 500) } }];\n}\n\n// Build SVG card image\nconst message = parsed.message || 'No message';\nconst colors = parsed.colors || ['#f59e0b', '#78350f'];\nconst c1 = colors[0];\nconst c2 = colors[1];\n\n// Word wrap the message for SVG\nfunction wrapText(text, maxChars) {\n  const words = text.split(' ');\n  const lines = [];\n  let current = '';\n  for (const word of words) {\n    if ((current + ' ' + word).trim().length > maxChars) {\n      lines.push(current.trim());\n      current = word;\n    } else {\n      current = current ? current + ' ' + word : word;\n    }\n  }\n  if (current.trim()) lines.push(current.trim());\n  return lines;\n}\n\nconst lines = wrapText(message, 28);\nconst lineHeight = 52;\nconst startY = 300 - (lines.length * lineHeight / 2);\nconst textLines = lines.map((line, i) =>\n  `<text x=\"300\" y=\"${startY + i * lineHeight}\" text-anchor=\"middle\" fill=\"white\" font-family=\"Arial, sans-serif\" font-size=\"38\" font-weight=\"bold\" style=\"text-shadow: 0 2px 8px rgba(0,0,0,0.5);\">${line.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</text>`\n).join('\\n');\n\nconst insight = (parsed.insight || '').replace(/&/g,'&amp;').replace(/</g,'&lt;');\n\nconst svg = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"600\" height=\"600\" viewBox=\"0 0 600 600\">\n  <defs>\n    <linearGradient id=\"bg\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\">\n      <stop offset=\"0%\" stop-color=\"${c1}\" />\n      <stop offset=\"100%\" stop-color=\"${c2}\" />\n    </linearGradient>\n  </defs>\n  <rect width=\"600\" height=\"600\" fill=\"url(#bg)\" rx=\"16\" />\n  <rect x=\"30\" y=\"30\" width=\"540\" height=\"540\" fill=\"none\" stroke=\"rgba(255,255,255,0.15)\" stroke-width=\"1\" rx=\"12\" />\n  ${textLines}\n  <text x=\"300\" y=\"${startY + lines.length * lineHeight + 30}\" text-anchor=\"middle\" fill=\"rgba(255,255,255,0.7)\" font-family=\"Arial, sans-serif\" font-size=\"16\" font-style=\"italic\">${insight}</text>\n  <text x=\"300\" y=\"570\" text-anchor=\"middle\" fill=\"rgba(255,255,255,0.4)\" font-family=\"Arial, sans-serif\" font-size=\"12\">behivez.co.za</text>\n</svg>`;\n\nconst svgBase64 = 'data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64');\n\nreturn [{\n  json: {\n    message: parsed.message,\n    insight: parsed.insight,\n    caption: parsed.caption,\n    hashtags: parsed.hashtags || [],\n    imageSvg: svg,\n    imageBase64: svgBase64\n  }\n}];"
+      },
+      "id": "cc-003",
+      "name": "Build Image",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "cc-004",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Gemini - Generate Content", "type": "main", "index": 0 }]] },
+    "Gemini - Generate Content": { "main": [[{ "node": "Build Image", "type": "main", "index": 0 }]] },
+    "Build Image": { "main": [[{ "node": "Response", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

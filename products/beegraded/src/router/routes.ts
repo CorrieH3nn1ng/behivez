@@ -20,6 +20,17 @@ const routes: RouteRecordRaw[] = [
       { path: 'report', name: 'report', component: () => import('pages/ReportPage.vue') },
       { path: 'thank-you', name: 'thank-you', component: () => import('pages/ThankYouPage.vue') },
       { path: 'cancel', name: 'cancel', component: () => import('pages/CancelPage.vue') },
+
+      // Child play page (magic link — no auth)
+      { path: 'play/:slug', name: 'child-play', component: () => import('pages/ChildPlayPage.vue'), props: true },
+
+      // Math Speed Test
+      { path: 'math', name: 'math-home', component: () => import('pages/MathHomePage.vue') },
+      { path: 'math/test/:templateId', name: 'math-test', component: () => import('pages/MathTestPage.vue'), props: true },
+      { path: 'math/problems/:templateId', name: 'math-problems', component: () => import('pages/MathProblemTestPage.vue'), props: true },
+      { path: 'math/result/:attemptId', name: 'math-result', component: () => import('pages/MathResultPage.vue'), props: true },
+      { path: 'math/leaderboard', name: 'math-leaderboard', component: () => import('pages/MathLeaderboardPage.vue') },
+      { path: 'math/history', name: 'math-history', component: () => import('pages/MathHistoryPage.vue') },
     ],
   },
 
@@ -45,7 +56,8 @@ const routes: RouteRecordRaw[] = [
     component: () => import('layouts/DashboardLayout.vue'),
     meta: { requiresAuth: true },
     children: [
-      { path: '', name: 'workspace', component: () => import('pages/WorkspacePage.vue') },
+      { path: '', name: 'workspace', redirect: '/workspace/children' },
+      { path: 'papers', name: 'workspace-papers', component: () => import('pages/WorkspacePage.vue') },
       { path: 'new', name: 'workspace-new', component: () => import('pages/WorkspaceEvalPage.vue') },
       { path: 'new/rubric', name: 'workspace-new-rubric', component: () => import('pages/WorkspaceRubricUploadPage.vue') },
       { path: 'new/upload', name: 'workspace-new-upload', component: () => import('pages/WorkspacePaperUploadPage.vue') },
@@ -54,6 +66,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'report/:evaluationId', name: 'workspace-report', component: () => import('pages/ReportPage.vue'), props: true },
       { path: 'comparison/:draftId/:finalId', name: 'workspace-comparison', component: () => import('pages/ComparisonPage.vue'), props: true },
       { path: 'tokens', name: 'workspace-tokens', component: () => import('pages/WorkspaceTokensPage.vue') },
+      { path: 'children', name: 'my-children', component: () => import('pages/MyChildrenPage.vue') },
+      { path: 'child/:childId/progress', name: 'child-progress', component: () => import('pages/ChildProgressPage.vue'), props: true },
       { path: 'account', name: 'workspace-account', component: () => import('pages/AccountPage.vue') },
       { path: 'upload', redirect: '/workspace/new/upload' },
       { path: 'upload/:paperId/final', redirect: '/workspace/new/final' },

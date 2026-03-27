@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api } from 'src/boot/axios'
+import { backendApi } from 'src/boot/axios'
 
 const STORAGE_KEY = 'bg_coupon'
 
@@ -40,12 +40,12 @@ export const useCouponStore = defineStore('coupon', () => {
   }
 
   async function validateCoupon(inputCode: string) {
-    const { data } = await api.get<{
+    const { data } = await backendApi.get<{
       valid: boolean
       discount_percent: number
       affiliate_name: string
       message?: string
-    }>(`/bg-coupon-validate?code=${encodeURIComponent(inputCode)}`)
+    }>(`/coupons/validate?code=${encodeURIComponent(inputCode)}`)
 
     if (data.valid) {
       code.value = inputCode

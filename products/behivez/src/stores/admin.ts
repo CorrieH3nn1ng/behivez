@@ -45,6 +45,9 @@ export const useAdminStore = defineStore('admin', () => {
   const selectedUser = ref<AdminUser | null>(null)
   const stats = ref<DashboardStats | null>(null)
   const healthChecks = ref<HealthCheck[]>([])
+  const revenue = ref<any>(null)
+  const adminPayments = ref<any[]>([])
+  const totalPayments = ref(0)
   const loading = ref(false)
   const healthLoading = ref(false)
 
@@ -114,6 +117,27 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  async function fetchRevenue() {
+    loading.value = true
+    try {
+      const { data } = await axios.get(`${ADMIN_URL}/revenue`)
+      revenue.value = data
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchPayments(params?: { page?: number; limit?: number; product?: string; status?: string }) {
+    loading.value = true
+    try {
+      const { data } = await axios.get(`${ADMIN_URL}/payments`, { params })
+      adminPayments.value = data.payments || []
+      totalPayments.value = data.total ?? 0
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function fetchHealth() {
     healthLoading.value = true
     try {
@@ -130,6 +154,9 @@ export const useAdminStore = defineStore('admin', () => {
     selectedUser,
     stats,
     healthChecks,
+    revenue,
+    adminPayments,
+    totalPayments,
     loading,
     healthLoading,
     fetchUsers,
@@ -140,6 +167,8 @@ export const useAdminStore = defineStore('admin', () => {
     updateSubscription,
     deleteSubscription,
     fetchStats,
+    fetchRevenue,
+    fetchPayments,
     fetchHealth,
   }
 })

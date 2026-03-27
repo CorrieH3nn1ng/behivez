@@ -66,6 +66,15 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('bh_refresh_token', data.refreshToken)
   }
 
+  async function register(name: string, email: string, password: string) {
+    const { data } = await axios.post(`${AUTH_URL}/register`, { name, email, password })
+    setAuth(
+      { accessToken: data.accessToken, refreshToken: data.refreshToken },
+      data.user,
+    )
+    return data.user as User
+  }
+
   async function logout() {
     try {
       if (refreshToken.value) {
@@ -82,6 +91,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn,
     isAdmin,
     login,
+    register,
     refreshAuth,
     logout,
   }

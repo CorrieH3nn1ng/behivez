@@ -25,28 +25,32 @@ model papers {
 }
 
 model users {
-  id          Int       @id @default(autoincrement())
-  email       String    @unique
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
   name        String?
   magic_token String?
-  created_at  DateTime  @default(now())
+  age         Int?
+  grade       Int? // 1-12
+  language    String?  @default("af") // "af", "en", future: "zu", "xh", etc.
+  interests   String[] // ["math_speed_test", "paper_evaluation"]
+  created_at  DateTime @default(now())
   papers      papers[]
   tokens      tokens[]
 }
 
 model rubrics {
-  id                Int       @id @default(autoincrement())
+  id                Int      @id @default(autoincrement())
   source            String?
   original_filename String?
   raw_text          String?
   parsed_json       Json?
-  confirmed         Boolean   @default(false)
+  confirmed         Boolean  @default(false)
   programme         String?
   module_name       String?
   nqf_level         String?
   assessment_type   String?
   total_marks       Int?
-  created_at        DateTime  @default(now())
+  created_at        DateTime @default(now())
 }
 
 model evaluations {
@@ -72,22 +76,22 @@ model evaluations {
 }
 
 model evaluation_issues {
-  id              Int         @id @default(autoincrement())
-  evaluation_id   Int
-  category        String
-  severity        String      @default("important")
-  what_issue      String?
-  where_in_paper  String?
-  why_chain       Json?
-  root_cause      String?
-  how_to_fix      String?
-  who_notices     String?
-  description     String?
-  recommendation  String?
-  example_before  String?
-  example_after   String?
-  fixed_in_final  Boolean?
-  evaluation      evaluations @relation(fields: [evaluation_id], references: [id])
+  id             Int         @id @default(autoincrement())
+  evaluation_id  Int
+  category       String
+  severity       String      @default("important")
+  what_issue     String?
+  where_in_paper String?
+  why_chain      Json?
+  root_cause     String?
+  how_to_fix     String?
+  who_notices    String?
+  description    String?
+  recommendation String?
+  example_before String?
+  example_after  String?
+  fixed_in_final Boolean?
+  evaluation     evaluations @relation(fields: [evaluation_id], references: [id])
 }
 
 model evaluation_strengths {
@@ -114,15 +118,15 @@ model reference_audit {
 }
 
 model consistency_checks {
-  id              Int         @id @default(autoincrement())
-  evaluation_id   Int
-  location_a      String?
-  location_b      String?
-  description     String?
-  verdict         String?
-  explanation     String?
-  recommendation  String?
-  evaluation      evaluations @relation(fields: [evaluation_id], references: [id])
+  id             Int         @id @default(autoincrement())
+  evaluation_id  Int
+  location_a     String?
+  location_b     String?
+  description    String?
+  verdict        String?
+  explanation    String?
+  recommendation String?
+  evaluation     evaluations @relation(fields: [evaluation_id], references: [id])
 }
 
 model tokens {
@@ -146,31 +150,109 @@ model tokens {
 }
 
 model free_samples {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
   paper_id      Int?
   evaluation_id Int?
   ip_address    String?
-  created_at    DateTime  @default(now())
+  created_at    DateTime @default(now())
 }
 
 model payments {
-  id             Int       @id @default(autoincrement())
-  paper_id       Int?
-  amount         Decimal?  @db.Decimal(10, 2)
-  status         String    @default("pending")
-  provider       String    @default("payfast")
-  provider_ref   String?
-  created_at     DateTime  @default(now())
+  id           Int      @id @default(autoincrement())
+  paper_id     Int?
+  amount       Decimal? @db.Decimal(10, 2)
+  status       String   @default("pending")
+  provider     String   @default("payfast")
+  provider_ref String?
+  created_at   DateTime @default(now())
 }
 
 model coupons {
-  id              Int       @id @default(autoincrement())
-  code            String    @unique
-  discount_pct    Int       @default(0)
+  id              Int      @id @default(autoincrement())
+  code            String   @unique
+  discount_pct    Int      @default(0)
   max_uses        Int?
-  current_uses    Int       @default(0)
-  active          Boolean   @default(true)
+  current_uses    Int      @default(0)
+  active          Boolean  @default(true)
   affiliate_email String?
-  created_at      DateTime  @default(now())
+  created_at      DateTime @default(now())
+}
+
+model children {
+  id             Int       @id @default(autoincrement())
+  parent_id      String    // auth user UUID from shared auth-api
+  name           String
+  birthdate      DateTime  @db.Date
+  age            Int?
+  grade          Int       // 1-12
+  language       String    @default("af") // "af", "en", "tn", etc.
+  play_slug      String    @unique // e.g. "niel-20160415" — magic link identifier
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+  subjects       child_subjects[]
+}
+
+model subjects {
+  id             Int       @id @default(autoincrement())
+  code           String    @unique // "maths", "english", "afrikaans", "setswana", "history", etc.
+  name_en        String    // "Mathematics"
+  name_af        String    // "Wiskunde"
+  name_tn        String?   // "Mmetse"
+  grades         Int[]     // [1,2,3,4,5,6,7,8,9,10,11,12]
+  test_types     String[]  // ["speed", "problem_solving", "comprehension"]
+  active         Boolean   @default(true)
+  created_at     DateTime  @default(now())
+  children       child_subjects[]
+}
+
+model child_subjects {
+  id             Int       @id @default(autoincrement())
+  child_id       Int
+  subject_id     Int
+  status         String    @default("active") // "active", "expired", "cancelled"
+  created_at     DateTime  @default(now())
+  child          children  @relation(fields: [child_id], references: [id], onDelete: Cascade)
+  subject        subjects  @relation(fields: [subject_id], references: [id])
+
+  @@unique([child_id, subject_id])
+}
+
+model parent_consent {
+  id             Int       @id @default(autoincrement())
+  parent_id      String    @unique // auth user UUID
+  popia_accepted Boolean   @default(false)
+  accepted_at    DateTime?
+  ip_address     String?
+  created_at     DateTime  @default(now())
+}
+
+model math_test_templates {
+  id             Int                  @id @default(autoincrement())
+  name           String // "Maaltafel Toets Gr 4"
+  grade          Int                  @default(4)
+  operations     String[] // ["multiply", "divide"]
+  time_limit_sec Int                  @default(360)
+  questions_json Json // [{question, answer, operandA, operandB, operation}]
+  question_count Int                  @default(50)
+  language       String               @default("af")
+  created_by     String? // auth user UUID
+  created_at     DateTime             @default(now())
+  attempts       math_test_attempts[]
+}
+
+model math_test_attempts {
+  id            Int                 @id @default(autoincrement())
+  template_id   Int
+  player_name   String
+  player_id     String? // auth user UUID if logged in
+  child_id      Int? // link to children table
+  score         Int
+  total         Int
+  percentage    Decimal             @db.Decimal(5, 2)
+  time_used_sec Int
+  completed     Boolean             @default(false)
+  answers_json  Json? // [{questionIndex, givenAnswer, correct, timeMs}]
+  created_at    DateTime            @default(now())
+  template      math_test_templates @relation(fields: [template_id], references: [id])
 }

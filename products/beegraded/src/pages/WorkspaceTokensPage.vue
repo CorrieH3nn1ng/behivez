@@ -66,10 +66,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useApi } from 'src/composables/useApi'
+import { backendApi } from 'src/boot/axios'
 import { Notify } from 'quasar'
-
-const { get } = useApi()
 
 const loading = ref(true)
 const tokens = ref<any[]>([])
@@ -79,7 +77,7 @@ const buying = ref(false)
 
 onMounted(async () => {
   try {
-    const data = await get<any[]>('/bg-user-tokens')
+    const { data } = await backendApi.get<any[]>('/tokens/user')
     tokens.value = data || []
   } catch { /* empty */ } finally {
     loading.value = false

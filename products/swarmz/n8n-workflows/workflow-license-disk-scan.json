@@ -1,0 +1,106 @@
+{
+  "id": "sz-license-disk-scan",
+  "name": "Swarmz - License Disk Scan (Gemini Vision)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sz-license-disk-scan",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "sz-ld-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "sz-license-disk-scan"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = items[0].json;\nconst body = inputData.body || inputData;\n\n// Get the binary data from the webhook\nconst binaryData = items[0].binary;\n\nif (!binaryData || !binaryData.file) {\n  return [{ json: { error: 'No image file received. Please upload a photo of your license disk.' } }];\n}\n\n// Pass the binary data through and build the prompt\nconst prompt = `You are a South African vehicle license disk reader. Extract ALL details from this license disk photo.\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"registration\": \"registration number (e.g. GP 789-WXY or CA 456 789)\",\n  \"make\": \"vehicle make (e.g. Toyota, Volkswagen, Ford, Nissan, Renault, Dacia, etc.)\",\n  \"model\": \"vehicle model with variant if visible (e.g. Duster 1.5 dCi Dynamique)\",\n  \"year\": year as number (from date of first registration, e.g. 2019),\n  \"vin\": \"VIN/chassis number\",\n  \"engineNumber\": \"engine number if visible\",\n  \"color\": \"vehicle color if visible, otherwise empty string\",\n  \"tareMass\": tare mass in kg as number or null,\n  \"expiryDate\": \"license expiry date in YYYY-MM-DD format\",\n  \"firstRegistrationDate\": \"date of first registration in YYYY-MM-DD format\",\n  \"ownerName\": \"registered owner name if visible, otherwise empty string\",\n  \"confidence\": \"high\" or \"medium\" or \"low\"\n}\n\nRules:\n- Read ALL text carefully, license disks can be worn/faded\n- Registration format is typically: XX 123-456 or XX 123 456 (province code + numbers)\n- The make might say the manufacturer name (e.g. RENAULT, DACIA, TOYOTA)\n- The model description often includes engine size (e.g. 1.5 DCI, 2.4 GD-6)\n- Year comes from date of first registration\n- If you cannot read a field clearly, use your best guess and set confidence to \"medium\" or \"low\"\n- Return ONLY the JSON, no markdown, no explanation`;\n\nreturn [{ json: { prompt }, binary: binaryData }];"
+      },
+      "id": "sz-ld-0002",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {
+          "maxOutputTokens": 2048
+        },
+        "inputType": "fromBinary",
+        "binaryPropertyName": "file"
+      },
+      "id": "sz-ld-0003",
+      "name": "Gemini Vision",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = items[0].json;\nlet text = response.text || response.output || '';\n\n// Handle different Gemini response formats\nif (!text && response.candidates && response.candidates.length > 0) {\n  const parts = response.candidates[0].content.parts;\n  if (parts && parts.length > 0) text = parts[0].text;\n}\n\nif (!text) {\n  return [{ json: { error: 'AI could not read the license disk. Please try a clearer photo.' } }];\n}\n\n// Clean up JSON from markdown code blocks\nlet jsonStr = text.trim();\nif (jsonStr.startsWith('```')) {\n  jsonStr = jsonStr.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '');\n}\n\nconst firstBrace = jsonStr.indexOf('{');\nif (firstBrace > 0) jsonStr = jsonStr.substring(firstBrace);\nif (!jsonStr.endsWith('}')) {\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (lastBrace > 0) jsonStr = jsonStr.substring(0, lastBrace + 1);\n}\n\ntry {\n  const parsed = JSON.parse(jsonStr);\n  return [{ json: {\n    registration: parsed.registration || '',\n    make: parsed.make || '',\n    model: parsed.model || '',\n    year: parsed.year || null,\n    vin: parsed.vin || '',\n    engineNumber: parsed.engineNumber || '',\n    color: parsed.color || '',\n    tareMass: parsed.tareMass || null,\n    expiryDate: parsed.expiryDate || null,\n    firstRegistrationDate: parsed.firstRegistrationDate || null,\n    ownerName: parsed.ownerName || '',\n    confidence: parsed.confidence || 'medium'\n  } }];\n} catch (e) {\n  return [{ json: { error: 'AI response was not valid JSON. Please try again with a clearer photo.', raw: text } }];\n}"
+      },
+      "id": "sz-ld-0004",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "sz-ld-0005",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Prompt": {
+      "main": [[{ "node": "Gemini Vision", "type": "main", "index": 0 }]]
+    },
+    "Gemini Vision": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "swarmz" }]
+}

@@ -3,7 +3,9 @@ import type { Response } from 'express'
 import type { PrismaClient } from '@prisma/client'
 import multer from 'multer'
 import path from 'path'
+import fs from 'fs'
 import { v4 as uuid } from 'uuid'
+import ffmpeg from 'fluent-ffmpeg'
 import { authenticate, resolveTalent, type AuthRequest } from '../middleware/auth.js'
 import { formatPortfolioItem } from './public.js'
 
@@ -16,10 +18,19 @@ function prisma(req: AuthRequest): PrismaClient {
   return req.app.locals.prisma
 }
 
+// Storage paths
+const storagePath = process.env.STORAGE_PATH || './uploads'
+const mediaDir = path.join(storagePath, 'media')
+const thumbDir = path.join(storagePath, 'media', 'thumbnails')
+
+// Ensure directories exist
+fs.mkdirSync(mediaDir, { recursive: true })
+fs.mkdirSync(thumbDir, { recursive: true })
+
 // Multer for media uploads
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
-    cb(null, path.join(process.env.STORAGE_PATH || './uploads', 'media'))
+    cb(null, mediaDir)
   },
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname)
@@ -29,7 +40,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB (for video)
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true)
@@ -38,6 +49,45 @@ const upload = multer({
     }
   },
 })
+
+/**
+ * Generate a thumbnail from a video file using ffmpeg.
+ * Returns the thumbnail filename or null if generation fails.
+ */
+function generateVideoThumbnail(videoPath: string, thumbFilename: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const outputPath = path.join(thumbDir, thumbFilename)
+
+    ffmpeg(videoPath)
+      .on('end', () => resolve(thumbFilename))
+      .on('error', (err) => {
+        console.warn('Thumbnail generation failed:', err.message)
+        resolve(null)
+      })
+      .screenshots({
+        count: 1,
+        timemarks: ['00:00:01'],
+        folder: thumbDir,
+        filename: thumbFilename,
+        size: '480x?',
+      })
+  })
+}
+
+/**
+ * Get video duration in seconds using ffprobe.
+ */
+function getVideoDuration(videoPath: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err || !metadata?.format?.duration) {
+        resolve(null)
+        return
+      }
+      resolve(Math.round(metadata.format.duration))
+    })
+  })
+}
 
 // POST /bz-media-upload — upload file or add social embed
 router.post('/bz-media-upload', upload.single('file'), async (req: MulterRequest, res: Response) => {
@@ -72,19 +122,39 @@ router.post('/bz-media-upload', upload.single('file'), async (req: MulterRequest
     return
   }
 
-  const fileType = req.body.type || (req.file.mimetype.startsWith('video') ? 'video' : 'image')
+  const isVideo = req.file.mimetype.startsWith('video')
+  const fileType = req.body.type || (isVideo ? 'video' : 'image')
   const fileUrl = `/api/uploads/media/${req.file.filename}`
+  let thumbnailUrl: string | null = fileType === 'image' ? fileUrl : null
+  let duration: number | null = null
+
+  // Generate thumbnail for videos
+  if (isVideo) {
+    const thumbFilename = `thumb_${path.parse(req.file.filename).name}.png`
+    const thumbResult = await generateVideoThumbnail(req.file.path, thumbFilename)
+    if (thumbResult) {
+      thumbnailUrl = `/api/uploads/media/thumbnails/${thumbResult}`
+    }
+    duration = await getVideoDuration(req.file.path)
+  }
 
   const item = await prisma(req).portfolioItem.create({
     data: {
       talentId: req.talentId!,
       type: fileType,
       url: fileUrl,
-      thumbnailUrl: fileType === 'image' ? fileUrl : null,
+      thumbnailUrl,
+      title: title || null,
       sortOrder: nextSort,
     },
   })
-  res.json(formatPortfolioItem(item))
+
+  // Return with duration metadata for videos
+  const formatted = formatPortfolioItem(item)
+  if (duration) {
+    ;(formatted as any).duration = duration
+  }
+  res.json(formatted)
 })
 
 // POST /bz-media-update — edit title/description
@@ -117,13 +187,38 @@ router.post('/bz-media-delete', async (req: AuthRequest, res: Response) => {
   })
   if (!existing) { res.status(404).json({ error: 'Item not found' }); return }
 
+  // Clean up files from disk
+  if (existing.url && !existing.url.startsWith('http')) {
+    const filePath = path.join(storagePath, existing.url.replace('/api/uploads/', ''))
+    fs.unlink(filePath, () => {}) // best-effort cleanup
+  }
+  if (existing.thumbnailUrl && existing.thumbnailUrl.includes('thumbnails/')) {
+    const thumbPath = path.join(storagePath, existing.thumbnailUrl.replace('/api/uploads/', ''))
+    fs.unlink(thumbPath, () => {})
+  }
+
   await prisma(req).portfolioItem.delete({ where: { id } })
   res.json({ deleted: true })
 })
 
-// POST /bz-media-reorder
+// POST /bz-media-reorder — batch reorder
 router.post('/bz-media-reorder', async (req: AuthRequest, res: Response) => {
-  const { id, sort_order } = req.body
+  const { id, sort_order, items: reorderItems } = req.body
+
+  // Batch reorder: [{ id, sort_order }, ...]
+  if (Array.isArray(reorderItems)) {
+    const updates = reorderItems.map((item: { id: number; sort_order: number }) =>
+      prisma(req).portfolioItem.update({
+        where: { id: item.id },
+        data: { sortOrder: item.sort_order },
+      })
+    )
+    await Promise.all(updates)
+    res.json({ reordered: true })
+    return
+  }
+
+  // Single item reorder (legacy)
   if (!id || sort_order === undefined) { res.status(400).json({ error: 'id and sort_order required' }); return }
 
   await prisma(req).portfolioItem.update({

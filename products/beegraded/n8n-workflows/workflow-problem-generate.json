@@ -1,0 +1,79 @@
+{
+  "name": "BG - Problem Solving Generate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-problem-generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list"
+        },
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "id": "gemini",
+      "name": "Gemini",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [440, 300],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Gemini"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.text || $input.first().json.output || '';\n\n// Extract JSON array from response\nlet jsonStr = raw;\nconst match = raw.match(/\\[\\s*\\{[\\s\\S]*\\}\\s*\\]/);\nif (match) jsonStr = match[0];\n\ntry {\n  const questions = JSON.parse(jsonStr);\n  return [{ json: { questions, count: questions.length } }];\n} catch (e) {\n  return [{ json: { error: 'Failed to parse questions', raw: raw.substring(0, 500) } }];\n}"
+      },
+      "id": "parse",
+      "name": "Parse JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Gemini", "type": "main", "index": 0 }]]
+    },
+    "Gemini": {
+      "main": [[{ "node": "Parse JSON", "type": "main", "index": 0 }]]
+    },
+    "Parse JSON": {
+      "main": [[{ "node": "Respond", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -29,7 +29,7 @@
 
       <q-card flat class="bee-card q-pa-lg">
         <!-- File -->
-        <q-file v-model="file" outlined label="Select .docx file" accept=".docx" class="q-mb-md" :disable="uploading">
+        <q-file v-model="file" outlined label="Select .docx or .pdf file" accept=".docx,.pdf,.doc" class="q-mb-md" :disable="uploading">
           <template #prepend><q-icon name="attach_file" /></template>
         </q-file>
 
@@ -89,9 +89,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useApi } from 'src/composables/useApi'
+import { backendApi } from 'src/boot/axios'
 import { useTokenStore } from 'src/stores/token'
 import { Notify } from 'quasar'
+import type { AxiosProgressEvent } from 'axios'
 
 const props = defineProps<{
   tokenCode: string
@@ -99,7 +100,6 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
-const { upload } = useApi()
 const tokenStore = useTokenStore()
 
 const file = ref<File | null>(null)
@@ -127,8 +127,10 @@ async function handleUpload() {
   }
 
   try {
-    const data = await upload<{ paper_id: number; evaluation_id?: number }>('/bg-papers-upload', formData, (pct) => {
-      uploadProgress.value = pct
+    const { data } = await backendApi.post<{ paper_id: number }>('/papers', formData, {
+      onUploadProgress: (e: AxiosProgressEvent) => {
+        if (e.total) uploadProgress.value = Math.round((e.loaded * 100) / e.total)
+      },
     })
 
     // Update token store

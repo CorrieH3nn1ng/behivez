@@ -9,6 +9,15 @@ function getPrisma(req: AuthRequest): PrismaClient {
   return req.app.locals.prisma;
 }
 
+async function getOrCreateLocalUser(prisma: PrismaClient, req: AuthRequest) {
+  if (!req.userEmail) return null;
+  let user = await prisma.users.findUnique({ where: { email: req.userEmail } });
+  if (!user) {
+    user = await prisma.users.create({ data: { email: req.userEmail, name: null } });
+  }
+  return user;
+}
+
 // POST /api/evaluations — trigger evaluation
 // Frontend calls this → backend calls n8n for AI → saves results to DB
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
@@ -48,7 +57,7 @@ router.post('/:id/complete', async (req: AuthRequest, res: Response) => {
   const {
     overall_score, knowledge_score, critical_score,
     application_score, referencing_score, structure_score,
-    ai_risk_score, issues, strengths, references, consistency,
+    ai_risk_score, report_html, issues, strengths, references, consistency,
   } = req.body;
 
   // Update evaluation scores
@@ -62,6 +71,7 @@ router.post('/:id/complete', async (req: AuthRequest, res: Response) => {
       referencing_score: referencing_score || 0,
       structure_score: structure_score || 0,
       ai_risk_score: ai_risk_score ?? null,
+      report_html: report_html || null,
     },
   });
 
@@ -216,12 +226,15 @@ router.get('/:id/status', async (req: AuthRequest, res: Response) => {
   res.json({ id: evaluation.id, status });
 });
 
-// GET /api/evaluations — list user's evaluations
+// GET /api/evaluations — list user's evaluations (scoped to their papers)
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
 
-  // TODO: map auth UUID to local user_id once user linking is in place
+  const localUser = await getOrCreateLocalUser(prisma, req);
+  if (!localUser) throw new AppError('Could not resolve user', 401);
+
   const evaluations = await prisma.evaluations.findMany({
+    where: { paper: { user_id: localUser.id } },
     include: { paper: { select: { filename: true, subject: true } } },
     orderBy: { created_at: 'desc' },
     take: 50,

@@ -22,6 +22,8 @@
     <div class="row q-gutter-sm q-mb-md">
       <q-btn color="primary" icon="swap_horiz" label="Change Status" @click="$router.push(`/vehicle/${vehicle.id}/status`)" />
       <q-btn outline color="grey-7" icon="receipt_long" label="Receipts" @click="$router.push(`/vehicle/${vehicle.id}/receipts`)" />
+      <q-btn outline color="amber-8" icon="local_gas_station" label="Expenses" @click="$router.push(`/vehicle/${vehicle.id}/expenses`)" />
+      <q-btn outline color="teal" icon="route" label="Trips" @click="$router.push(`/vehicle/${vehicle.id}/trips`)" />
     </div>
 
     <!-- Cost Breakdown -->

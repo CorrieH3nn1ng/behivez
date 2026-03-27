@@ -38,6 +38,11 @@
           <q-item-section>Users</q-item-section>
         </q-item>
 
+        <q-item clickable v-ripple to="/admin/revenue">
+          <q-item-section avatar><q-icon name="attach_money" /></q-item-section>
+          <q-item-section>Revenue</q-item-section>
+        </q-item>
+
         <q-item clickable v-ripple to="/admin/health">
           <q-item-section avatar><q-icon name="monitor_heart" /></q-item-section>
           <q-item-section>Health</q-item-section>

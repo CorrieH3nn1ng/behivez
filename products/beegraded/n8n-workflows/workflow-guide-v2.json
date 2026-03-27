@@ -1,0 +1,103 @@
+{
+  "id": "bg-guide-v2",
+  "name": "BeeGraded - Distinction Guide V2 (AI Only)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "bg-guide",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "v2-guide-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bg-guide"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = items[0].json.body || items[0].json;\n\nconst evalData = {\n  overall_score: body.overall_score || 0,\n  knowledge_score: body.knowledge_score || 0,\n  critical_score: body.critical_score || 0,\n  application_score: body.application_score || 0,\n  referencing_score: body.referencing_score || 0,\n  structure_score: body.structure_score || 0,\n  subject: body.subject || '',\n  issues: body.issues || [],\n  strengths: body.strengths || []\n};\n\nconst prompt = `You are an expert academic writing coach. Based on this evaluation data, create a detailed \"Distinction Guide\" that shows the student exactly how to improve their paper to distinction level (75%+).\n\nReturn ONLY valid JSON:\n{\n  \"current_level\": \"fail|pass|credit|distinction\",\n  \"target_score\": 75,\n  \"gap_analysis\": \"brief analysis of what needs to improve\",\n  \"priority_actions\": [\n    {\n      \"criterion\": \"Knowledge|Critical Thinking|Application|Referencing|Structure\",\n      \"current_score\": number,\n      \"target_score\": 75,\n      \"action\": \"specific action to take\",\n      \"example_before\": \"current weak example from paper\",\n      \"example_after\": \"improved version\",\n      \"impact\": \"high|medium|low\"\n    }\n  ],\n  \"quick_wins\": [\"easy improvements that boost score fast\"],\n  \"writing_tips\": [\"specific writing improvement suggestions\"]\n}\n\nEvaluation data:\n${JSON.stringify(evalData, null, 2)}`;\n\nreturn [{ json: { prompt } }];"
+      },
+      "id": "v2-guide-0002",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}",
+              "role": "user"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "v2-guide-0003",
+      "name": "Call Gemini",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = items[0].json;\nlet text = response.text || response.output || '';\n\nif (!text && response.candidates && response.candidates.length > 0) {\n  const parts = response.candidates[0].content.parts;\n  if (parts && parts.length > 0) text = parts[0].text;\n}\n\nif (!text) {\n  return [{ json: { error: 'Guide generation failed. Please try again.' } }];\n}\n\nlet jsonStr = text.trim();\nif (jsonStr.startsWith('```')) {\n  jsonStr = jsonStr.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '');\n}\n\nconst firstBrace = jsonStr.indexOf('{');\nif (firstBrace > 0) jsonStr = jsonStr.substring(firstBrace);\nif (!jsonStr.endsWith('}')) {\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (lastBrace > 0) jsonStr = jsonStr.substring(0, lastBrace + 1);\n}\n\ntry {\n  const parsed = JSON.parse(jsonStr);\n  return [{ json: parsed }];\n} catch (e) {\n  return [{ json: { error: 'Guide generation failed. Please try again.' } }];\n}"
+      },
+      "id": "v2-guide-0004",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "v2-guide-0005",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build Prompt": {
+      "main": [[{ "node": "Call Gemini", "type": "main", "index": 0 }]]
+    },
+    "Call Gemini": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0
+}

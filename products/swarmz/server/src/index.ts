@@ -3,10 +3,12 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
-import authRoutes from './routes/auth.js';
 import vehicleRoutes from './routes/vehicles.js';
 import statusLogRoutes from './routes/statusLog.js';
 import driverRoutes from './routes/drivers.js';
+import tripRoutes from './routes/trips.js';
+import vehicleExpenseRoutes from './routes/vehicleExpenses.js';
+import sarsRoutes from './routes/sars.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -30,10 +32,13 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Routes
-app.use('/api/auth', authRoutes);
+// Auth handled by shared auth-api (saas-auth-api-1) — nginx proxies /auth/* to port 3100
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/status-log', statusLogRoutes);
 app.use('/api/drivers', driverRoutes);
+app.use('/api/trips', tripRoutes);
+app.use('/api/vehicle-expenses', vehicleExpenseRoutes);
+app.use('/api/sars', sarsRoutes);
 
 // Error handler
 app.use(errorHandler);

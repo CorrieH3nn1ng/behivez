@@ -89,16 +89,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useApi } from 'src/composables/useApi'
+import { backendApi } from 'src/boot/axios'
 import { useEvalSessionStore } from 'src/stores/evaluation-session'
 import { Notify } from 'quasar'
+import type { AxiosProgressEvent } from 'axios'
 
 const props = defineProps<{
   isFinal?: boolean
 }>()
 
 const router = useRouter()
-const { upload } = useApi()
 const evalSession = useEvalSessionStore()
 
 const file = ref<File | null>(null)
@@ -137,8 +137,10 @@ async function handleUpload() {
   }
 
   try {
-    const data = await upload<{ paper_id: number }>('/bg-papers-upload', formData, (pct) => {
-      uploadProgress.value = pct
+    const { data } = await backendApi.post<{ paper_id: number }>('/papers', formData, {
+      onUploadProgress: (e: AxiosProgressEvent) => {
+        if (e.total) uploadProgress.value = Math.round((e.loaded * 100) / e.total)
+      },
     })
 
     if (!data || !data.paper_id) {

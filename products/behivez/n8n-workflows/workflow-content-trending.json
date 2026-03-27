@@ -1,0 +1,73 @@
+{
+  "name": "BeHivez - Content Trending Topics",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "bh-content-trending",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "ct-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "bh-content-trending"
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "models/gemini-2.0-flash", "mode": "list" },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a South African social media trends expert. List 5 topics currently trending or generating conversation in South Africa right now. Mix of politics, culture, business, and lifestyle. For each, give a short title (max 8 words) and a one-sentence description of why it's trending.\n\nReturn ONLY a JSON array, no markdown:\n[{\"title\": \"...\", \"description\": \"...\"}]"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "id": "ct-002",
+      "name": "Gemini - Get Trends",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "GEMINI_CREDENTIAL_ID",
+          "name": "Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "let text = items[0].json.text || items[0].json.output || JSON.stringify(items[0].json);\n\n// Strip markdown code fences\ntext = text.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '').trim();\n\ntry {\n  const topics = JSON.parse(text);\n  return [{ json: { topics } }];\n} catch (e) {\n  return [{ json: { topics: [], error: 'Failed to parse trending topics' } }];\n}"
+      },
+      "id": "ct-003",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.topics) }}"
+      },
+      "id": "ct-004",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Gemini - Get Trends", "type": "main", "index": 0 }]] },
+    "Gemini - Get Trends": { "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]] },
+    "Parse Response": { "main": [[{ "node": "Response", "type": "main", "index": 0 }]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" }
+}

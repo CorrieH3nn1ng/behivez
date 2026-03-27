@@ -21,9 +21,12 @@ export const authenticate = (
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      userId: string;
+      sub?: string;
+      userId?: string;
     };
-    req.userId = decoded.userId;
+    // Shared auth-api uses 'sub', local tokens used 'userId'
+    req.userId = decoded.sub || decoded.userId;
+    if (!req.userId) throw new Error('No user ID in token');
     next();
   } catch {
     throw new AppError('Invalid or expired token', 401);

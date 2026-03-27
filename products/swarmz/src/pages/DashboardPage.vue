@@ -26,6 +26,9 @@
       <q-btn color="primary" icon="add" label="Add Your First Vehicle" class="q-mt-lg" @click="$router.push('/vehicle/add')" />
     </div>
 
+    <!-- Tax Report link -->
+    <q-btn flat color="primary" icon="analytics" label="Tax Report" class="q-mb-md" @click="$router.push('/tax-report')" />
+
     <q-page-sticky position="bottom-right" :offset="[18, 18]">
       <q-btn fab icon="add" color="primary" @click="$router.push('/vehicle/add')" />
     </q-page-sticky>

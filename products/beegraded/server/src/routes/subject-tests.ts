@@ -340,18 +340,23 @@ router.post('/lesson', optionalAuth, async (req: AuthRequest, res: Response) => 
 Generate a vocabulary lesson with exactly 10 words/phrases. For each entry provide:
 - The word/phrase in ${targetLang}
 - English translation
-- A simple pronunciation guide (phonetic, for English speakers)
-- A short example sentence in ${targetLang} with English translation
+- Afrikaans translation
+- A detailed pronunciation guide written phonetically for English/Afrikaans speakers. Break each syllable with hyphens and use CAPITALS for the stressed syllable. Use familiar sounds (e.g. "doo-MEH-lah" not IPA symbols).
+- A short example sentence in ${targetLang}
+- English translation of the example sentence
+- Afrikaans translation of the example sentence
 - A category (greetings, numbers, food, animals, family, directions, shopping, weather, colors, body)
 
 Return ONLY a valid JSON array:
 [
   {
     "word": "Dumela",
-    "translation": "Hello",
+    "translation_en": "Hello",
+    "translation_af": "Hallo",
     "pronunciation": "doo-MEH-lah",
     "example": "Dumela, o kae?",
-    "example_translation": "Hello, how are you?",
+    "example_en": "Hello, how are you?",
+    "example_af": "Hallo, hoe gaan dit?",
     "category": "greetings"
   }
 ]
@@ -361,6 +366,7 @@ IMPORTANT:
 - Start with common, everyday words
 - For ${lvl} level: ${lvl === 'beginner' ? 'very basic greetings, numbers 1-10, simple nouns' : lvl === 'intermediate' ? 'conversational phrases, verbs, descriptive words' : 'complex sentences, idioms, formal language'}
 - Use correct ${targetLang} spelling and grammar
+- The pronunciation guide must be VERY detailed and accurate — this is the most important field
 - Make it fun and practical for daily use in South Africa
 - Do NOT include any text outside the JSON array`;
 

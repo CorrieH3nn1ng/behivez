@@ -45,22 +45,33 @@
             <div class="text-h3 text-weight-bold" style="color: #78350f;">
               {{ currentWord.word }}
             </div>
-            <div class="text-caption text-grey-5 q-mt-sm">
+            <div class="text-body1 text-grey-6 q-mt-sm">
               {{ currentWord.pronunciation }}
             </div>
-            <q-btn flat round icon="volume_up" color="amber-8" class="q-mt-sm" @click.stop="speak(currentWord.word)" />
+            <q-btn flat round icon="volume_up" color="amber-8" size="lg" class="q-mt-sm" @click.stop="speakPronunciation(currentWord.pronunciation)" />
             <div class="text-caption text-grey-4 q-mt-sm">tap card to reveal meaning</div>
           </template>
           <template v-else>
             <div class="text-h4 text-weight-bold text-amber-8">
-              {{ currentWord.translation }}
+              {{ currentWord.translation_en || currentWord.translation }}
             </div>
-            <div class="q-mt-md" style="font-size: 15px; color: #555;">
-              <q-btn flat dense round icon="volume_up" size="sm" color="grey-6" class="q-mr-xs" @click.stop="speak(currentWord.example)" />
-              "{{ currentWord.example }}"
+            <div v-if="currentWord.translation_af" class="text-subtitle1 text-grey-6">
+              {{ currentWord.translation_af }}
             </div>
-            <div class="text-caption text-grey-5 q-mt-xs" style="font-style: italic;">
-              {{ currentWord.example_translation }}
+            <div class="q-mt-md q-pa-sm" style="background: #fef9ee; border-radius: 8px;">
+              <div style="font-size: 15px; color: #555;">
+                <q-btn flat dense round icon="volume_up" size="sm" color="amber-8" class="q-mr-xs" @click.stop="speakPronunciation(currentWord.pronunciation)" />
+                <b>{{ currentWord.word }}</b> — {{ currentWord.pronunciation }}
+              </div>
+              <div class="q-mt-sm" style="font-size: 14px; color: #666;">
+                "{{ currentWord.example }}"
+              </div>
+              <div class="text-caption text-grey-6 q-mt-xs">
+                EN: {{ currentWord.example_en || currentWord.example_translation }}
+              </div>
+              <div v-if="currentWord.example_af" class="text-caption text-grey-6">
+                AF: {{ currentWord.example_af }}
+              </div>
             </div>
             <q-badge :color="categoryColor(currentWord.category)" class="q-mt-md q-pa-xs">
               {{ currentWord.category }}
@@ -166,11 +177,17 @@
           <div class="text-weight-bold q-mb-sm">Words from this lesson:</div>
           <q-list dense separator>
             <q-item v-for="w in words" :key="w.word">
+              <q-item-section avatar>
+                <q-btn flat dense round icon="volume_up" size="sm" color="amber-8" @click="speakPronunciation(w.pronunciation)" />
+              </q-item-section>
               <q-item-section>
                 <q-item-label class="text-weight-bold">{{ w.word }}</q-item-label>
                 <q-item-label caption>{{ w.pronunciation }}</q-item-label>
               </q-item-section>
-              <q-item-section side>{{ w.translation }}</q-item-section>
+              <q-item-section side class="text-right">
+                <div>{{ w.translation_en || w.translation }}</div>
+                <div v-if="w.translation_af" class="text-caption text-grey-6">{{ w.translation_af }}</div>
+              </q-item-section>
             </q-item>
           </q-list>
         </q-card>
@@ -248,17 +265,18 @@ const quizOptions = computed(() => {
   return options
 })
 
-function speak(text: string) {
-  if (!('speechSynthesis' in window)) return
+// Speak the pronunciation guide using an English voice (more accurate than trying raw Setswana)
+function speakPronunciation(pronunciation: string) {
+  if (!('speechSynthesis' in window) || !pronunciation) return
   window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(text)
-  // Try to find a matching voice for the language
-  const langMap: Record<string, string> = { setswana: 'tn', afrikaans: 'af', english: 'en' }
-  const langCode = langMap[targetLang.value] || 'en'
+  // Clean up pronunciation for speech — remove caps emphasis markers, keep hyphens as pauses
+  const cleaned = pronunciation.replace(/-/g, ' ... ').toLowerCase()
+  const utterance = new SpeechSynthesisUtterance(cleaned)
   const voices = window.speechSynthesis.getVoices()
-  const match = voices.find(v => v.lang.startsWith(langCode)) || voices.find(v => v.lang.startsWith('en'))
-  if (match) utterance.voice = match
-  utterance.rate = 0.8
+  const enVoice = voices.find(v => v.lang.startsWith('en')) || null
+  if (enVoice) utterance.voice = enVoice
+  utterance.rate = 0.6 // Slow so learner can hear each syllable
+  utterance.pitch = 1.0
   window.speechSynthesis.speak(utterance)
 }
 

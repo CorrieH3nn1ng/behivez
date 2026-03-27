@@ -23,7 +23,7 @@
       </q-banner>
 
       <template v-if="!loading && child">
-        <!-- Child header -->
+        <!-- Child header with delete -->
         <q-card flat class="bee-card q-pa-md q-mb-md">
           <div class="row items-center">
             <q-icon name="child_care" color="amber-8" size="32px" class="q-mr-sm" />
@@ -33,6 +33,15 @@
                 {{ lang === 'af' ? 'Graad' : 'Grade' }} {{ child.grade }}
               </div>
             </div>
+            <q-space />
+            <q-btn
+              flat dense
+              icon="delete_outline"
+              color="red-4"
+              @click.stop="handleRemoveChild"
+            >
+              <q-tooltip>{{ lang === 'af' ? 'Verwyder kind' : 'Remove child' }}</q-tooltip>
+            </q-btn>
           </div>
         </q-card>
 
@@ -103,11 +112,21 @@
                   {{ Math.floor(a.time_used_sec / 60) }}m {{ a.time_used_sec % 60 }}s
                 </q-item-label>
               </q-item-section>
-              <q-item-section side>
+              <q-item-section side class="text-right">
                 <div class="text-weight-bold" :style="{ color: a.percentage >= 80 ? '#16a34a' : a.percentage >= 50 ? '#f59e0b' : '#ef4444' }">
-                  {{ a.score }}/{{ a.total }}
+                  {{ a.score }}/{{ a.total }} ({{ a.percentage }}%)
                 </div>
-                <div class="text-caption">{{ a.percentage }}%</div>
+              </q-item-section>
+              <q-item-section side style="padding-left: 4px;">
+                <q-btn
+                  flat dense round
+                  icon="delete_outline"
+                  size="sm"
+                  color="red-3"
+                  @click="handleDeleteAttempt(a)"
+                >
+                  <q-tooltip>{{ lang === 'af' ? 'Verwyder toets' : 'Remove test' }}</q-tooltip>
+                </q-btn>
               </q-item-section>
             </q-item>
           </q-list>
@@ -120,7 +139,7 @@
             {{ lang === 'af' ? 'Speel-skakel (WhatsApp dit na jou kind)' : 'Play link (WhatsApp this to your child)' }}
           </div>
           <div class="row items-center">
-            <code style="font-size: 13px; word-break: break-all;">{{ baseUrl }}/play/{{ child.play_slug }}</code>
+            <code style="font-size: 13px; word-break: break-all;">{{ baseUrl }}/#/play/{{ child.play_slug }}</code>
             <q-space />
             <q-btn flat dense icon="content_copy" size="sm" @click="copyLink" />
             <q-btn flat dense icon="share" size="sm" color="green" @click="shareWhatsApp" />
@@ -133,13 +152,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'src/i18n'
 import { useChildren } from 'src/composables/useChildren'
-import { Notify } from 'quasar'
+import { Notify, Dialog } from 'quasar'
 
 const props = defineProps<{ childId: string }>()
+const router = useRouter()
 const { lang } = useI18n()
-const { getChildProgress } = useChildren()
+const { getChildProgress, deleteAttempt, removeChild } = useChildren()
 
 const loading = ref(true)
 const error = ref('')
@@ -165,7 +186,7 @@ function formatDate(dateStr: string) {
 
 function copyLink() {
   if (!child.value) return
-  navigator.clipboard.writeText(`${baseUrl}/play/${child.value.play_slug}`)
+  navigator.clipboard.writeText(`${baseUrl}/#/play/${child.value.play_slug}`)
   Notify.create({
     type: 'positive',
     message: lang.value === 'af' ? 'Skakel gekopieer!' : 'Link copied!',
@@ -175,14 +196,67 @@ function copyLink() {
 
 function shareWhatsApp() {
   if (!child.value) return
-  const url = `${baseUrl}/play/${child.value.play_slug}`
+  const url = `${baseUrl}/#/play/${child.value.play_slug}`
   const msg = lang.value === 'af'
     ? `Hi ${child.value.name}! Hier is jou oefen-skakel vir Wiskunde: ${url}`
     : `Hi ${child.value.name}! Here is your practice link for Maths: ${url}`
   window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
 }
 
-onMounted(async () => {
+function handleDeleteAttempt(attempt: any) {
+  Dialog.create({
+    title: lang.value === 'af' ? 'Verwyder toets?' : 'Remove test?',
+    message: lang.value === 'af'
+      ? `${attempt.template_name} — ${attempt.score}/${attempt.total} (${attempt.percentage}%)`
+      : `${attempt.template_name} — ${attempt.score}/${attempt.total} (${attempt.percentage}%)`,
+    cancel: { label: lang.value === 'af' ? 'Nee' : 'No', flat: true },
+    ok: { label: lang.value === 'af' ? 'Ja, verwyder' : 'Yes, remove', color: 'negative' },
+  }).onOk(async () => {
+    try {
+      await deleteAttempt(parseInt(props.childId), attempt.id)
+      attempts.value = attempts.value.filter(a => a.id !== attempt.id)
+      // Recalculate stats
+      const total = attempts.value.length
+      stats.value = {
+        total_tests: total,
+        average_score: total > 0 ? Math.round(attempts.value.reduce((s, a) => s + a.percentage, 0) / total) : 0,
+        best_score: total > 0 ? Math.max(...attempts.value.map(a => a.percentage)) : 0,
+      }
+      Notify.create({
+        type: 'positive',
+        message: lang.value === 'af' ? 'Toets verwyder' : 'Test removed',
+        timeout: 1500,
+      })
+    } catch {
+      Notify.create({ type: 'negative', message: lang.value === 'af' ? 'Kon nie verwyder nie' : 'Could not remove' })
+    }
+  })
+}
+
+function handleRemoveChild() {
+  if (!child.value) return
+  Dialog.create({
+    title: lang.value === 'af' ? 'Verwyder kind?' : 'Remove child?',
+    message: lang.value === 'af'
+      ? `Dit sal ${child.value.name} se profiel en alle toetsresultate permanent verwyder.`
+      : `This will permanently remove ${child.value.name}'s profile and all test results.`,
+    cancel: { label: lang.value === 'af' ? 'Nee' : 'No', flat: true },
+    ok: { label: lang.value === 'af' ? 'Ja, verwyder' : 'Yes, remove', color: 'negative' },
+  }).onOk(async () => {
+    try {
+      await removeChild(parseInt(props.childId))
+      Notify.create({
+        type: 'positive',
+        message: lang.value === 'af' ? 'Kind verwyder' : 'Child removed',
+      })
+      router.push('/workspace/children')
+    } catch {
+      Notify.create({ type: 'negative', message: lang.value === 'af' ? 'Kon nie verwyder nie' : 'Could not remove' })
+    }
+  })
+}
+
+async function loadProgress() {
   try {
     const data = await getChildProgress(parseInt(props.childId))
     child.value = data.child
@@ -195,5 +269,7 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadProgress)
 </script>

@@ -13,6 +13,8 @@ import paymentRoutes from './routes/payments.js';
 import freeSampleRoutes from './routes/free-samples.js';
 import mathTestRoutes from './routes/math-tests.js';
 import childrenRoutes from './routes/children.js';
+import profileRoutes from './routes/profile.js';
+import subjectTestRoutes from './routes/subject-tests.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -43,6 +45,8 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/free-samples', freeSampleRoutes);
 app.use('/api/math-tests', mathTestRoutes);
 app.use('/api/children', childrenRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/subject-tests', subjectTestRoutes);
 
 // Error handler
 app.use(errorHandler);

@@ -9,28 +9,22 @@
 
         <q-space />
 
-        <q-btn flat dense no-caps label="How It Works" to="/#how-it-works" class="q-mr-sm gt-xs" />
-        <q-btn flat dense no-caps label="Pricing" to="/#pricing" class="q-mr-sm gt-xs" />
-        <q-btn flat dense no-caps to="/math" class="q-mr-sm" color="amber">
-          <q-icon name="calculate" size="18px" class="q-mr-xs" />
-          <span class="gt-xs">{{ lang === 'af' ? 'Toets My' : 'Test Me' }}</span>
+        <q-btn flat dense no-caps to="/#pricing" class="q-mr-sm gt-xs text-grey-4">
+          Pricing
         </q-btn>
 
         <template v-if="authStore.isLoggedIn">
-          <q-btn flat dense no-caps label="Workspace" to="/workspace" class="q-mr-sm" />
-          <q-btn flat dense no-caps icon="logout" @click="handleLogout" />
+          <q-btn flat dense no-caps to="/workspace" class="q-mr-sm text-amber">
+            <q-icon name="dashboard" size="18px" class="q-mr-xs" />
+            Dashboard
+          </q-btn>
+          <q-btn flat dense no-caps icon="logout" class="text-grey-4" @click="handleLogout" />
         </template>
         <template v-else>
-          <q-btn outline dense no-caps label="Get Started" to="/get-started" color="amber" class="q-mr-sm" />
+          <q-btn outline dense no-caps to="/get-started" color="amber">
+            Login
+          </q-btn>
         </template>
-
-        <q-btn flat dense no-caps class="btn-bee q-ml-sm" label="Try Free" to="/free-sample" />
-
-        <!-- Language Toggle -->
-        <q-btn flat dense no-caps size="sm" class="q-ml-sm" @click="toggleLanguage" color="grey-4">
-          <q-icon name="language" size="18px" class="q-mr-xs" />
-          {{ lang === 'af' ? 'EN' : 'AF' }}
-        </q-btn>
       </q-toolbar>
     </q-header>
 
@@ -48,11 +42,9 @@
 <script setup lang="ts">
 import { useAuthStore } from 'src/stores/auth'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'src/i18n'
 
 const authStore = useAuthStore()
 const router = useRouter()
-const { t, lang, toggleLanguage } = useI18n()
 
 function handleLogout() {
   authStore.logout()

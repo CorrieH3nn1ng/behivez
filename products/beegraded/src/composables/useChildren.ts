@@ -48,6 +48,11 @@ export function useChildren() {
     return data
   }
 
+  async function deleteAttempt(childId: number, attemptId: number) {
+    const { data } = await backendApi.delete(`/children/${childId}/attempts/${attemptId}`)
+    return data
+  }
+
   async function listSubjects() {
     const { data } = await backendApi.get('/children/subjects')
     return data
@@ -62,6 +67,7 @@ export function useChildren() {
     removeChild,
     getChildBySlug,
     getChildProgress,
+    deleteAttempt,
     listSubjects,
   }
 }

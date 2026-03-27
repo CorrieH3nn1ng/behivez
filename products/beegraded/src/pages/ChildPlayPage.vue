@@ -10,7 +10,7 @@
       <div v-else-if="error" class="text-center q-pa-xl">
         <q-icon name="link_off" size="64px" color="grey-4" class="q-mb-md" />
         <div class="text-h6 text-grey-6">
-          {{ lang === 'af' ? 'Skakel nie gevind nie' : 'Link not found' }}
+          {{ lang === 'af' ? 'Skakel nie gevind nie' : (lang === 'tn' ? 'Linki ga e a bonwe' : 'Link not found') }}
         </div>
         <div class="text-caption text-grey-5 q-mt-sm">
           {{ lang === 'af' ? 'Vra jou ouer om die skakel weer te stuur.' : 'Ask your parent to send the link again.' }}
@@ -19,14 +19,6 @@
 
       <!-- Child Profile Loaded -->
       <template v-else-if="child">
-        <!-- Language Toggle -->
-        <div class="text-right q-mb-sm">
-          <q-btn flat dense no-caps size="sm" @click="toggleLanguage" color="grey-7">
-            <q-icon name="language" class="q-mr-xs" />
-            {{ lang === 'af' ? 'EN' : (lang === 'tn' ? 'AF' : 'TN') }}
-          </q-btn>
-        </div>
-
         <!-- Welcome -->
         <div class="text-center q-mb-md">
           <q-icon name="waving_hand" size="48px" color="amber" class="q-mb-xs" />
@@ -38,76 +30,306 @@
           </div>
         </div>
 
-        <!-- Toets My -->
-        <div class="text-center q-mb-md">
-          <div class="text-h5 text-weight-bold" style="color: #78350f;">
-            {{ lang === 'af' ? 'Toets My' : (lang === 'tn' ? 'Ntlhatlhobe' : 'Test Me') }}
+        <!-- Phase 1: Subject Selection (big buttons) -->
+        <template v-if="!selectedSubject">
+          <div class="text-center q-mb-md">
+            <div class="text-h5 text-weight-bold" style="color: #78350f;">
+              {{ lang === 'af' ? 'Kies \'n Vak' : (lang === 'tn' ? 'Tlhopha Thuto' : 'Choose a Subject') }}
+            </div>
           </div>
-        </div>
 
-        <!-- Tabs -->
-        <q-tabs
-          v-model="activeTab"
-          dense
-          class="text-grey-7 q-mb-md"
-          active-color="amber-8"
-          indicator-color="amber"
-          align="center"
-          no-caps
-        >
-          <q-tab name="maaltafel" :label="lang === 'af' ? 'Maaltafel' : (lang === 'tn' ? 'Tafole' : 'Times Tables')" icon="close" />
-          <q-tab name="plusminus" label="Plus Minus" icon="add" />
-          <q-tab name="probleemoplossing" :label="lang === 'af' ? 'Probleemoplossing' : (lang === 'tn' ? 'Tharabololo' : 'Problem Solving')" icon="psychology" />
-        </q-tabs>
-
-        <q-tab-panels v-model="activeTab" animated>
-          <!-- Maaltafel -->
-          <q-tab-panel name="maaltafel" class="q-pa-none">
-            <q-card flat class="bee-card q-pa-md q-mb-md">
-              <div class="text-caption text-grey-6 q-mb-sm text-center">
-                50 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; 6 {{ lang === 'af' ? 'minute' : 'minutes' }} &bull; &times; {{ lang === 'af' ? 'en' : 'and' }} &divide;
+          <!-- Maths (always available) -->
+          <q-card
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #f59e0b;"
+            @click="selectedSubject = 'maths'"
+          >
+            <div class="row items-center">
+              <q-icon name="calculate" size="48px" color="amber-8" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #78350f;">
+                  {{ lang === 'af' ? 'Wiskunde' : (lang === 'tn' ? 'Mmetse' : 'Mathematics') }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? 'Maaltafel, Plus Minus, Probleemoplossing' : 'Times Tables, Plus Minus, Problem Solving' }}
+                </div>
               </div>
-              <q-btn class="btn-bee full-width" size="lg" no-caps :loading="generating" @click="startTest('maaltafel')" icon="flash_on">
-                {{ lang === 'af' ? 'Begin Toets' : (lang === 'tn' ? 'Simolola' : 'Start Test') }}
+              <q-space />
+              <q-icon name="chevron_right" color="amber-8" size="28px" />
+            </div>
+          </q-card>
+
+          <!-- Natural Science (Grade 4-6) -->
+          <q-card
+            v-if="hasSubject('natural_science')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #16a34a;"
+            @click="selectedSubject = 'natural_science'"
+          >
+            <div class="row items-center">
+              <q-icon name="science" size="48px" color="green" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #166534;">
+                  {{ lang === 'af' ? 'Natuurwetenskap' : (lang === 'tn' ? 'Saense ya Tlhago' : 'Natural Science') }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? '40 vrae, Meervoudige keuse (A-D)' : '40 questions, Multiple choice (A-D)' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="green" size="28px" />
+            </div>
+          </q-card>
+
+          <!-- Life Skills (Grade 1-3) -->
+          <q-card
+            v-if="hasSubject('life_skills')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #2563eb;"
+            @click="selectedSubject = 'life_skills'"
+          >
+            <div class="row items-center">
+              <q-icon name="emoji_nature" size="48px" color="blue" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #1e3a5f;">
+                  {{ lang === 'af' ? 'Lewensvaardighede' : (lang === 'tn' ? 'Bokgoni jwa Botshelo' : 'Life Skills') }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? '20 vrae, Meervoudige keuse (A-D)' : '20 questions, Multiple choice (A-D)' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="blue" size="28px" />
+            </div>
+          </q-card>
+          <!-- English (all grades) -->
+          <q-card
+            v-if="hasSubject('english')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #7c3aed;"
+            @click="selectedSubject = 'english'"
+          >
+            <div class="row items-center">
+              <q-icon name="menu_book" size="48px" color="purple" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #5b21b6;">English</div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? 'Spelling, Woordeskat, Grammatika' : 'Spelling, Vocabulary, Grammar' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="purple" size="28px" />
+            </div>
+          </q-card>
+
+          <!-- Afrikaans (all grades) -->
+          <q-card
+            v-if="hasSubject('afrikaans')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #ea580c;"
+            @click="selectedSubject = 'afrikaans'"
+          >
+            <div class="row items-center">
+              <q-icon name="auto_stories" size="48px" color="orange-8" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #9a3412;">Afrikaans</div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? 'Spelling, Woordeskat, Taal' : 'Spelling, Vocabulary, Language' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="orange-8" size="28px" />
+            </div>
+          </q-card>
+
+          <!-- Setswana (all grades) -->
+          <q-card
+            v-if="hasSubject('setswana')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #0891b2;"
+            @click="selectedSubject = 'setswana'"
+          >
+            <div class="row items-center">
+              <q-icon name="translate" size="48px" color="cyan-8" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #155e75;">Setswana</div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'tn' ? 'Mopeleto, Tlotlofoko, Popego' : (lang === 'af' ? 'Spelling, Woordeskat, Taal' : 'Spelling, Vocabulary, Language') }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="cyan-8" size="28px" />
+            </div>
+          </q-card>
+
+        </template>
+
+        <!-- Phase 2: Test types for selected subject -->
+        <template v-if="selectedSubject">
+          <!-- Back button -->
+          <q-btn flat dense no-caps icon="arrow_back" :label="lang === 'af' ? 'Terug' : 'Back'" color="grey-7" class="q-mb-md" @click="selectedSubject = ''" />
+
+          <!-- MATHS test types -->
+          <template v-if="selectedSubject === 'maths'">
+            <div class="text-center q-mb-md">
+              <q-icon name="calculate" size="36px" color="amber-8" />
+              <div class="text-h5 text-weight-bold" style="color: #78350f;">
+                {{ lang === 'af' ? 'Wiskunde' : 'Mathematics' }}
+              </div>
+            </div>
+
+            <!-- Maaltafel -->
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-weight-bold q-mb-xs" style="color: #78350f;">
+                {{ lang === 'af' ? 'Maaltafel' : (lang === 'tn' ? 'Tafole' : 'Times Tables') }}
+              </div>
+              <div class="text-caption text-grey-6 q-mb-sm">
+                50 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; 6 {{ lang === 'af' ? 'minute' : 'minutes' }} &bull; &times; &divide;
+              </div>
+              <q-btn class="btn-bee full-width" no-caps :loading="generating" @click="startSpeedTest('maaltafel')" icon="flash_on">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
               </q-btn>
             </q-card>
-          </q-tab-panel>
 
-          <!-- Plus Minus -->
-          <q-tab-panel name="plusminus" class="q-pa-none">
+            <!-- Plus Minus -->
             <q-card flat class="bee-card q-pa-md q-mb-md">
-              <div class="text-caption text-grey-6 q-mb-sm text-center">
-                50 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; 6 {{ lang === 'af' ? 'minute' : 'minutes' }} &bull; + {{ lang === 'af' ? 'en' : 'and' }} &minus;
+              <div class="text-weight-bold q-mb-xs" style="color: #78350f;">
+                {{ lang === 'af' ? 'Plus Minus' : 'Plus Minus' }}
               </div>
-              <q-btn class="btn-bee full-width" size="lg" no-caps :loading="generating" @click="startTest('plusminus')" icon="flash_on">
-                {{ lang === 'af' ? 'Begin Toets' : (lang === 'tn' ? 'Simolola' : 'Start Test') }}
+              <div class="text-caption text-grey-6 q-mb-sm">
+                50 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; 6 {{ lang === 'af' ? 'minute' : 'minutes' }} &bull; + &minus;
+              </div>
+              <q-btn class="btn-bee full-width" no-caps :loading="generating" @click="startSpeedTest('plusminus')" icon="flash_on">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
               </q-btn>
             </q-card>
-          </q-tab-panel>
 
-          <!-- Probleemoplossing -->
-          <q-tab-panel name="probleemoplossing" class="q-pa-none">
+            <!-- Probleemoplossing -->
             <q-card flat class="bee-card q-pa-md q-mb-md">
-              <div class="text-caption text-grey-6 q-mb-xs text-center">
+              <div class="text-weight-bold q-mb-xs" style="color: #78350f;">
+                {{ lang === 'af' ? 'Probleemoplossing' : 'Problem Solving' }}
+              </div>
+              <div class="text-caption text-grey-6 q-mb-sm">
                 20 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; 60 {{ lang === 'af' ? 'minute' : 'minutes' }} &bull;
-                {{ lang === 'af' ? 'Meervoudige keuse' : 'Multiple choice' }} (A-E)
+                {{ lang === 'af' ? 'Meervoudige keuse (A-E)' : 'Multiple choice (A-E)' }}
               </div>
-              <div class="text-caption text-grey-5 q-mb-sm text-center">
-                <q-icon name="calculate" size="14px" class="q-mr-xs" />
-                {{ lang === 'af' ? 'Sakrekenaar toegelaat' : 'Calculator allowed' }}
-              </div>
-              <q-btn class="btn-bee full-width" size="lg" no-caps :loading="generatingProblems" @click="startProblemTest" icon="psychology">
-                {{ lang === 'af' ? 'Begin Toets' : (lang === 'tn' ? 'Simolola' : 'Start Test') }}
+              <q-btn class="btn-bee full-width" no-caps :loading="generatingAI" @click="startProblemTest" icon="psychology">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
               </q-btn>
-              <div v-if="generatingProblems" class="text-caption text-grey-5 text-center q-mt-sm">
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+                {{ lang === 'af' ? 'KI genereer vrae... dit kan 30s neem' : 'AI generating questions... may take 30s' }}
+              </div>
+            </q-card>
+          </template>
+
+          <!-- NATURAL SCIENCE -->
+          <template v-if="selectedSubject === 'natural_science'">
+            <div class="text-center q-mb-md">
+              <q-icon name="science" size="36px" color="green" />
+              <div class="text-h5 text-weight-bold" style="color: #166534;">
+                {{ lang === 'af' ? 'Natuurwetenskap' : 'Natural Science' }}
+              </div>
+            </div>
+
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-caption text-grey-6 q-mb-sm text-center">
+                40 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; 60 {{ lang === 'af' ? 'minute' : 'minutes' }} &bull;
+                {{ lang === 'af' ? 'Meervoudige keuse (A-D)' : 'Multiple choice (A-D)' }}
+              </div>
+              <q-btn color="green" class="full-width" size="lg" no-caps :loading="generatingAI" @click="startSubjectTest('natural_science')" icon="science">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+                {{ lang === 'af' ? 'KI genereer vrae... dit kan 30s neem' : 'AI generating questions... may take 30s' }}
+              </div>
+            </q-card>
+          </template>
+
+          <!-- LIFE SKILLS -->
+          <template v-if="selectedSubject === 'life_skills'">
+            <div class="text-center q-mb-md">
+              <q-icon name="emoji_nature" size="36px" color="blue" />
+              <div class="text-h5 text-weight-bold" style="color: #1e3a5f;">
+                {{ lang === 'af' ? 'Lewensvaardighede' : 'Life Skills' }}
+              </div>
+            </div>
+
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-caption text-grey-6 q-mb-sm text-center">
+                20 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; 30 {{ lang === 'af' ? 'minute' : 'minutes' }} &bull;
+                {{ lang === 'af' ? 'Meervoudige keuse (A-D)' : 'Multiple choice (A-D)' }}
+              </div>
+              <q-btn color="blue" class="full-width" size="lg" no-caps :loading="generatingAI" @click="startSubjectTest('life_skills')" icon="emoji_nature">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+                {{ lang === 'af' ? 'KI genereer vrae... dit kan 30s neem' : 'AI generating questions... may take 30s' }}
+              </div>
+            </q-card>
+          </template>
+
+          <!-- ENGLISH -->
+          <template v-if="selectedSubject === 'english'">
+            <div class="text-center q-mb-md">
+              <q-icon name="menu_book" size="36px" color="purple" />
+              <div class="text-h5 text-weight-bold" style="color: #5b21b6;">English</div>
+            </div>
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-caption text-grey-6 q-mb-sm text-center">
+                {{ lang === 'af' ? 'Spelling, Woordeskat, Grammatika' : 'Spelling, Vocabulary, Grammar' }} &bull;
+                30 {{ lang === 'af' ? 'minute' : 'minutes' }}
+              </div>
+              <q-btn color="purple" class="full-width" size="lg" no-caps :loading="generatingAI" @click="startSubjectTest('english')" icon="menu_book">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
                 {{ lang === 'af' ? 'KI genereer vrae...' : 'AI generating questions...' }}
               </div>
             </q-card>
-          </q-tab-panel>
-        </q-tab-panels>
+          </template>
+
+          <!-- AFRIKAANS -->
+          <template v-if="selectedSubject === 'afrikaans'">
+            <div class="text-center q-mb-md">
+              <q-icon name="auto_stories" size="36px" color="orange-8" />
+              <div class="text-h5 text-weight-bold" style="color: #9a3412;">Afrikaans</div>
+            </div>
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-caption text-grey-6 q-mb-sm text-center">
+                Spelling, Woordeskat, Taal &bull; 30 {{ lang === 'af' ? 'minute' : 'minutes' }}
+              </div>
+              <q-btn color="orange-8" class="full-width" size="lg" no-caps :loading="generatingAI" @click="startSubjectTest('afrikaans')" icon="auto_stories">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+                {{ lang === 'af' ? 'KI genereer vrae...' : 'AI generating questions...' }}
+              </div>
+            </q-card>
+          </template>
+
+          <!-- SETSWANA -->
+          <template v-if="selectedSubject === 'setswana'">
+            <div class="text-center q-mb-md">
+              <q-icon name="translate" size="36px" color="cyan-8" />
+              <div class="text-h5 text-weight-bold" style="color: #155e75;">Setswana</div>
+            </div>
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-caption text-grey-6 q-mb-sm text-center">
+                {{ lang === 'tn' ? 'Mopeleto, Tlotlofoko, Popego' : 'Spelling, Vocabulary, Language' }} &bull; 30 {{ lang === 'af' ? 'minute' : 'minutes' }}
+              </div>
+              <q-btn color="cyan-8" class="full-width" size="lg" no-caps :loading="generatingAI" @click="startSubjectTest('setswana')" icon="translate">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+                {{ lang === 'af' ? 'KI genereer vrae...' : 'AI generating questions...' }}
+              </div>
+            </q-card>
+          </template>
+
+        </template>
 
         <!-- Recent Scores -->
-        <q-card v-if="child.recent_attempts && child.recent_attempts.length > 0" flat class="bee-card q-pa-md q-mb-md">
+        <q-card v-if="child.recent_attempts && child.recent_attempts.length > 0 && !selectedSubject" flat class="bee-card q-pa-md q-mb-md">
           <div class="text-weight-bold q-mb-sm">
             <q-icon name="history" class="q-mr-xs" />
             {{ lang === 'af' ? 'Onlangse Toetse' : 'Recent Tests' }}
@@ -137,9 +359,10 @@ import { useI18n } from 'src/i18n'
 import { useChildren } from 'src/composables/useChildren'
 import { useMathTest } from 'src/composables/useMathTest'
 import { useMathTestStore } from 'src/stores/math-test'
+import { backendApi } from 'src/boot/axios'
 import { Notify } from 'quasar'
 
-const { lang, toggleLanguage, setLanguage } = useI18n()
+const { lang, setLanguage } = useI18n()
 const { getChildBySlug } = useChildren()
 const { generateTest, generateProblems } = useMathTest()
 const store = useMathTestStore()
@@ -149,20 +372,22 @@ const router = useRouter()
 const child = ref<any>(null)
 const loading = ref(true)
 const error = ref(false)
-const activeTab = ref('maaltafel')
+const selectedSubject = ref('')
 const generating = ref(false)
-const generatingProblems = ref(false)
+const generatingAI = ref(false)
 
-async function startTest(mode: 'maaltafel' | 'plusminus') {
+function hasSubject(code: string): boolean {
+  if (!child.value?.subjects) return false
+  return child.value.subjects.some((s: any) => s.code === code)
+}
+
+async function startSpeedTest(mode: 'maaltafel' | 'plusminus') {
   generating.value = true
   try {
     const config: any = { grade: child.value.grade, language: lang.value }
     if (mode === 'plusminus') config.operations = ['add', 'subtract']
     const template = await generateTest(config)
-
-    // Set player name and child_id in store
     store.setPlayerName(child.value.name)
-
     router.push({
       name: 'math-test',
       params: { templateId: template.id },
@@ -176,7 +401,7 @@ async function startTest(mode: 'maaltafel' | 'plusminus') {
 }
 
 async function startProblemTest() {
-  generatingProblems.value = true
+  generatingAI.value = true
   try {
     const template = await generateProblems({ grade: child.value.grade, language: lang.value })
     store.setPlayerName(child.value.name)
@@ -188,7 +413,28 @@ async function startProblemTest() {
   } catch (err: any) {
     Notify.create({ type: 'negative', message: err.response?.data?.message || 'Failed to generate test' })
   } finally {
-    generatingProblems.value = false
+    generatingAI.value = false
+  }
+}
+
+async function startSubjectTest(subjectCode: string) {
+  generatingAI.value = true
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: subjectCode,
+      grade: child.value.grade,
+      language: lang.value,
+    })
+    store.setPlayerName(child.value.name)
+    router.push({
+      name: 'math-problems',
+      params: { templateId: data.id },
+      query: { childId: child.value.id, returnTo: route.fullPath, subject: subjectCode },
+    })
+  } catch (err: any) {
+    Notify.create({ type: 'negative', message: err.response?.data?.message || 'Failed to generate test' })
+  } finally {
+    generatingAI.value = false
   }
 }
 
@@ -202,7 +448,6 @@ onMounted(async () => {
 
   try {
     child.value = await getChildBySlug(slug)
-    // Set language from child profile
     if (child.value.language) {
       setLanguage(child.value.language)
     }
@@ -214,3 +459,13 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.subject-btn {
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.subject-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+</style>

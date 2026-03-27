@@ -9,6 +9,7 @@ interface SubmitAttemptData {
   playerName: string
   answers: Array<{ questionIndex: number; givenAnswer: number }>
   timeUsedSec: number
+  childId?: number
 }
 
 export function useMathTest() {

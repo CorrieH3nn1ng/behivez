@@ -117,10 +117,12 @@ async function submitTest() {
   submitting.value = true
 
   try {
+    const childId = route.query.childId ? Number(route.query.childId) : undefined
     const result = await submitAttempt(template.value.id, {
       playerName: store.playerName,
       answers: store.answers,
       timeUsedSec: store.getTimeUsedSec(),
+      childId,
     })
     router.push({
       name: 'math-result',
@@ -170,5 +172,17 @@ onBeforeUnmount(() => {
   padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid #fde68a;
+}
+@media (max-width: 768px) {
+  .test-header {
+    top: 0;
+    padding: 6px 10px;
+    border-radius: 0;
+    margin: -16px -16px 8px;
+    width: calc(100% + 32px);
+  }
+  .test-header h2 {
+    font-size: 14px !important;
+  }
 }
 </style>

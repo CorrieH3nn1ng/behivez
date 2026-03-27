@@ -22,7 +22,9 @@
           <q-icon name="description" size="18px" class="q-mr-xs" />
           <span class="gt-xs">{{ lang === 'af' ? 'Werkruimte' : 'Papers' }}</span>
         </q-btn>
-        <q-btn flat dense no-caps class="btn-bee q-ml-sm" label="New Evaluation" @click="handleNewEvaluation" />
+        <q-btn flat dense no-caps class="btn-bee q-ml-sm" @click="handleNewEvaluation">
+          {{ lang === 'af' ? 'Nuwe Evaluering' : 'New Evaluation' }}
+        </q-btn>
         <q-btn flat dense icon="person" class="q-ml-md text-grey-4" to="/workspace/account" />
         <q-btn flat dense icon="logout" class="q-ml-md text-grey-4" @click="handleLogout" />
       </q-toolbar>
@@ -33,7 +35,7 @@
     </q-page-container>
 
     <q-footer class="bg-dark text-grey-5 q-pa-md text-center" style="font-size: 12px;">
-      <div>BeeGraded &copy; {{ new Date().getFullYear() }} &mdash; Get BeeGraded before you get graded</div>
+      <div>BeeGraded &copy; {{ new Date().getFullYear() }} &mdash; {{ lang === 'af' ? 'Word BeeGraded voordat jy gegradeer word' : 'Get BeeGraded before you get graded' }}</div>
     </q-footer>
   </q-layout>
 </template>

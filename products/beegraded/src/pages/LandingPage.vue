@@ -26,8 +26,8 @@
             <div class="text-center q-mb-md">
               <q-icon name="calculate" size="56px" color="amber-8" class="q-mb-sm" />
               <div class="text-h5 text-weight-bold" style="color: #78350f;">Grades</div>
-              <div class="text-h6 text-amber-8">Toets My</div>
-              <div class="text-caption text-grey-6 q-mt-xs">Gr 1 — 12</div>
+              <div class="text-h6 text-amber-8">Test Me</div>
+              <div class="text-caption text-grey-6 q-mt-xs">Grade 1 — 12</div>
             </div>
 
             <q-list dense class="q-mb-lg">
@@ -39,7 +39,7 @@
 
             <div class="text-center q-mb-sm">
               <q-badge color="green-2" text-color="green-9" class="q-pa-xs" style="font-size: 12px;">
-                Maaltafel &bull; Plus Minus &bull; Probleemoplossing
+                Times Tables &bull; Plus Minus &bull; Problem Solving
               </q-badge>
             </div>
             <div class="text-center q-mb-sm">
@@ -48,7 +48,7 @@
               </q-badge>
             </div>
 
-            <q-btn class="btn-bee full-width" size="lg" no-caps icon="flash_on" label="Begin" @click.stop="goGrades" />
+            <q-btn class="btn-bee full-width" size="lg" no-caps icon="flash_on" label="Start" @click.stop="goGrades" />
           </q-card>
 
           <!-- Papers Card -->
@@ -73,68 +73,65 @@
               </q-badge>
             </div>
 
-            <q-btn outline color="blue-8" class="full-width" size="lg" no-caps icon="description" label="Begin" @click.stop="goPapers" />
+            <q-btn outline color="blue-8" class="full-width" size="lg" no-caps icon="description" label="Start" @click.stop="goPapers" />
           </q-card>
         </div>
 
         <div class="text-center q-mt-lg">
-          <q-btn flat no-caps color="grey-7" label="Already registered? Sign in" to="/get-started" size="sm" />
+          <q-btn flat no-caps color="grey-7" label="Already registered? Login" to="/get-started" size="sm" />
         </div>
       </div>
     </section>
 
-    <!-- Papers: How It Works (shown below for SEO / context) -->
-    <section id="how-it-works" class="page-container q-py-xl">
-      <h2 class="text-h4 text-weight-bold text-center q-mb-lg">How Papers Works</h2>
-      <div class="row q-gutter-lg justify-center">
-        <div v-for="step in steps" :key="step.num" class="col-auto">
-          <q-card flat class="bee-card text-center q-pa-lg" style="width: 220px;">
-            <div class="hex-badge q-mx-auto q-mb-md">{{ step.num }}</div>
-            <div class="text-weight-bold q-mb-xs">{{ step.title }}</div>
-            <div class="text-caption text-grey-7">{{ step.desc }}</div>
-          </q-card>
-        </div>
-      </div>
-    </section>
-
-    <!-- Pricing -->
-    <section id="pricing" class="q-py-xl" style="background: white;">
+    <!-- Pricing: Grades -->
+    <section id="pricing" class="q-py-xl" style="background: #fefbf3;">
       <div class="page-container">
-        <h2 class="text-h4 text-weight-bold text-center q-mb-sm">Papers Pricing</h2>
-        <p class="text-grey-7 text-center q-mb-xl">From free sample to full workspace — pick what works for you.</p>
+        <h2 class="text-h4 text-weight-bold text-center q-mb-xs">Pricing</h2>
 
-        <div class="row q-gutter-lg justify-center">
-          <q-card flat class="bee-card q-pa-lg" style="max-width: 280px; width: 100%;">
-            <div class="text-center q-mb-md">
-              <q-icon name="science" size="36px" color="blue" />
-              <div class="text-h6 text-weight-bold q-mt-sm">Free Sample</div>
-              <div class="text-h3 text-weight-bold text-blue">R0</div>
-              <div class="text-caption text-grey-6">1 per email</div>
-            </div>
-            <q-btn outline color="blue" class="full-width" no-caps label="Try Free" to="/free-sample" />
-          </q-card>
+        <!-- Grades Pricing -->
+        <div class="text-center q-mb-md q-mt-lg">
+          <q-icon name="calculate" size="28px" color="amber-8" class="q-mr-xs" />
+          <span class="text-h5 text-weight-bold" style="color: #78350f;">Grades — Test Me</span>
+        </div>
+        <p class="text-grey-7 text-center q-mb-lg">Speed drills are free. Unlock AI problem solving and more subjects with a plan.</p>
 
-          <q-card flat class="bee-card q-pa-lg" style="max-width: 280px; width: 100%; border: 2px solid #f59e0b;">
-            <q-badge color="amber" floating label="POPULAR" />
+        <div class="row q-gutter-md justify-center q-mb-xl">
+          <q-card v-for="g in gradesTiers" :key="g.name" flat class="bee-card q-pa-lg pricing-card" :style="g.highlight ? 'border: 2px solid #f59e0b;' : ''">
+            <q-badge v-if="g.badge" :color="g.badgeColor" floating :label="g.badge" />
             <div class="text-center q-mb-md">
-              <q-icon name="token" size="36px" color="amber" />
-              <div class="text-h6 text-weight-bold q-mt-sm">Token</div>
-              <div class="text-h3 text-weight-bold text-amber-8">R25</div>
-              <div class="text-caption text-grey-6">rubric + draft + final</div>
+              <div class="text-h6 text-weight-bold" style="color: #78350f;">{{ g.name }}</div>
+              <div class="text-h3 text-weight-bold text-amber-8">{{ g.price }}</div>
+              <div class="text-caption text-grey-6">{{ g.period }}</div>
             </div>
-            <q-btn class="btn-bee full-width" no-caps label="Buy Token" to="/buy-token" />
-          </q-card>
-
-          <q-card flat class="bee-card q-pa-lg" style="max-width: 280px; width: 100%;">
-            <div class="text-center q-mb-md">
-              <q-icon name="workspace_premium" size="36px" color="green" />
-              <div class="text-h6 text-weight-bold q-mt-sm">Registered</div>
-              <div class="text-h3 text-weight-bold text-green">R20</div>
-              <div class="text-caption text-grey-6">per evaluation</div>
-            </div>
-            <q-btn outline color="green" class="full-width" no-caps label="Create Account" @click="goPapers" />
+            <q-list dense class="pricing-features q-mb-md">
+              <q-item v-for="f in g.features" :key="f"><q-item-section avatar><q-icon name="check" color="green" size="16px" /></q-item-section><q-item-section><span style="font-size: 13px;">{{ f }}</span></q-item-section></q-item>
+            </q-list>
+            <q-btn :class="g.highlight ? 'btn-bee' : ''" :outline="!g.highlight" :color="g.highlight ? undefined : 'amber-8'" class="full-width" no-caps :label="g.cta" @click="goGrades" />
           </q-card>
         </div>
+
+        <!-- Papers Pricing -->
+        <div class="text-center q-mb-md">
+          <q-icon name="description" size="28px" color="blue-8" class="q-mr-xs" />
+          <span class="text-h5 text-weight-bold" style="color: #1e3a5f;">Papers — Evaluation</span>
+        </div>
+        <p class="text-grey-7 text-center q-mb-lg">AI-powered academic paper evaluation for university and college students.</p>
+
+        <div class="row q-gutter-md justify-center">
+          <q-card v-for="p in papersTiers" :key="p.name" flat class="bee-card q-pa-lg pricing-card" :style="p.highlight ? 'border: 2px solid #3b82f6;' : ''">
+            <q-badge v-if="p.badge" :color="p.badgeColor" floating :label="p.badge" />
+            <div class="text-center q-mb-md">
+              <div class="text-h6 text-weight-bold" style="color: #1e3a5f;">{{ p.name }}</div>
+              <div class="text-h3 text-weight-bold text-blue-8">{{ p.price }}</div>
+              <div class="text-caption text-grey-6">{{ p.period }}</div>
+            </div>
+            <q-list dense class="pricing-features q-mb-md">
+              <q-item v-for="f in p.features" :key="f"><q-item-section avatar><q-icon name="check" color="green" size="16px" /></q-item-section><q-item-section><span style="font-size: 13px;">{{ f }}</span></q-item-section></q-item>
+            </q-list>
+            <q-btn :class="p.highlight ? '' : ''" :outline="!p.highlight" :color="p.highlight ? 'blue-8' : 'blue-8'" class="full-width" no-caps :label="p.cta" @click="p.action ? p.action() : goPapers()" />
+          </q-card>
+        </div>
+
       </div>
     </section>
 
@@ -143,8 +140,8 @@
       <h2 class="text-h4 text-weight-bold q-mb-sm">Ready to get started?</h2>
       <p class="q-mb-lg" style="opacity: 0.9;">Choose Grades for school practice or Papers for university evaluation.</p>
       <div class="row justify-center q-gutter-md">
-        <q-btn flat no-caps size="lg" class="bg-white text-amber-9 text-weight-bold" label="Grades — Toets My" icon="calculate" @click="goGrades" />
-        <q-btn outline no-caps size="lg" class="text-white" style="border-color: white;" label="Papers — Evaluate" icon="description" @click="goPapers" />
+        <q-btn flat no-caps size="lg" class="bg-white text-amber-9 text-weight-bold" label="Grades — Free" icon="calculate" @click="goGrades" />
+        <q-btn outline no-caps size="lg" class="text-white" style="border-color: white;" label="Papers — From R20" icon="description" @click="goPapers" />
       </div>
     </section>
   </q-page>
@@ -158,8 +155,8 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const gradesFeatures = [
-  'Maaltafel speed tests (× ÷)',
-  'Plus Minus drills (+ -)',
+  'Times tables speed tests (× ÷)',
+  'Addition & subtraction drills (+ −)',
   'AI problem solving (AMESA-style)',
   'Parent dashboard with child tracking',
   'Magic links — WhatsApp to your child',
@@ -179,11 +176,50 @@ const papersFeatures = [
   'Prioritised fix list',
 ]
 
-const steps = [
-  { num: 1, title: 'Try Free', desc: 'Upload a paper, get a teaser report — free' },
-  { num: 2, title: 'Buy Token', desc: 'Pay R25 to unlock your rubric + full report' },
-  { num: 3, title: 'Upload Rubric', desc: "Upload your lecturer's rubric PDF" },
-  { num: 4, title: 'Get Report', desc: 'Full evaluation in ~60 seconds' },
+const gradesTiers = [
+  {
+    name: 'Free', price: 'R0', period: 'forever', badge: null, badgeColor: '', highlight: false,
+    features: ['Speed drills (× ÷ + −)', 'Leaderboard', '1 child', 'Basic progress'],
+    cta: 'Start Free',
+  },
+  {
+    name: 'Per Subject', price: 'R29', period: 'per month', badge: 'POPULAR', badgeColor: 'amber', highlight: true,
+    features: ['Everything in Free', 'AI problem solving', 'Progress tracking', 'Unlimited children'],
+    cta: 'Choose Subject',
+  },
+  {
+    name: '3 Subjects', price: 'R69', period: 'per month', badge: 'SAVE R18', badgeColor: 'green', highlight: false,
+    features: ['Pick any 3 subjects', 'AI problem solving', 'Progress tracking', 'Unlimited children'],
+    cta: 'Get 3 Subjects',
+  },
+  {
+    name: 'All Subjects', price: 'R99', period: 'per month', badge: null, badgeColor: '', highlight: false,
+    features: ['Every subject, every grade', 'All 11 languages', 'Priority AI generation', 'Unlimited everything'],
+    cta: 'Get All Subjects',
+  },
+]
+
+const papersTiers = [
+  {
+    name: 'Free Sample', price: 'R0', period: 'once per email', badge: null, badgeColor: '', highlight: false,
+    features: ['Upload 1 paper', 'Teaser report', 'Score overview', 'No rubric needed'],
+    cta: 'Try Free', action: () => router.push('/free-sample'),
+  },
+  {
+    name: 'Token', price: 'R25', period: 'per evaluation', badge: null, badgeColor: '', highlight: false,
+    features: ['Upload rubric + paper', 'Full AI evaluation', 'Score breakdown', 'Reference audit'],
+    cta: 'Buy Token', action: () => router.push('/buy-token'),
+  },
+  {
+    name: 'Registered', price: 'R20', period: 'per evaluation', badge: 'BEST VALUE', badgeColor: 'blue', highlight: true,
+    features: ['Everything in Token', 'Paper history', 'Saved rubrics', 'Draft vs final comparison'],
+    cta: 'Create Account', action: null,
+  },
+  {
+    name: 'Bulk 5-Pack', price: 'R85', period: 'R17 each', badge: 'SAVE R40', badgeColor: 'green', highlight: false,
+    features: ['5 evaluations', 'Everything in Registered', 'AI detection report', 'Priority processing'],
+    cta: 'Buy 5-Pack', action: null,
+  },
 ]
 
 function goGrades() {
@@ -197,10 +233,10 @@ function goGrades() {
 
 function goPapers() {
   if (authStore.isLoggedIn) {
-    router.push('/workspace')
+    router.push('/workspace/papers')
   } else {
     localStorage.setItem('bg_product', 'papers')
-    router.push('/get-started?redirect=/workspace')
+    router.push('/get-started?redirect=/workspace/papers')
   }
 }
 </script>
@@ -216,5 +252,15 @@ function goPapers() {
 .product-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+.pricing-card {
+  width: 100%;
+  max-width: 240px;
+  min-height: 340px;
+  display: flex;
+  flex-direction: column;
+}
+.pricing-card .pricing-features {
+  flex: 1;
 }
 </style>

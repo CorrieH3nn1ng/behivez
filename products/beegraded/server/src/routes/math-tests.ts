@@ -62,6 +62,9 @@ function generateQuestionsWithOps(grade: number, ops: string[]): Question[] {
       attempts++;
       let a: number, b: number, answer: number, questionText: string;
 
+      // Age-appropriate number ranges for addition/subtraction
+      const addMax = grade <= 1 ? 10 : grade <= 2 ? 20 : grade <= 3 ? 50 : grade <= 4 ? 100 : config.maxNumber * config.maxNumber;
+
       switch (op) {
         case 'multiply':
           a = randInt(2, config.maxNumber);
@@ -77,15 +80,18 @@ function generateQuestionsWithOps(grade: number, ops: string[]): Question[] {
           questionText = `${a * b} ÷ ${a}`;
           break;
         case 'add':
-          a = randInt(1, config.maxNumber * config.maxNumber);
-          b = randInt(1, config.maxNumber * config.maxNumber);
+          // Grade 1: 1+1 to 5+5 (max answer 10)
+          // Grade 2: 1+1 to 10+10 (max answer 20)
+          // Grade 3+: scaled up
+          a = randInt(1, Math.floor(addMax / 2));
+          b = randInt(1, addMax - a); // ensures answer <= addMax
           answer = a + b;
           questionText = `${a} + ${b}`;
           break;
         case 'subtract':
-          // Pick two numbers, subtract smaller from larger (no negatives)
-          a = randInt(2, config.maxNumber * config.maxNumber);
-          b = randInt(1, a - 1); // b always smaller than a
+          // Answer is always positive, numbers within age-appropriate range
+          a = randInt(2, addMax);
+          b = randInt(1, a - 1);
           answer = a - b;
           questionText = `${a} - ${b}`;
           break;
@@ -256,6 +262,22 @@ IMPORTANT:
       throw new AppError('No questions generated', 500);
     }
 
+    // Shuffle options so correct answer is randomly placed
+    for (const q of questions) {
+      if (!q.options || q.correct === undefined) continue;
+      const correctOption = q.options[q.correct];
+      for (let i = q.options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [q.options[i], q.options[j]] = [q.options[j], q.options[i]];
+      }
+      q.correct = q.options.indexOf(correctOption);
+      const labels = ['(A)', '(B)', '(C)', '(D)', '(E)'];
+      q.options = q.options.map((opt: string, i: number) => {
+        const text = opt.replace(/^\([A-E]\)\s*/, '');
+        return `${labels[i]} ${text}`;
+      });
+    }
+
     // Save as template
     const template = await prisma.math_test_templates.create({
       data: {
@@ -382,7 +404,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
 
   const questions = template.questions_json as unknown as any[];
   const showAnswers = req.query.answers === 'true';
-  const isProblemSolving = template.operations.includes('problem_solving');
+  const isProblemSolving = template.operations.includes('problem_solving') || template.operations.includes('multiple_choice');
 
   res.json({
     id: template.id,
@@ -418,7 +440,7 @@ router.post('/:id/attempts', optionalAuth, async (req: AuthRequest, res: Respons
   const templateId = parseInt(req.params.id);
   if (isNaN(templateId)) throw new AppError('Invalid template ID', 400);
 
-  const { playerName, answers, timeUsedSec } = req.body;
+  const { playerName, answers, timeUsedSec, childId } = req.body;
   if (!playerName) throw new AppError('playerName is required', 400);
   if (!Array.isArray(answers)) throw new AppError('answers must be an array', 400);
 
@@ -426,7 +448,7 @@ router.post('/:id/attempts', optionalAuth, async (req: AuthRequest, res: Respons
   if (!template) throw new AppError('Test not found', 404);
 
   // Auto-mark — supports both speed tests (number answer) and problem-solving (option index)
-  const isProblemSolving = template.operations.includes('problem_solving');
+  const isProblemSolving = template.operations.includes('problem_solving') || template.operations.includes('multiple_choice');
   const questions = template.questions_json as unknown as any[];
   let score = 0;
   const markedAnswers = answers.map((a: { questionIndex: number; givenAnswer: number }) => {
@@ -466,6 +488,7 @@ router.post('/:id/attempts', optionalAuth, async (req: AuthRequest, res: Respons
       template_id: templateId,
       player_name: playerName,
       player_id: req.userId || null,
+      child_id: childId ? parseInt(childId) : null,
       score,
       total,
       percentage,
@@ -474,6 +497,44 @@ router.post('/:id/attempts', optionalAuth, async (req: AuthRequest, res: Respons
       answers_json: markedAnswers as any,
     },
   });
+
+  // Notify parent via email if child is linked (fire-and-forget)
+  if (attempt.child_id) {
+    (async () => {
+      try {
+        const child = await prisma.children.findUnique({ where: { id: attempt.child_id! } });
+        if (!child) return;
+
+        const parentEmail = child.parent_email || '';
+        if (!parentEmail) return;
+
+        const https = await import('https');
+        const http = await import('http');
+
+        // Fire-and-forget POST to n8n webhook for email notification
+        const n8nUrl = process.env.N8N_WEBHOOK_URL || 'https://beegraded.co.za/webhook';
+        const payload = JSON.stringify({
+          parentEmail,
+          parentId: child.parent_id,
+          childName: child.name,
+          testName: template.name,
+          score,
+          total,
+          percentage,
+          grade: template.grade,
+          language: child.language || 'af',
+        });
+        const webhookUrl = new URL(`${n8nUrl}/bg-notify-parent`);
+        const mod2 = webhookUrl.protocol === 'https:' ? https : http;
+        const wr = mod2.request(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+        });
+        wr.write(payload);
+        wr.end();
+      } catch { /* silent — notification is best-effort */ }
+    })();
+  }
 
   // Get personal best for this player + grade
   const personalBest = await prisma.math_test_attempts.findFirst({

@@ -10,7 +10,7 @@ const messages: Record<string, Record<TranslationKey, string>> = { af, en, tn }
 // Reactive language state — persisted to localStorage
 const STORAGE_KEY = 'bg_math_lang'
 const storedLang = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
-const currentLang = ref<string>(storedLang || 'af')
+const currentLang = ref<string>(storedLang || 'en')
 
 export function useI18n() {
   const lang = computed(() => currentLang.value)

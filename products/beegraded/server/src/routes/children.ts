@@ -69,7 +69,7 @@ router.get('/consent', authenticate, async (req: AuthRequest, res: Response) => 
 
 // --- Children CRUD ---
 
-// GET /api/children — List parent's children
+// GET /api/children — List parent's children (with stats)
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
 
@@ -84,8 +84,21 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     orderBy: { created_at: 'asc' },
   });
 
-  res.json({
-    children: kids.map(k => ({
+  // Fetch stats for each child
+  const childrenWithStats = await Promise.all(kids.map(async (k) => {
+    const attempts = await prisma.math_test_attempts.findMany({
+      where: { child_id: k.id },
+      select: { percentage: true },
+    });
+    const totalTests = attempts.length;
+    const avgScore = totalTests > 0
+      ? Math.round(attempts.reduce((sum, a) => sum + Number(a.percentage), 0) / totalTests)
+      : 0;
+    const bestScore = totalTests > 0
+      ? Math.max(...attempts.map(a => Number(a.percentage)))
+      : 0;
+
+    return {
       id: k.id,
       name: k.name,
       birthdate: k.birthdate,
@@ -93,7 +106,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       grade: k.grade,
       language: k.language,
       play_slug: k.play_slug,
-      play_url: `/play/${k.play_slug}`,
+      play_url: `/#/play/${k.play_slug}`,
       subjects: k.subjects.map(s => ({
         id: s.subject.id,
         code: s.subject.code,
@@ -102,9 +115,12 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
         name_tn: s.subject.name_tn,
         status: s.status,
       })),
+      stats: { total_tests: totalTests, average_score: avgScore, best_score: bestScore },
       created_at: k.created_at,
-    })),
-  });
+    };
+  }));
+
+  res.json({ children: childrenWithStats });
 });
 
 // POST /api/children — Add a child
@@ -138,6 +154,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   const child = await prisma.children.create({
     data: {
       parent_id: req.userId!,
+      parent_email: req.userEmail || null,
       name,
       birthdate: birthdateObj,
       age,
@@ -147,16 +164,18 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     },
   });
 
-  // Auto-assign Maths (free by default)
-  const mathsSubject = await prisma.subjects.findUnique({ where: { code: 'maths' } });
-  if (mathsSubject) {
+  // Auto-assign all subjects matching the child's grade
+  const matchingSubjects = await prisma.subjects.findMany({
+    where: { active: true, grades: { has: parseInt(grade) } },
+  });
+  for (const subj of matchingSubjects) {
     await prisma.child_subjects.create({
       data: {
         child_id: child.id,
-        subject_id: mathsSubject.id,
+        subject_id: subj.id,
         status: 'active',
       },
-    });
+    }).catch(() => { /* ignore duplicate */ });
   }
 
   // Auto-link existing math test attempts by player_name match
@@ -186,7 +205,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     grade: child.grade,
     language: child.language,
     play_slug: child.play_slug,
-    play_url: `/play/${child.play_slug}`,
+    play_url: `/#/play/${child.play_slug}`,
     linked_attempts: linked.count,
   });
 });
@@ -218,7 +237,7 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     grade: updated.grade,
     language: updated.language,
     play_slug: updated.play_slug,
-    play_url: `/play/${updated.play_slug}`,
+    play_url: `/#/play/${updated.play_slug}`,
   });
 });
 
@@ -348,6 +367,29 @@ router.get('/:id/progress', authenticate, async (req: AuthRequest, res: Response
       date: a.created_at,
     })),
   });
+});
+
+// DELETE /api/children/:id/attempts/:attemptId — Remove a single test attempt
+router.delete('/:id/attempts/:attemptId', authenticate, async (req: AuthRequest, res: Response) => {
+  const prisma = getPrisma(req);
+  const childId = parseInt(req.params.id);
+  const attemptId = parseInt(req.params.attemptId);
+
+  // Verify parent owns this child
+  const child = await prisma.children.findFirst({
+    where: { id: childId, parent_id: req.userId! },
+  });
+  if (!child) throw new AppError('Child not found', 404);
+
+  // Verify attempt belongs to this child
+  const attempt = await prisma.math_test_attempts.findFirst({
+    where: { id: attemptId, child_id: childId },
+  });
+  if (!attempt) throw new AppError('Attempt not found', 404);
+
+  await prisma.math_test_attempts.delete({ where: { id: attemptId } });
+
+  res.json({ deleted: true, attempt_id: attemptId });
 });
 
 export default router;

@@ -59,13 +59,13 @@
             <span class="text-caption text-grey-5">{{ q.category }}</span>
           </div>
 
-          <!-- Bilingual question -->
+          <!-- Bilingual question (language subjects show subject language as primary) -->
           <div class="question-text q-mb-md">
             <div class="text-weight-medium" style="font-size: 15px; line-height: 1.5;">
-              {{ lang === 'af' ? q.question_af : q.question_en }}
+              {{ primaryQuestion(q) }}
             </div>
             <div class="text-caption text-grey-5 q-mt-xs" style="font-style: italic;">
-              {{ lang === 'af' ? q.question_en : q.question_af }}
+              {{ secondaryQuestion(q) }}
             </div>
           </div>
 
@@ -159,6 +159,27 @@ let timerInterval: ReturnType<typeof setInterval> | null = null
 const answeredCount = computed(() => Object.keys(selectedAnswers.value).length)
 const totalQuestions = computed(() => questions.value.length)
 
+// For language subjects (english, afrikaans, setswana), always show the subject language as primary
+const subjectCode = computed(() => (route.query.subject as string) || '')
+const langSubjects = ['english', 'afrikaans', 'setswana']
+
+function primaryQuestion(q: any): string {
+  // Language subjects: show subject's language as primary
+  if (subjectCode.value === 'english') return q.question_en || q.question_af
+  if (subjectCode.value === 'afrikaans') return q.question_af || q.question_en
+  if (subjectCode.value === 'setswana') return q.question_en || q.question_af // Setswana stored in question_en
+  // Default (maths, natural science): use UI language
+  return lang.value === 'af' ? (q.question_af || q.question_en) : (q.question_en || q.question_af)
+}
+
+function secondaryQuestion(q: any): string {
+  // Show the translation as secondary (italic)
+  if (subjectCode.value === 'english') return q.question_af || ''
+  if (subjectCode.value === 'afrikaans') return q.question_en || ''
+  if (subjectCode.value === 'setswana') return q.question_af || '' // English translation for parents
+  return lang.value === 'af' ? (q.question_en || '') : (q.question_af || '')
+}
+
 function startTimer(seconds: number) {
   timeRemaining.value = seconds
   timerActive.value = true
@@ -223,10 +244,12 @@ async function submitTest() {
 
     const timeUsed = (template.value?.time_limit_sec || 3600) - timeRemaining.value
 
+    const childId = route.query.childId ? Number(route.query.childId) : undefined
     const result = await submitAttempt(template.value.id, {
       playerName: store.playerName || 'Anonymous',
       answers,
       timeUsedSec: timeUsed,
+      childId,
     })
 
     router.push({

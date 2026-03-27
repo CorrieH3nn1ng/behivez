@@ -69,6 +69,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'children', name: 'my-children', component: () => import('pages/MyChildrenPage.vue') },
       { path: 'child/:childId/progress', name: 'child-progress', component: () => import('pages/ChildProgressPage.vue'), props: true },
       { path: 'account', name: 'workspace-account', component: () => import('pages/AccountPage.vue') },
+      { path: 'learn/:language', name: 'learn-language', component: () => import('pages/LearnLanguagePage.vue'), props: true },
       { path: 'upload', redirect: '/workspace/new/upload' },
       { path: 'upload/:paperId/final', redirect: '/workspace/new/final' },
       { path: 'rubric/:paperId', redirect: '/workspace/new/rubric' },

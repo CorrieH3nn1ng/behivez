@@ -102,6 +102,22 @@
         </q-card>
       </q-card>
 
+      <!-- Learn a Language -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="school" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Leer \'n Taal' : 'Learn a Language' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Leer nuwe woorde met flitskaarte en vasvrae' : 'Learn new words with flashcards and quizzes' }}
+        </div>
+        <div class="row q-gutter-sm">
+          <q-btn outline color="cyan-8" no-caps icon="translate" label="Setswana" class="col" to="/workspace/learn/setswana" />
+          <q-btn outline color="orange-8" no-caps icon="auto_stories" label="Afrikaans" class="col" to="/workspace/learn/afrikaans" />
+          <q-btn outline color="purple" no-caps icon="menu_book" label="English" class="col" to="/workspace/learn/english" />
+        </div>
+      </q-card>
+
       <!-- Change Password -->
       <q-card flat class="bee-card q-pa-lg q-mb-md">
         <div class="text-subtitle1 text-weight-bold q-mb-md" style="color: #78350f;">

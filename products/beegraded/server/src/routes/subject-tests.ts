@@ -317,4 +317,85 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
   }
 });
 
+// POST /api/subject-tests/lesson — Generate a vocabulary lesson for language learning
+router.post('/lesson', optionalAuth, async (req: AuthRequest, res: Response) => {
+  const prisma = getPrisma(req);
+  const { language, level } = req.body;
+
+  if (!language) throw new AppError('language is required', 400);
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new AppError('GEMINI_API_KEY not configured', 500);
+
+  const langNames: Record<string, string> = {
+    setswana: 'Setswana',
+    afrikaans: 'Afrikaans',
+    english: 'English',
+  };
+  const targetLang = langNames[language] || language;
+  const lvl = level || 'beginner';
+
+  const prompt = `You are a friendly ${targetLang} language teacher for an adult South African learner at ${lvl} level.
+
+Generate a vocabulary lesson with exactly 10 words/phrases. For each entry provide:
+- The word/phrase in ${targetLang}
+- English translation
+- A simple pronunciation guide (phonetic, for English speakers)
+- A short example sentence in ${targetLang} with English translation
+- A category (greetings, numbers, food, animals, family, directions, shopping, weather, colors, body)
+
+Return ONLY a valid JSON array:
+[
+  {
+    "word": "Dumela",
+    "translation": "Hello",
+    "pronunciation": "doo-MEH-lah",
+    "example": "Dumela, o kae?",
+    "example_translation": "Hello, how are you?",
+    "category": "greetings"
+  }
+]
+
+IMPORTANT:
+- Mix categories so the lesson is varied
+- Start with common, everyday words
+- For ${lvl} level: ${lvl === 'beginner' ? 'very basic greetings, numbers 1-10, simple nouns' : lvl === 'intermediate' ? 'conversational phrases, verbs, descriptive words' : 'complex sentences, idioms, formal language'}
+- Use correct ${targetLang} spelling and grammar
+- Make it fun and practical for daily use in South Africa
+- Do NOT include any text outside the JSON array`;
+
+  try {
+    const geminiResponse = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.9 },
+      },
+      { timeout: 60000 }
+    );
+
+    const responseText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    if (!responseText) throw new AppError('AI returned empty response', 500);
+
+    let jsonStr = responseText.trim();
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    }
+    jsonStr = jsonStr.trim();
+    const match = jsonStr.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (match) jsonStr = match[0];
+
+    const words = JSON.parse(jsonStr);
+    if (!Array.isArray(words) || words.length === 0) {
+      throw new AppError('No words generated', 500);
+    }
+
+    res.json({ words, language, level: lvl });
+  } catch (err: any) {
+    if (err instanceof AppError) throw err;
+    console.error('Lesson generation error:', err.message);
+    throw new AppError('Failed to generate lesson. Please try again.', 500);
+  }
+});
+
 export default router;

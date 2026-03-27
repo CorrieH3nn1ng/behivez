@@ -53,10 +53,7 @@
           </template>
           <template v-else>
             <div class="text-h4 text-weight-bold text-amber-8">
-              {{ currentWord.translation_en || currentWord.translation }}
-            </div>
-            <div v-if="currentWord.translation_af" class="text-subtitle1 text-grey-6">
-              {{ currentWord.translation_af }}
+              {{ homeTranslation(currentWord) }}
             </div>
             <div class="q-mt-md q-pa-sm" style="background: #fef9ee; border-radius: 8px;">
               <div style="font-size: 15px; color: #555;">
@@ -67,10 +64,7 @@
                 "{{ currentWord.example }}"
               </div>
               <div class="text-caption text-grey-6 q-mt-xs">
-                EN: {{ currentWord.example_en || currentWord.example_translation }}
-              </div>
-              <div v-if="currentWord.example_af" class="text-caption text-grey-6">
-                AF: {{ currentWord.example_af }}
+                {{ homeExample(currentWord) }}
               </div>
             </div>
             <q-badge :color="categoryColor(currentWord.category)" class="q-mt-md q-pa-xs">
@@ -114,7 +108,7 @@
         <q-card flat class="bee-card q-pa-lg q-mb-md">
           <div class="text-center q-mb-lg">
             <div class="text-h5 text-weight-bold" style="color: #78350f;">
-              {{ quizWord.translation }}
+              {{ homeTranslation(quizWord) }}
             </div>
             <div class="text-caption text-grey-5 q-mt-xs">What is this in {{ targetLangName }}?</div>
           </div>
@@ -185,8 +179,7 @@
                 <q-item-label caption>{{ w.pronunciation }}</q-item-label>
               </q-item-section>
               <q-item-section side class="text-right">
-                <div>{{ w.translation_en || w.translation }}</div>
-                <div v-if="w.translation_af" class="text-caption text-grey-6">{{ w.translation_af }}</div>
+                <div>{{ homeTranslation(w) }}</div>
               </q-item-section>
             </q-item>
           </q-list>
@@ -215,11 +208,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { backendApi } from 'src/boot/axios'
+import { useI18n } from 'src/i18n'
 
 const route = useRoute()
+const { lang } = useI18n()
+const homeLang = ref('en') // user's preferred language
 const targetLang = computed(() => (route.params.language as string) || 'setswana')
 const targetLangName = computed(() => {
   const names: Record<string, string> = { setswana: 'Setswana', afrikaans: 'Afrikaans', english: 'English' }
@@ -269,8 +265,8 @@ const quizOptions = computed(() => {
 function speakPronunciation(pronunciation: string) {
   if (!('speechSynthesis' in window) || !pronunciation) return
   window.speechSynthesis.cancel()
-  // Clean up pronunciation for speech — remove caps emphasis markers, keep hyphens as pauses
-  const cleaned = pronunciation.replace(/-/g, ' ... ').toLowerCase()
+  // Clean up pronunciation for speech — remove hyphens so it flows naturally
+  const cleaned = pronunciation.replace(/-/g, '').toLowerCase()
   const utterance = new SpeechSynthesisUtterance(cleaned)
   const voices = window.speechSynthesis.getVoices()
   const enVoice = voices.find(v => v.lang.startsWith('en')) || null
@@ -357,4 +353,24 @@ function resetLearn() {
   currentIndex.value = 0
   flipped.value = false
 }
+
+// Get the translation in the user's home language
+function homeTranslation(w: any): string {
+  if (homeLang.value === 'af') return w.translation_af || w.translation_en || w.translation || ''
+  return w.translation_en || w.translation || ''
+}
+
+function homeExample(w: any): string {
+  if (homeLang.value === 'af') return w.example_af || w.example_en || w.example_translation || ''
+  return w.example_en || w.example_translation || ''
+}
+
+onMounted(async () => {
+  // Load user's preferred language
+  try {
+    const { data } = await backendApi.get('/profile')
+    if (data.language) homeLang.value = data.language
+  } catch { /* use default en */ }
+  homeLang.value = lang.value || 'en'
+})
 </script>

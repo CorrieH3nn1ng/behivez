@@ -311,6 +311,61 @@ router.get('/play/:slug', async (req: AuthRequest, res: Response) => {
   });
 });
 
+// GET /api/children/:id/scores/:subjectCode — Get child's test scores for a subject
+router.get('/:id/scores/:subjectCode', async (req: AuthRequest, res: Response) => {
+  const prisma = getPrisma(req);
+  const childId = parseInt(req.params.id);
+  const subjectCode = req.params.subjectCode;
+
+  const child = await prisma.children.findUnique({ where: { id: childId } });
+  if (!child) throw new AppError('Child not found', 404);
+
+  // For maths, match templates with subject_code 'maths' or operations that include speed test ops
+  const where: any = { child_id: childId };
+  if (subjectCode === 'maths') {
+    where.template = { subject_code: 'maths' };
+  } else {
+    where.template = { subject_code: subjectCode };
+  }
+
+  const attempts = await prisma.math_test_attempts.findMany({
+    where,
+    include: {
+      template: {
+        select: { id: true, name: true, grade: true, subject_code: true, operations: true },
+      },
+    },
+    orderBy: { created_at: 'desc' },
+    take: 50,
+  });
+
+  // Calculate stats
+  const totalTests = attempts.length;
+  const avgScore = totalTests > 0
+    ? Math.round(attempts.reduce((sum, a) => sum + Number(a.percentage), 0) / totalTests)
+    : 0;
+  const bestScore = totalTests > 0
+    ? Math.max(...attempts.map(a => Number(a.percentage)))
+    : 0;
+
+  res.json({
+    child: { id: child.id, name: child.name, grade: child.grade },
+    subject_code: subjectCode,
+    stats: { total_tests: totalTests, average_score: avgScore, best_score: bestScore },
+    attempts: attempts.map(a => ({
+      id: a.id,
+      template_id: a.template.id,
+      template_name: a.template.name,
+      operations: a.template.operations,
+      score: a.score,
+      total: a.total,
+      percentage: Number(a.percentage),
+      time_used_sec: a.time_used_sec,
+      date: a.created_at,
+    })),
+  });
+});
+
 // --- Subjects list ---
 
 // GET /api/children/subjects — List available subjects

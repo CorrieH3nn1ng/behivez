@@ -65,6 +65,16 @@
         <!-- Action Buttons -->
         <div class="row q-gutter-md justify-center q-mt-lg q-mb-xl">
           <q-btn
+            v-if="returnTo"
+            outline
+            color="grey-7"
+            size="lg"
+            no-caps
+            icon="arrow_back"
+            :label="lang === 'af' ? 'Terug' : 'Back'"
+            @click="router.push(returnTo)"
+          />
+          <q-btn
             class="btn-bee"
             size="lg"
             no-caps
@@ -74,6 +84,7 @@
             @click="tryAgain"
           />
           <q-btn
+            v-if="!returnTo"
             outline
             color="amber-8"
             size="lg"
@@ -116,6 +127,7 @@ const loading = ref(true)
 const generating = ref(false)
 const error = ref('')
 const playerName = store.playerName
+const returnTo = (route.query.returnTo as string) || ''
 
 const wrongAnswers = computed(() => {
   if (!result.value?.answers) return []

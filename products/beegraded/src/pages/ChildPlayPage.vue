@@ -167,10 +167,87 @@
         <!-- Phase 2: Test types for selected subject -->
         <template v-if="selectedSubject">
           <!-- Back button -->
-          <q-btn flat dense no-caps icon="arrow_back" :label="lang === 'af' ? 'Terug' : 'Back'" color="grey-7" class="q-mb-md" @click="selectedSubject = ''" />
+          <q-btn flat dense no-caps icon="arrow_back" :label="lang === 'af' ? 'Terug' : 'Back'" color="grey-7" class="q-mb-sm" @click="selectedSubject = ''; subTab = 'test'" />
 
+          <!-- Test / Scores toggle -->
+          <q-btn-toggle
+            v-model="subTab"
+            no-caps dense rounded spread
+            toggle-color="amber-8"
+            color="grey-3"
+            text-color="grey-7"
+            :options="[
+              { label: lang === 'af' ? 'Toets' : 'Test', value: 'test', icon: 'play_arrow' },
+              { label: lang === 'af' ? 'Punte' : 'Scores', value: 'scores', icon: 'emoji_events' },
+            ]"
+            class="q-mb-md"
+            @update:model-value="loadScores"
+          />
+
+          <!-- === SCORES TAB === -->
+          <template v-if="subTab === 'scores'">
+            <div v-if="loadingScores" class="text-center q-pa-lg">
+              <q-spinner-gears color="amber" size="32px" />
+            </div>
+            <template v-else-if="subjectScores">
+              <!-- Stats -->
+              <div class="row q-gutter-sm q-mb-md">
+                <q-card flat class="bee-card q-pa-sm col text-center">
+                  <div class="text-h5 text-weight-bold" style="color: #78350f;">{{ subjectScores.stats.total_tests }}</div>
+                  <div class="text-caption text-grey-6">{{ lang === 'af' ? 'Toetse' : 'Tests' }}</div>
+                </q-card>
+                <q-card flat class="bee-card q-pa-sm col text-center">
+                  <div class="text-h5 text-weight-bold" style="color: #f59e0b;">{{ subjectScores.stats.average_score }}%</div>
+                  <div class="text-caption text-grey-6">{{ lang === 'af' ? 'Gemiddeld' : 'Average' }}</div>
+                </q-card>
+                <q-card flat class="bee-card q-pa-sm col text-center">
+                  <div class="text-h5 text-weight-bold" style="color: #16a34a;">{{ subjectScores.stats.best_score }}%</div>
+                  <div class="text-caption text-grey-6">{{ lang === 'af' ? 'Beste' : 'Best' }}</div>
+                </q-card>
+              </div>
+
+              <!-- Attempts list -->
+              <q-card flat class="bee-card q-pa-md">
+                <div v-if="subjectScores.attempts.length === 0" class="text-center text-grey-5 q-pa-md">
+                  {{ lang === 'af' ? 'Nog geen toetse nie' : 'No tests yet' }}
+                </div>
+                <q-list v-else separator>
+                  <q-item
+                    v-for="a in subjectScores.attempts"
+                    :key="a.id"
+                    clickable
+                    @click="viewAttempt(a)"
+                  >
+                    <q-item-section avatar>
+                      <q-icon
+                        :name="a.percentage >= 80 ? 'star' : a.percentage >= 50 ? 'thumb_up' : 'fitness_center'"
+                        :color="a.percentage >= 80 ? 'amber' : a.percentage >= 50 ? 'green' : 'grey'"
+                      />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>{{ a.template_name }}</q-item-label>
+                      <q-item-label caption>
+                        {{ formatDate(a.date) }} &bull;
+                        {{ Math.floor(a.time_used_sec / 60) }}m {{ a.time_used_sec % 60 }}s
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <div class="text-weight-bold" :style="{ color: a.percentage >= 80 ? '#16a34a' : a.percentage >= 50 ? '#f59e0b' : '#ef4444' }">
+                        {{ a.score }}/{{ a.total }} ({{ a.percentage }}%)
+                      </div>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-icon name="chevron_right" color="grey-5" />
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-card>
+            </template>
+          </template>
+
+          <!-- === TEST TAB === -->
           <!-- MATHS test types -->
-          <template v-if="selectedSubject === 'maths'">
+          <template v-if="subTab === 'test' && selectedSubject === 'maths'">
             <div class="text-center q-mb-md">
               <q-icon name="calculate" size="36px" color="amber-8" />
               <div class="text-h5 text-weight-bold" style="color: #78350f;">
@@ -223,7 +300,7 @@
           </template>
 
           <!-- NATURAL SCIENCE -->
-          <template v-if="selectedSubject === 'natural_science'">
+          <template v-if="subTab === 'test' && selectedSubject === 'natural_science'">
             <div class="text-center q-mb-md">
               <q-icon name="science" size="36px" color="green" />
               <div class="text-h5 text-weight-bold" style="color: #166534;">
@@ -246,7 +323,7 @@
           </template>
 
           <!-- LIFE SKILLS -->
-          <template v-if="selectedSubject === 'life_skills'">
+          <template v-if="subTab === 'test' && selectedSubject === 'life_skills'">
             <div class="text-center q-mb-md">
               <q-icon name="emoji_nature" size="36px" color="blue" />
               <div class="text-h5 text-weight-bold" style="color: #1e3a5f;">
@@ -269,7 +346,7 @@
           </template>
 
           <!-- ENGLISH -->
-          <template v-if="selectedSubject === 'english'">
+          <template v-if="subTab === 'test' && selectedSubject === 'english'">
             <div class="text-center q-mb-md">
               <q-icon name="menu_book" size="36px" color="purple" />
               <div class="text-h5 text-weight-bold" style="color: #5b21b6;">English</div>
@@ -289,7 +366,7 @@
           </template>
 
           <!-- AFRIKAANS -->
-          <template v-if="selectedSubject === 'afrikaans'">
+          <template v-if="subTab === 'test' && selectedSubject === 'afrikaans'">
             <div class="text-center q-mb-md">
               <q-icon name="auto_stories" size="36px" color="orange-8" />
               <div class="text-h5 text-weight-bold" style="color: #9a3412;">Afrikaans</div>
@@ -308,7 +385,7 @@
           </template>
 
           <!-- SETSWANA -->
-          <template v-if="selectedSubject === 'setswana'">
+          <template v-if="subTab === 'test' && selectedSubject === 'setswana'">
             <div class="text-center q-mb-md">
               <q-icon name="translate" size="36px" color="cyan-8" />
               <div class="text-h5 text-weight-bold" style="color: #155e75;">Setswana</div>
@@ -373,8 +450,42 @@ const child = ref<any>(null)
 const loading = ref(true)
 const error = ref(false)
 const selectedSubject = ref('')
+const subTab = ref('test')
 const generating = ref(false)
 const generatingAI = ref(false)
+
+// Scores
+const loadingScores = ref(false)
+const subjectScores = ref<any>(null)
+
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString(lang.value === 'af' ? 'af-ZA' : 'en-ZA', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+async function loadScores() {
+  if (subTab.value !== 'scores' || !child.value || !selectedSubject.value) return
+  loadingScores.value = true
+  subjectScores.value = null
+  try {
+    const { data } = await backendApi.get(`/children/${child.value.id}/scores/${selectedSubject.value}`)
+    subjectScores.value = data
+  } catch {
+    subjectScores.value = { stats: { total_tests: 0, average_score: 0, best_score: 0 }, attempts: [] }
+  } finally {
+    loadingScores.value = false
+  }
+}
+
+function viewAttempt(attempt: any) {
+  // Navigate to the result page to review wrong answers
+  router.push({
+    name: 'math-result',
+    params: { attemptId: attempt.id },
+    query: { templateId: attempt.template_id, returnTo: route.fullPath },
+  })
+}
 
 function hasSubject(code: string): boolean {
   if (!child.value?.subjects) return false

@@ -102,63 +102,25 @@
               <q-icon name="chevron_right" color="blue" size="28px" />
             </div>
           </q-card>
-          <!-- English (all grades) -->
+          <!-- Languages (grouped) -->
           <q-card
-            v-if="hasSubject('english')"
+            v-if="hasSubject('english') || hasSubject('afrikaans') || hasSubject('setswana')"
             flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
             style="border-left: 6px solid #7c3aed;"
-            @click="selectedSubject = 'english'"
+            @click="selectedSubject = 'languages'"
           >
             <div class="row items-center">
-              <q-icon name="menu_book" size="48px" color="purple" class="q-mr-md" />
+              <q-icon name="translate" size="48px" color="purple" class="q-mr-md" />
               <div>
-                <div class="text-h6 text-weight-bold" style="color: #5b21b6;">English</div>
+                <div class="text-h6 text-weight-bold" style="color: #5b21b6;">
+                  {{ lang === 'af' ? 'Tale' : (lang === 'tn' ? 'Dipuo' : 'Languages') }}
+                </div>
                 <div class="text-caption text-grey-6">
-                  {{ lang === 'af' ? 'Spelling, Woordeskat, Grammatika' : 'Spelling, Vocabulary, Grammar' }}
+                  {{ availableLanguageNames }}
                 </div>
               </div>
               <q-space />
               <q-icon name="chevron_right" color="purple" size="28px" />
-            </div>
-          </q-card>
-
-          <!-- Afrikaans (all grades) -->
-          <q-card
-            v-if="hasSubject('afrikaans')"
-            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
-            style="border-left: 6px solid #ea580c;"
-            @click="selectedSubject = 'afrikaans'"
-          >
-            <div class="row items-center">
-              <q-icon name="auto_stories" size="48px" color="orange-8" class="q-mr-md" />
-              <div>
-                <div class="text-h6 text-weight-bold" style="color: #9a3412;">Afrikaans</div>
-                <div class="text-caption text-grey-6">
-                  {{ lang === 'af' ? 'Spelling, Woordeskat, Taal' : 'Spelling, Vocabulary, Language' }}
-                </div>
-              </div>
-              <q-space />
-              <q-icon name="chevron_right" color="orange-8" size="28px" />
-            </div>
-          </q-card>
-
-          <!-- Setswana (all grades) -->
-          <q-card
-            v-if="hasSubject('setswana')"
-            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
-            style="border-left: 6px solid #0891b2;"
-            @click="selectedSubject = 'setswana'"
-          >
-            <div class="row items-center">
-              <q-icon name="translate" size="48px" color="cyan-8" class="q-mr-md" />
-              <div>
-                <div class="text-h6 text-weight-bold" style="color: #155e75;">Setswana</div>
-                <div class="text-caption text-grey-6">
-                  {{ lang === 'tn' ? 'Mopeleto, Tlotlofoko, Popego' : (lang === 'af' ? 'Spelling, Woordeskat, Taal' : 'Spelling, Vocabulary, Language') }}
-                </div>
-              </div>
-              <q-space />
-              <q-icon name="chevron_right" color="cyan-8" size="28px" />
             </div>
           </q-card>
 
@@ -169,8 +131,9 @@
           <!-- Back button -->
           <q-btn flat dense no-caps icon="arrow_back" :label="lang === 'af' ? 'Terug' : 'Back'" color="grey-7" class="q-mb-sm" @click="selectedSubject = ''; subTab = 'test'" />
 
-          <!-- Test / Scores toggle -->
+          <!-- Test / Scores toggle (hidden on language picker) -->
           <q-btn-toggle
+            v-if="selectedSubject !== 'languages'"
             v-model="subTab"
             no-caps dense rounded spread
             toggle-color="amber-8"
@@ -183,6 +146,67 @@
             class="q-mb-md"
             @update:model-value="loadScores"
           />
+
+          <!-- LANGUAGES — pick which language -->
+          <template v-if="selectedSubject === 'languages'">
+            <div class="text-center q-mb-md">
+              <q-icon name="translate" size="36px" color="purple" />
+              <div class="text-h5 text-weight-bold" style="color: #5b21b6;">
+                {{ lang === 'af' ? 'Kies \'n Taal' : 'Choose a Language' }}
+              </div>
+            </div>
+
+            <q-card
+              v-if="hasSubject('english')"
+              flat class="bee-card q-pa-md q-mb-sm cursor-pointer subject-btn"
+              style="border-left: 4px solid #7c3aed;"
+              @click="selectedSubject = 'english'; subTab = 'test'"
+            >
+              <div class="row items-center">
+                <q-icon name="menu_book" size="32px" color="purple" class="q-mr-sm" />
+                <div>
+                  <div class="text-weight-bold" style="color: #5b21b6;">English</div>
+                  <div class="text-caption text-grey-6">Spelling, Vocabulary, Grammar</div>
+                </div>
+                <q-space />
+                <q-icon name="chevron_right" color="grey-5" />
+              </div>
+            </q-card>
+
+            <q-card
+              v-if="hasSubject('afrikaans')"
+              flat class="bee-card q-pa-md q-mb-sm cursor-pointer subject-btn"
+              style="border-left: 4px solid #ea580c;"
+              @click="selectedSubject = 'afrikaans'; subTab = 'test'"
+            >
+              <div class="row items-center">
+                <q-icon name="auto_stories" size="32px" color="orange-8" class="q-mr-sm" />
+                <div>
+                  <div class="text-weight-bold" style="color: #9a3412;">Afrikaans</div>
+                  <div class="text-caption text-grey-6">Spelling, Woordeskat, Taal</div>
+                </div>
+                <q-space />
+                <q-icon name="chevron_right" color="grey-5" />
+              </div>
+            </q-card>
+
+            <q-card
+              v-if="hasSubject('setswana')"
+              flat class="bee-card q-pa-md q-mb-sm cursor-pointer subject-btn"
+              style="border-left: 4px solid #0891b2;"
+              @click="selectedSubject = 'setswana'; subTab = 'test'"
+            >
+              <div class="row items-center">
+                <q-icon name="record_voice_over" size="32px" color="cyan-8" class="q-mr-sm" />
+                <div>
+                  <div class="text-weight-bold" style="color: #155e75;">Setswana</div>
+                  <div class="text-caption text-grey-6">Mopeleto, Tlotlofoko, Popego</div>
+                </div>
+                <q-space />
+                <q-icon name="chevron_right" color="grey-5" />
+              </div>
+            </q-card>
+          </template>
 
           <!-- === SCORES TAB === -->
           <template v-if="subTab === 'scores'">
@@ -457,6 +481,14 @@ const generatingAI = ref(false)
 // Scores
 const loadingScores = ref(false)
 const subjectScores = ref<any>(null)
+
+const availableLanguageNames = computed(() => {
+  const langs = []
+  if (hasSubject('english')) langs.push('English')
+  if (hasSubject('afrikaans')) langs.push('Afrikaans')
+  if (hasSubject('setswana')) langs.push('Setswana')
+  return langs.join(', ')
+})
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString(lang.value === 'af' ? 'af-ZA' : 'en-ZA', {

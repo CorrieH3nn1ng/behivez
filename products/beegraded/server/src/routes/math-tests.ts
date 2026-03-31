@@ -262,6 +262,41 @@ IMPORTANT:
       throw new AppError('No questions generated', 500);
     }
 
+    // Verify answers using a second AI call
+    try {
+      const verifyPrompt = `You are a maths teacher verifying test answers. For each question below, check if the marked correct answer is actually correct. If not, provide the correct 0-based option index.
+
+Return ONLY a JSON array of objects: [{"index": 0, "verified_correct": 2}] — only include questions where the correct answer is WRONG. If all are correct, return [].
+
+Questions to verify:
+${JSON.stringify(questions.map((q: any, i: number) => ({
+  index: i,
+  question: q.question_af || q.question_en,
+  options: q.options,
+  marked_correct: q.correct,
+})))}
+
+IMPORTANT: Actually solve each problem. Check the arithmetic. Return ONLY the JSON array, nothing else.`;
+
+      const verifyResponse = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        { contents: [{ parts: [{ text: verifyPrompt }] }], generationConfig: { temperature: 0 } },
+        { timeout: 60000 }
+      );
+      const verifyText = verifyResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      let verifyJson = verifyText.trim();
+      if (verifyJson.startsWith('```')) verifyJson = verifyJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      const verifyMatch = verifyJson.match(/\[[\s\S]*\]/);
+      if (verifyMatch) {
+        const fixes = JSON.parse(verifyMatch[0]);
+        for (const fix of fixes) {
+          if (fix.index >= 0 && fix.index < questions.length && fix.verified_correct !== undefined) {
+            questions[fix.index].correct = fix.verified_correct;
+          }
+        }
+      }
+    } catch { /* verification failed — use original answers */ }
+
     // Shuffle options so correct answer is randomly placed
     for (const q of questions) {
       if (!q.options || q.correct === undefined) continue;

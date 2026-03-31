@@ -255,6 +255,41 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
       throw new AppError('No questions generated', 500);
     }
 
+    // Verify answers using a second AI call (catches wrong correct indices)
+    try {
+      const verifyPrompt = `You are a teacher verifying test answers. For each question, check if the marked correct answer is actually correct. If not, provide the correct 0-based option index.
+
+Return ONLY a JSON array: [{"index": 0, "verified_correct": 2}] — only include questions where the answer is WRONG. If all correct, return [].
+
+Questions:
+${JSON.stringify(questions.map((q: any, i: number) => ({
+  index: i,
+  question: q.question_en || q.question_af,
+  options: q.options,
+  marked_correct: q.correct,
+})))}
+
+Actually verify each answer. Return ONLY the JSON array.`;
+
+      const verifyResponse = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        { contents: [{ parts: [{ text: verifyPrompt }] }], generationConfig: { temperature: 0 } },
+        { timeout: 60000 }
+      );
+      const verifyText = verifyResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      let vJson = verifyText.trim();
+      if (vJson.startsWith('```')) vJson = vJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      const vMatch = vJson.match(/\[[\s\S]*\]/);
+      if (vMatch) {
+        const fixes = JSON.parse(vMatch[0]);
+        for (const fix of fixes) {
+          if (fix.index >= 0 && fix.index < questions.length && fix.verified_correct !== undefined) {
+            questions[fix.index].correct = fix.verified_correct;
+          }
+        }
+      }
+    } catch { /* verification failed — use original answers */ }
+
     // Shuffle options for each question so correct answer isn't always B/C
     for (const q of questions) {
       if (!q.options || q.correct === undefined) continue;

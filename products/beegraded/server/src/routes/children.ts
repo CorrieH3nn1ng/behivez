@@ -395,7 +395,7 @@ router.get('/:id/progress', authenticate, async (req: AuthRequest, res: Response
 
   const attempts = await prisma.math_test_attempts.findMany({
     where: { child_id: childId },
-    include: { template: { select: { name: true, grade: true, operations: true } } },
+    include: { template: { select: { name: true, grade: true, operations: true, subject_code: true } } },
     orderBy: { created_at: 'desc' },
     take: 50,
   });
@@ -408,13 +408,77 @@ router.get('/:id/progress', authenticate, async (req: AuthRequest, res: Response
     ? Math.max(...attempts.map(a => Number(a.percentage)))
     : 0;
 
+  // Analyze wrong answers across all attempts to find weak areas
+  const wrongPatterns: Record<string, number> = {};
+  const speedIssues: { fast_wrong: number; fast_total: number; slow_correct: number; slow_total: number } = {
+    fast_wrong: 0, fast_total: 0, slow_correct: 0, slow_total: 0,
+  };
+
+  for (const a of attempts) {
+    const answers = a.answers_json as any[];
+    if (!Array.isArray(answers)) continue;
+    for (const ans of answers) {
+      const timeMs = ans.timeMs || 0;
+      const isFast = timeMs > 0 && timeMs < 5000; // under 5 seconds
+      const isSlow = timeMs > 10000; // over 10 seconds
+
+      if (isFast) {
+        speedIssues.fast_total++;
+        if (!ans.correct) speedIssues.fast_wrong++;
+      }
+      if (isSlow) {
+        speedIssues.slow_total++;
+        if (ans.correct) speedIssues.slow_correct++;
+      }
+
+      if (!ans.correct && ans.question) {
+        // Track which questions/types keep getting wrong
+        const q = String(ans.question);
+        // Extract pattern for times tables (e.g. "× 12" or "÷ 12")
+        const mulMatch = q.match(/(\d+)\s*x\s*(\d+)/);
+        const divMatch = q.match(/(\d+)\s*÷\s*(\d+)/);
+        if (mulMatch) {
+          const bigger = Math.max(Number(mulMatch[1]), Number(mulMatch[2]));
+          wrongPatterns[`${bigger}-times table`] = (wrongPatterns[`${bigger}-times table`] || 0) + 1;
+        } else if (divMatch) {
+          wrongPatterns[`division by ${divMatch[2]}`] = (wrongPatterns[`division by ${divMatch[2]}`] || 0) + 1;
+        } else {
+          // Word problem categories
+          if (q.includes('liter') || q.includes('milliliter') || q.includes('ml')) wrongPatterns['measurement (litres/ml)'] = (wrongPatterns['measurement (litres/ml)'] || 0) + 1;
+          if (q.includes('omtrek') || q.includes('perimeter')) wrongPatterns['perimeter'] = (wrongPatterns['perimeter'] || 0) + 1;
+          if (q.includes('oppervlakte') || q.includes('area')) wrongPatterns['area'] = (wrongPatterns['area'] || 0) + 1;
+          if (q.includes('verdeel') || q.includes('oorbly') || q.includes('remainder')) wrongPatterns['division with remainders'] = (wrongPatterns['division with remainders'] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  // Sort weak areas by frequency
+  const weakAreas = Object.entries(wrongPatterns)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([area, count]) => ({ area, wrong_count: count }));
+
+  // Speed insight
+  const speedInsight = {
+    fast_answers: speedIssues.fast_total,
+    fast_wrong: speedIssues.fast_wrong,
+    fast_accuracy: speedIssues.fast_total > 0 ? Math.round((1 - speedIssues.fast_wrong / speedIssues.fast_total) * 100) : 0,
+    slow_answers: speedIssues.slow_total,
+    slow_accuracy: speedIssues.slow_total > 0 ? Math.round(speedIssues.slow_correct / speedIssues.slow_total * 100) : 0,
+    rushing: speedIssues.fast_total > 0 && (speedIssues.fast_wrong / speedIssues.fast_total) > 0.4,
+  };
+
   res.json({
     child: { id: child.id, name: child.name, grade: child.grade, play_slug: child.play_slug },
     stats: { total_tests: totalTests, average_score: avgScore, best_score: bestScore },
+    analysis: { weak_areas: weakAreas, speed: speedInsight },
     attempts: attempts.map(a => ({
       id: a.id,
+      template_id: a.template_id,
       template_name: a.template.name,
-      type: a.template.operations.includes('problem_solving') ? 'problem_solving' : 'speed',
+      subject_code: a.template.subject_code,
+      type: a.template.operations.includes('problem_solving') || a.template.operations.includes('multiple_choice') ? 'problem_solving' : 'speed',
       score: a.score,
       total: a.total,
       percentage: Number(a.percentage),

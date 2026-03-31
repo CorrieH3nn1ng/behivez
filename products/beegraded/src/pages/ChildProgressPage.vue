@@ -61,6 +61,69 @@
           </q-card>
         </div>
 
+        <!-- Speed vs Accuracy Insight -->
+        <q-card v-if="analysis?.speed?.fast_answers > 0" flat class="bee-card q-pa-md q-mb-md">
+          <div class="text-weight-bold q-mb-sm" style="color: #78350f;">
+            <q-icon name="speed" class="q-mr-xs" />
+            {{ lang === 'af' ? 'Spoed vs Akkuraatheid' : 'Speed vs Accuracy' }}
+          </div>
+          <div class="row q-gutter-sm q-mb-sm">
+            <div class="col text-center q-pa-sm" style="background: #fef3c7; border-radius: 8px;">
+              <div class="text-weight-bold" :style="{ color: analysis.speed.fast_accuracy < 60 ? '#ef4444' : '#f59e0b' }">
+                {{ analysis.speed.fast_accuracy }}%
+              </div>
+              <div class="text-caption text-grey-6">
+                {{ lang === 'af' ? 'Vinnig (&lt;5s)' : 'Fast (&lt;5s)' }}
+              </div>
+            </div>
+            <div class="col text-center q-pa-sm" style="background: #dcfce7; border-radius: 8px;">
+              <div class="text-weight-bold text-positive">{{ analysis.speed.slow_accuracy }}%</div>
+              <div class="text-caption text-grey-6">
+                {{ lang === 'af' ? 'Stadig (&gt;10s)' : 'Careful (&gt;10s)' }}
+              </div>
+            </div>
+          </div>
+          <div v-if="analysis.speed.rushing" class="text-caption q-pa-sm" style="background: #fef2f2; border-radius: 6px; color: #991b1b;">
+            <q-icon name="warning" size="14px" class="q-mr-xs" />
+            {{ lang === 'af'
+              ? `${child.name} jaag deur vrae — ${analysis.speed.fast_wrong} van ${analysis.speed.fast_answers} vinnige antwoorde was verkeerd. Stadiger = beter punte.`
+              : `${child.name} rushes through questions — ${analysis.speed.fast_wrong} of ${analysis.speed.fast_answers} fast answers were wrong. Slower = better scores.` }}
+          </div>
+          <div v-else class="text-caption text-positive q-mt-xs">
+            <q-icon name="check_circle" size="14px" class="q-mr-xs" />
+            {{ lang === 'af' ? 'Goeie tempo — nie te haastig nie.' : 'Good pace — not rushing.' }}
+          </div>
+        </q-card>
+
+        <!-- Weak Areas -->
+        <q-card v-if="analysis?.weak_areas?.length > 0" flat class="bee-card q-pa-md q-mb-md">
+          <div class="text-weight-bold q-mb-sm" style="color: #78350f;">
+            <q-icon name="target" class="q-mr-xs" />
+            {{ lang === 'af' ? 'Areas om te Verbeter' : 'Areas to Improve' }}
+          </div>
+          <q-list dense>
+            <q-item v-for="w in analysis.weak_areas" :key="w.area">
+              <q-item-section avatar>
+                <q-icon name="highlight_off" color="red-4" size="20px" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ w.area }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge color="red-2" text-color="red-8">
+                  {{ w.wrong_count }}x {{ lang === 'af' ? 'verkeerd' : 'wrong' }}
+                </q-badge>
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div class="text-caption text-grey-6 q-mt-sm q-pa-xs" style="background: #fef9ee; border-radius: 4px;">
+            <q-icon name="lightbulb" size="14px" class="q-mr-xs" color="amber" />
+            {{ lang === 'af'
+              ? 'Fokus oefen op hierdie areas sal die meeste punte verbeter.'
+              : 'Focused practice on these areas will improve scores the most.' }}
+          </div>
+        </q-card>
+
         <!-- Progress chart (last 10) -->
         <q-card v-if="attempts.length > 1" flat class="bee-card q-pa-md q-mb-md">
           <div class="text-weight-bold q-mb-sm" style="color: #78350f;">
@@ -98,7 +161,7 @@
           </div>
 
           <q-list v-else separator>
-            <q-item v-for="a in attempts" :key="a.id">
+            <q-item v-for="a in attempts" :key="a.id" clickable @click="viewAttempt(a)">
               <q-item-section avatar>
                 <q-icon
                   :name="a.percentage >= 80 ? 'star' : a.percentage >= 50 ? 'thumb_up' : 'fitness_center'"
@@ -166,6 +229,7 @@ const loading = ref(true)
 const error = ref('')
 const child = ref<any>(null)
 const stats = ref({ total_tests: 0, average_score: 0, best_score: 0 })
+const analysis = ref<any>(null)
 const attempts = ref<any[]>([])
 
 const baseUrl = 'https://beegraded.co.za'
@@ -233,6 +297,14 @@ function handleDeleteAttempt(attempt: any) {
   })
 }
 
+function viewAttempt(attempt: any) {
+  router.push({
+    name: 'math-result',
+    params: { attemptId: attempt.id },
+    query: { templateId: attempt.template_id, returnTo: `/workspace/child/${props.childId}/progress` },
+  })
+}
+
 function handleRemoveChild() {
   if (!child.value) return
   Dialog.create({
@@ -261,6 +333,7 @@ async function loadProgress() {
     const data = await getChildProgress(parseInt(props.childId))
     child.value = data.child
     stats.value = data.stats
+    analysis.value = data.analysis || null
     attempts.value = data.attempts
   } catch (err: any) {
     error.value = err.response?.status === 404

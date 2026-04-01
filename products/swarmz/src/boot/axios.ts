@@ -25,7 +25,7 @@ const api = axios.create({
 // Request interceptor — attach JWT to both APIs
 function attachToken(config: any) {
   const token = localStorage.getItem('sz_access_token');
-  if (token) {
+  if (token && token !== 'demo-token') {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
@@ -34,37 +34,92 @@ function attachToken(config: any) {
 api.interceptors.request.use(attachToken, (error) => Promise.reject(error));
 authApi.interceptors.request.use(attachToken, (error) => Promise.reject(error));
 
-// Response interceptor — handle 401 with token refresh
-async function handle401(error: any) {
-  const originalRequest = error.config;
+// Track if we're already refreshing to prevent multiple simultaneous refreshes
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
 
-  if (error.response?.status === 401 && !originalRequest._retry) {
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
+function clearAuthAndRedirect() {
+  localStorage.removeItem('sz_access_token');
+  localStorage.removeItem('sz_refresh_token');
+  localStorage.removeItem('sz_user');
+  window.location.href = '/#/auth/login';
+}
+
+// Response interceptor for api — handle 401 with token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If no response at all (network error), reject immediately
+    if (!error.response) {
+      return Promise.reject(error);
+    }
+
+    // Only handle 401 and only retry once
+    if (error.response.status !== 401 || originalRequest._retry) {
+      return Promise.reject(error);
+    }
+
     originalRequest._retry = true;
 
+    const refreshToken = localStorage.getItem('sz_refresh_token');
+    if (!refreshToken) {
+      clearAuthAndRedirect();
+      return Promise.reject(error);
+    }
+
+    // If already refreshing, queue this request
+    if (isRefreshing) {
+      return new Promise((resolve) => {
+        addRefreshSubscriber((newToken: string) => {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          resolve(api(originalRequest));
+        });
+      });
+    }
+
+    isRefreshing = true;
+
     try {
-      const refreshToken = localStorage.getItem('sz_refresh_token');
-      if (!refreshToken) throw new Error('No refresh token');
+      // Use plain axios for refresh — NOT authApi — to avoid interceptor loops
+      const response = await axios.post(
+        (import.meta.env.VITE_AUTH_URL || '/auth') + '/refresh',
+        { refreshToken },
+        { timeout: 10000 }
+      );
 
-      const response = await authApi.post('/refresh', { refreshToken });
-      const { accessToken } = response.data;
+      const { accessToken, refreshToken: newRefreshToken } = response.data;
       localStorage.setItem('sz_access_token', accessToken);
+      if (newRefreshToken) {
+        localStorage.setItem('sz_refresh_token', newRefreshToken);
+      }
 
+      isRefreshing = false;
+      onTokenRefreshed(accessToken);
+
+      // Retry original request with new token
       originalRequest.headers.Authorization = `Bearer ${accessToken}`;
       return api(originalRequest);
     } catch {
-      localStorage.removeItem('sz_access_token');
-      localStorage.removeItem('sz_refresh_token');
-      localStorage.removeItem('sz_user');
-      window.location.href = '/#/auth/login';
+      isRefreshing = false;
+      refreshSubscribers = [];
+      clearAuthAndRedirect();
       return Promise.reject(error);
     }
   }
+);
 
-  return Promise.reject(error);
-}
-
-api.interceptors.response.use((r) => r, handle401);
-authApi.interceptors.response.use((r) => r, handle401);
+// authApi does NOT get a 401 interceptor — no circular refresh loops
 
 export default boot(({ app }) => {
   app.config.globalProperties.$axios = axios;

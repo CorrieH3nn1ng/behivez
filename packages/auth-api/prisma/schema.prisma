@@ -126,3 +126,19 @@ model ContentDraft {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ── AI Prompts ────────────────────────────────────────────────
+
+model Prompt {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  product     String?
+  name        String
+  description String?
+  template    String
+  model       String   @default("gemini-2.0-flash")
+  version     Int      @default(1)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

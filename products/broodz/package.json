@@ -11,6 +11,8 @@
     "lint": "eslint --ext .js,.ts,.vue ./src"
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "@quasar/extras": "^1.16.0",
     "axios": "^1.7.0",
     "pinia": "^2.2.0",

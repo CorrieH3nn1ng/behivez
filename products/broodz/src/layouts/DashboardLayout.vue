@@ -52,6 +52,12 @@
           <q-item-section :style="{ color: navTextColor }">Portfolio</q-item-section>
         </q-item>
 
+        <q-item clickable v-ripple to="/dashboard/video-editor" @click="closeMobile" :active-class="'bz-nav-active-' + themeKey">
+          <q-item-section avatar><q-icon name="movie" :color="iconColor" /></q-item-section>
+          <q-item-section :style="{ color: navTextColor }">Video Editor</q-item-section>
+          <q-item-section side><q-badge color="amber-8" text-color="white" label="New" /></q-item-section>
+        </q-item>
+
         <q-item clickable v-ripple to="/dashboard/enquiries" @click="closeMobile" :active-class="'bz-nav-active-' + themeKey">
           <q-item-section avatar><q-icon name="mail" :color="iconColor" /></q-item-section>
           <q-item-section :style="{ color: navTextColor }">Enquiries</q-item-section>

@@ -29,6 +29,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'profile', name: 'dashboard-profile', component: () => import('pages/ProfileEditorPage.vue') },
       { path: 'services', name: 'dashboard-services', component: () => import('pages/ServicesEditorPage.vue') },
       { path: 'portfolio', name: 'dashboard-portfolio', component: () => import('pages/PortfolioEditorPage.vue') },
+      { path: 'video-editor', name: 'dashboard-video-editor', component: () => import('pages/VideoEditorPage.vue') },
       { path: 'shop', name: 'dashboard-shop', component: () => import('pages/ShopEditorPage.vue') },
       { path: 'enquiries', name: 'dashboard-enquiries', component: () => import('pages/EnquiriesPage.vue') },
       { path: 'account', name: 'dashboard-account', component: () => import('pages/AccountPage.vue') },

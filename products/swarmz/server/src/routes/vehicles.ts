@@ -71,6 +71,28 @@ function formatVehicle(v: any) {
   };
 }
 
+// POST /api/vehicles/scan-upload — save license disk photo (accepts base64 JSON)
+// MUST be before /:id routes so Express doesn't match "scan-upload" as an :id param
+router.post('/scan-upload', async (req: AuthRequest, res: Response) => {
+  const { file_data, mime_type, filename } = req.body;
+  if (!file_data) throw new AppError('file_data is required', 400);
+
+  const buffer = Buffer.from(file_data, 'base64');
+  const ext = (mime_type || 'image/jpeg').split('/')[1] || 'jpg';
+  const savedName = `vdoc-${uuid()}.${ext}`;
+  const savePath = path.join(__dirname, '..', '..', 'uploads', 'vehicles', savedName);
+
+  const fs = await import('fs');
+  fs.writeFileSync(savePath, buffer);
+
+  res.status(201).json({
+    filePath: savePath,
+    originalName: filename || savedName,
+    mimeType: mime_type || 'image/jpeg',
+    fileSize: buffer.length,
+  });
+});
+
 // GET /api/vehicles — list vehicles (active by default, ?all=true for all)
 router.get('/', async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);

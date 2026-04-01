@@ -40,12 +40,13 @@
       </div>
 
       <!-- Filters -->
-      <div class="row q-gutter-sm q-mb-md">
+      <div class="row q-gutter-sm q-mb-md items-center">
         <q-btn-toggle v-model="filterCategory" no-caps rounded toggle-color="primary" :options="[
           { label: 'All', value: 'ALL' },
           { label: 'Business', value: 'BUSINESS' },
           { label: 'Private', value: 'PRIVATE' },
         ]" />
+        <q-select v-model="taxYear" outlined dense :options="taxYearOptions" emit-value map-options label="Tax Year" style="min-width: 140px" @update:model-value="loadData" />
       </div>
 
       <!-- Trip List -->
@@ -120,6 +121,16 @@ const saving = ref(false);
 const showForm = ref(false);
 const filterCategory = ref('ALL');
 
+// SA tax year runs March-February. Default to the year with data.
+const now = new Date();
+const currentTaxYearStart = now.getMonth() >= 2 ? now.getFullYear() : now.getFullYear() - 1;
+const taxYear = ref(`${currentTaxYearStart - 1}/${currentTaxYearStart}`);
+const taxYearOptions = [
+  { label: `${currentTaxYearStart}/${currentTaxYearStart + 1}`, value: `${currentTaxYearStart}/${currentTaxYearStart + 1}` },
+  { label: `${currentTaxYearStart - 1}/${currentTaxYearStart}`, value: `${currentTaxYearStart - 1}/${currentTaxYearStart}` },
+  { label: `${currentTaxYearStart - 2}/${currentTaxYearStart - 1}`, value: `${currentTaxYearStart - 2}/${currentTaxYearStart - 1}` },
+];
+
 const today = new Date().toISOString().split('T')[0];
 const form = reactive({
   date: today,
@@ -140,7 +151,7 @@ async function loadData() {
   try {
     const [vRes, tRes] = await Promise.all([
       api.get(`/vehicles/${props.id}`),
-      api.get('/trips', { params: { vehicle_id: props.id } }),
+      api.get('/trips', { params: { vehicle_id: props.id, tax_year: taxYear.value } }),
     ]);
     vehicle.value = vRes.data;
     trips.value = tRes.data.trips || [];

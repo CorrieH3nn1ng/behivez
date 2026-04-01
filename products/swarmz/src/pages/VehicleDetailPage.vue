@@ -24,6 +24,7 @@
       <q-btn outline color="grey-7" icon="receipt_long" label="Receipts" @click="$router.push(`/vehicle/${vehicle.id}/receipts`)" />
       <q-btn outline color="amber-8" icon="local_gas_station" label="Expenses" @click="$router.push(`/vehicle/${vehicle.id}/expenses`)" />
       <q-btn outline color="teal" icon="route" label="Trips" @click="$router.push(`/vehicle/${vehicle.id}/trips`)" />
+      <q-btn flat color="red" icon="delete" label="Remove" @click="confirmDelete" />
     </div>
 
     <!-- Cost Breakdown -->
@@ -44,6 +45,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
 import { useVehiclesStore } from 'stores/vehicles';
 import { useStatusLogStore } from 'stores/statusLog';
 import StatusBadge from 'components/StatusBadge.vue';
@@ -51,10 +54,30 @@ import CostSummary from 'components/CostSummary.vue';
 import StatusTimeline from 'components/StatusTimeline.vue';
 
 const props = defineProps<{ id: string }>();
+const router = useRouter();
+const $q = useQuasar();
 const vehiclesStore = useVehiclesStore();
 const statusLogStore = useStatusLogStore();
 
 const vehicle = computed(() => vehiclesStore.getVehicleById(props.id));
+
+function confirmDelete() {
+  $q.dialog({
+    title: 'Remove Vehicle',
+    message: `Are you sure you want to remove ${vehicle.value?.registration}? This will deactivate the vehicle but keep its history.`,
+    cancel: true,
+    persistent: true,
+    color: 'red',
+  }).onOk(async () => {
+    try {
+      await vehiclesStore.deleteVehicle(props.id);
+      $q.notify({ type: 'info', message: 'Vehicle removed' });
+      router.push('/');
+    } catch {
+      $q.notify({ type: 'negative', message: 'Failed to remove vehicle' });
+    }
+  });
+}
 
 onMounted(() => {
   if (!vehiclesStore.vehicles.length) vehiclesStore.fetchVehicles();

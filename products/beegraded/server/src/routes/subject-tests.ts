@@ -400,8 +400,10 @@ IMPORTANT:
 - Mix categories so the lesson is varied
 - Start with common, everyday words
 - For ${lvl} level: ${lvl === 'beginner' ? 'very basic greetings, numbers 1-10, simple nouns' : lvl === 'intermediate' ? 'conversational phrases, verbs, descriptive words' : 'complex sentences, idioms, formal language'}
-- Use correct ${targetLang} spelling and grammar
-- The pronunciation guide must be VERY detailed and accurate — this is the most important field
+- ACCURACY IS CRITICAL: Every ${targetLang} word must be the REAL, CORRECT word. Do NOT guess or fabricate translations.
+- For numbers: 1=nngwe, 2=pedi, 3=tharo, 4=nne, 5=tlhano, 6=thataro, 7=supa, 8=robedi, 9=robongwe, 10=lesome (in Setswana)
+- Use correct ${targetLang} spelling and grammar — double-check before including
+- The pronunciation guide must be VERY detailed and accurate
 - Make it fun and practical for daily use in South Africa
 - Do NOT include any text outside the JSON array`;
 
@@ -430,6 +432,46 @@ IMPORTANT:
     if (!Array.isArray(words) || words.length === 0) {
       throw new AppError('No words generated', 500);
     }
+
+    // Verify every word/translation using a second AI call
+    try {
+      const verifyPrompt = `You are a ${targetLang} language expert. Verify each word and translation below. For each entry, check:
+1. Is the ${targetLang} word correct and properly spelled?
+2. Does the English translation match?
+3. Does the Afrikaans translation match?
+4. Is the example sentence grammatically correct in ${targetLang}?
+
+If ANY entry is wrong, provide the corrected version. Return ONLY a JSON array of corrections:
+[{"index": 0, "word": "corrected word", "translation_en": "corrected", "translation_af": "corrected", "pronunciation": "corrected"}]
+
+Only include entries that need fixing. If all correct, return [].
+
+Words to verify:
+${JSON.stringify(words.map((w: any, i: number) => ({ index: i, word: w.word, translation_en: w.translation_en, translation_af: w.translation_af, pronunciation: w.pronunciation })))}
+
+IMPORTANT: Be strict. ${targetLang} vocabulary must be 100% accurate. Return ONLY the JSON array.`;
+
+      const verifyResponse = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+        { contents: [{ parts: [{ text: verifyPrompt }] }], generationConfig: { temperature: 0 } },
+        { timeout: 60000 }
+      );
+      const vText = verifyResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      let vJson = vText.trim();
+      if (vJson.startsWith('```')) vJson = vJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+      const vMatch = vJson.match(/\[[\s\S]*\]/);
+      if (vMatch) {
+        const fixes = JSON.parse(vMatch[0]);
+        for (const fix of fixes) {
+          if (fix.index >= 0 && fix.index < words.length) {
+            if (fix.word) words[fix.index].word = fix.word;
+            if (fix.translation_en) words[fix.index].translation_en = fix.translation_en;
+            if (fix.translation_af) words[fix.index].translation_af = fix.translation_af;
+            if (fix.pronunciation) words[fix.index].pronunciation = fix.pronunciation;
+          }
+        }
+      }
+    } catch { /* verification failed — use original */ }
 
     res.json({ words, language, level: lvl });
   } catch (err: any) {

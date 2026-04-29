@@ -252,10 +252,13 @@ async function submitTest() {
       childId,
     })
 
+    const query: Record<string, string> = { templateId: String(template.value.id) }
+    if (route.query.childId) query.childId = route.query.childId as string
+    if (route.query.returnTo) query.returnTo = route.query.returnTo as string
     router.push({
       name: 'math-result',
       params: { attemptId: result.id },
-      query: { templateId: template.value.id },
+      query,
     })
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Failed to submit test'
@@ -269,7 +272,7 @@ async function regenerate() {
   loading.value = true
   try {
     const data = await generateProblems({
-      grade: 4,
+      grade: template.value?.grade || 4,
       language: lang.value,
     })
     template.value = data

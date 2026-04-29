@@ -116,7 +116,7 @@ import MathLeaderboardEntry from 'src/components/MathLeaderboardEntry.vue'
 import { Notify } from 'quasar'
 
 const { t, lang } = useI18n()
-const { getAttempt, getLeaderboard, generateTest } = useMathTest()
+const { getAttempt, getLeaderboard, generateTest, generateProblems } = useMathTest()
 const store = useMathTestStore()
 const route = useRoute()
 const router = useRouter()
@@ -145,13 +145,22 @@ const encouragement = computed(() => {
 
 async function tryAgain() {
   generating.value = true
+  const grade = result.value?.template?.grade || 4
+  const isProblemSolving = result.value?.template?.type === 'problem_solving'
   try {
-    const template = await generateTest({
-      grade: result.value.grade,
-      language: lang.value,
-    })
-    store.reset()
-    router.push({ name: 'math-test', params: { templateId: template.id } })
+    const query: Record<string, string> = {}
+    if (route.query.childId) query.childId = route.query.childId as string
+    if (route.query.returnTo) query.returnTo = route.query.returnTo as string
+
+    if (isProblemSolving) {
+      const template = await generateProblems({ grade, language: lang.value })
+      store.reset()
+      router.push({ name: 'math-problems', params: { templateId: template.id }, query })
+    } else {
+      const template = await generateTest({ grade, language: lang.value })
+      store.reset()
+      router.push({ name: 'math-test', params: { templateId: template.id }, query })
+    }
   } catch (err: any) {
     Notify.create({ type: 'negative', message: 'Failed to generate new test' })
   } finally {

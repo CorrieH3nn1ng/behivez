@@ -13,7 +13,9 @@ async function getOrCreateLocalUser(prisma: PrismaClient, req: AuthRequest) {
   if (!req.userEmail) return null;
   let user = await prisma.users.findUnique({ where: { email: req.userEmail } });
   if (!user) {
-    user = await prisma.users.create({ data: { email: req.userEmail, name: null } });
+    user = await prisma.users.create({ data: { email: req.userEmail, name: req.userName || null } });
+  } else if (!user.name && req.userName) {
+    user = await prisma.users.update({ where: { id: user.id }, data: { name: req.userName } });
   }
   return user;
 }
@@ -49,16 +51,49 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   });
 });
 
-// POST /api/evaluations/:id/complete — callback from n8n with AI results
-// n8n calls this after AI processing is done, with structured scores + details
-router.post('/:id/complete', async (req: AuthRequest, res: Response) => {
+// POST /api/evaluations/:id/complete — save AI results from frontend after n8n call
+router.post('/:id/complete', optionalAuth, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
   const evalId = Number(req.params.id);
+
+  if (!evalId || isNaN(evalId)) throw new AppError('Invalid evaluation ID', 400);
+
   const {
     overall_score, knowledge_score, critical_score,
     application_score, referencing_score, structure_score,
     ai_risk_score, report_html, issues, strengths, references, consistency,
   } = req.body;
+
+  // Validate score ranges (0–100)
+  const scores = { overall_score, knowledge_score, critical_score, application_score, referencing_score, structure_score };
+  for (const [key, val] of Object.entries(scores)) {
+    if (val !== undefined && val !== null) {
+      const n = Number(val);
+      if (isNaN(n) || n < 0 || n > 100) throw new AppError(`${key} must be between 0 and 100`, 400);
+    }
+  }
+  if (ai_risk_score !== undefined && ai_risk_score !== null) {
+    const n = Number(ai_risk_score);
+    if (isNaN(n) || n < 0 || n > 100) throw new AppError('ai_risk_score must be between 0 and 100', 400);
+  }
+
+  // Verify evaluation exists and hasn't already been completed
+  const existing = await prisma.evaluations.findUnique({
+    where: { id: evalId },
+    include: { paper: { select: { user_id: true } } },
+  });
+  if (!existing) throw new AppError('Evaluation not found', 404);
+  if (Number(existing.overall_score) > 0) {
+    return res.json({ status: 'complete', evaluation_id: evalId, note: 'already completed' });
+  }
+
+  // If authenticated, verify the paper belongs to this user
+  if (req.userEmail) {
+    const localUser = await getOrCreateLocalUser(prisma, req);
+    if (localUser && existing.paper.user_id && existing.paper.user_id !== localUser.id) {
+      throw new AppError('Forbidden', 403);
+    }
+  }
 
   // Update evaluation scores
   await prisma.evaluations.update({

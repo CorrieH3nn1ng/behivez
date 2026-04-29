@@ -12,6 +12,26 @@ function getPrisma(req: AuthRequest): PrismaClient {
   return req.app.locals.prisma;
 }
 
+async function callGemini(key: string, body: object, timeoutMs = 120000): Promise<any> {
+  let delay = 8000;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      return await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        body,
+        { timeout: timeoutMs }
+      );
+    } catch (err: any) {
+      if (attempt < 3 && err?.response?.status === 429) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // --- Question Generation ---
 
 interface Question {
@@ -228,14 +248,10 @@ IMPORTANT:
       throw new AppError('GEMINI_API_KEY not configured', 500);
     }
 
-    const geminiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.8 },
-      },
-      { timeout: 120000 }
-    );
+    const geminiResponse = await callGemini(geminiKey, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.8 },
+    });
 
     const responseText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (!responseText) {
@@ -278,11 +294,10 @@ ${JSON.stringify(questions.map((q: any, i: number) => ({
 
 IMPORTANT: Actually solve each problem. Check the arithmetic. Return ONLY the JSON array, nothing else.`;
 
-      const verifyResponse = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        { contents: [{ parts: [{ text: verifyPrompt }] }], generationConfig: { temperature: 0 } },
-        { timeout: 60000 }
-      );
+      const verifyResponse = await callGemini(geminiKey, {
+        contents: [{ parts: [{ text: verifyPrompt }] }],
+        generationConfig: { temperature: 0 },
+      }, 60000);
       const verifyText = verifyResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
       let verifyJson = verifyText.trim();
       if (verifyJson.startsWith('```')) verifyJson = verifyJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
@@ -679,6 +694,8 @@ router.get('/:id/attempt/:attemptId', async (req: AuthRequest, res: Response) =>
 
   if (!attempt) throw new AppError('Attempt not found', 404);
 
+  const isProblemSolvingAttempt = attempt.template.operations.includes('problem_solving') || attempt.template.operations.includes('multiple_choice');
+
   res.json({
     id: attempt.id,
     score: attempt.score,
@@ -693,6 +710,7 @@ router.get('/:id/attempt/:attemptId', async (req: AuthRequest, res: Response) =>
       name: attempt.template.name,
       grade: attempt.template.grade,
       language: attempt.template.language,
+      type: isProblemSolvingAttempt ? 'problem_solving' : 'speed',
     },
   });
 });

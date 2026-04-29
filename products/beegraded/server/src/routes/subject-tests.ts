@@ -10,6 +10,26 @@ function getPrisma(req: AuthRequest): PrismaClient {
   return req.app.locals.prisma;
 }
 
+async function callGemini(key: string, body: object, timeoutMs = 120000): Promise<any> {
+  let delay = 8000;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      return await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+        body,
+        { timeout: timeoutMs }
+      );
+    } catch (err: any) {
+      if (attempt < 3 && err?.response?.status === 429) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 // Subject-specific configs
 interface SubjectConfig {
   questionCount: number;
@@ -83,7 +103,15 @@ IMPORTANT:
 - Use South African context and vocabulary
 - Grade ${grade} appropriate difficulty
 - Mix easy and harder questions
-- Do NOT include any text outside the JSON array`;
+- Do NOT include any text outside the JSON array
+
+CRITICAL — QUESTION QUALITY RULES:
+- Every question MUST have exactly ONE correct answer. The other 3 options must be CLEARLY wrong.
+- NEVER create fill-in-the-blank questions where more than one option could be correct (e.g. "The dog likes to ___ his bone" where both "hide" and "eat" work — this is BAD)
+- For sentence completion questions: make the correct answer the ONLY one that makes grammatical and logical sense
+- The translation MUST accurately match the primary question. Every noun, verb, and object must translate correctly. Do NOT use words that have double meanings (e.g. Afrikaans "been" means "leg" AND "bone" — pick the unambiguous word)
+- If the primary question says "bone", the translation must use the word for "bone", not a word that also means "leg"
+- Test each question: "Could a reasonable Grade ${grade} child argue that another option is also correct?" If yes, rewrite the question.`;
 }
 
 const SUBJECT_CONFIGS: Record<string, SubjectConfig> = {
@@ -221,14 +249,10 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
   const prompt = config.buildPrompt(parseInt(grade));
 
   try {
-    const geminiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.8 },
-      },
-      { timeout: 120000 }
-    );
+    const geminiResponse = await callGemini(geminiKey, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.8 },
+    });
 
     const responseText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (!responseText) {
@@ -257,35 +281,67 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
 
     // Verify answers using a second AI call (catches wrong correct indices)
     try {
-      const verifyPrompt = `You are a teacher verifying test answers. For each question, check if the marked correct answer is actually correct. If not, provide the correct 0-based option index.
+      const verifyPrompt = `You are a strict teacher verifying test answers for Grade ${grade} learners. Check EVERY question for these problems:
 
-Return ONLY a JSON array: [{"index": 0, "verified_correct": 2}] — only include questions where the answer is WRONG. If all correct, return [].
+1. WRONG ANSWER: Is the marked correct answer actually correct? If not, provide the right index.
+2. AMBIGUITY: Could more than one option be a valid answer? If yes, flag it for removal.
+3. TRANSLATION MISMATCH: Does the translation accurately match the primary question? Check every noun, verb, and object. Words with double meanings (like Afrikaans "been" meaning both "leg" and "bone") must be flagged.
+
+Return ONLY a JSON array:
+[
+  {"index": 0, "verified_correct": 2, "reason": "wrong answer"},
+  {"index": 3, "remove": true, "reason": "ambiguous - both eat and hide are valid"},
+  {"index": 5, "fix_translation": "corrected translation", "reason": "been means leg not bone"}
+]
+
+Only include questions with problems. If all are perfect, return [].
 
 Questions:
 ${JSON.stringify(questions.map((q: any, i: number) => ({
   index: i,
-  question: q.question_en || q.question_af,
+  question_en: q.question_en || '',
+  question_af: q.question_af || '',
   options: q.options,
   marked_correct: q.correct,
 })))}
 
-Actually verify each answer. Return ONLY the JSON array.`;
+Be STRICT. A child who reads both languages should never get a different answer from each version. Return ONLY the JSON array.`;
 
-      const verifyResponse = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        { contents: [{ parts: [{ text: verifyPrompt }] }], generationConfig: { temperature: 0 } },
-        { timeout: 60000 }
-      );
+      const verifyResponse = await callGemini(geminiKey, {
+        contents: [{ parts: [{ text: verifyPrompt }] }],
+        generationConfig: { temperature: 0 },
+      }, 60000);
       const verifyText = verifyResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
       let vJson = verifyText.trim();
       if (vJson.startsWith('```')) vJson = vJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
       const vMatch = vJson.match(/\[[\s\S]*\]/);
       if (vMatch) {
         const fixes = JSON.parse(vMatch[0]);
+        const removeIndices = new Set<number>();
         for (const fix of fixes) {
-          if (fix.index >= 0 && fix.index < questions.length && fix.verified_correct !== undefined) {
+          if (fix.index < 0 || fix.index >= questions.length) continue;
+          // Remove ambiguous questions entirely
+          if (fix.remove) {
+            removeIndices.add(fix.index);
+            continue;
+          }
+          // Fix wrong correct answer
+          if (fix.verified_correct !== undefined) {
             questions[fix.index].correct = fix.verified_correct;
           }
+          // Fix bad translation
+          if (fix.fix_translation) {
+            const q = questions[fix.index];
+            // Update whichever field is the translation (secondary)
+            if (q.question_af && fix.fix_translation) q.question_af = fix.fix_translation;
+            else if (q.question_en && fix.fix_translation) q.question_en = fix.fix_translation;
+          }
+        }
+        // Remove flagged ambiguous questions
+        if (removeIndices.size > 0) {
+          const filtered = questions.filter((_: any, i: number) => !removeIndices.has(i));
+          questions.length = 0;
+          questions.push(...filtered);
         }
       }
     } catch { /* verification failed — use original answers */ }
@@ -408,14 +464,10 @@ IMPORTANT:
 - Do NOT include any text outside the JSON array`;
 
   try {
-    const geminiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.9 },
-      },
-      { timeout: 60000 }
-    );
+    const geminiResponse = await callGemini(geminiKey, {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.9 },
+    }, 60000);
 
     const responseText = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     if (!responseText) throw new AppError('AI returned empty response', 500);
@@ -451,11 +503,10 @@ ${JSON.stringify(words.map((w: any, i: number) => ({ index: i, word: w.word, tra
 
 IMPORTANT: Be strict. ${targetLang} vocabulary must be 100% accurate. Return ONLY the JSON array.`;
 
-      const verifyResponse = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        { contents: [{ parts: [{ text: verifyPrompt }] }], generationConfig: { temperature: 0 } },
-        { timeout: 60000 }
-      );
+      const verifyResponse = await callGemini(geminiKey, {
+        contents: [{ parts: [{ text: verifyPrompt }] }],
+        generationConfig: { temperature: 0 },
+      }, 60000);
       const vText = verifyResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
       let vJson = vText.trim();
       if (vJson.startsWith('```')) vJson = vJson.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');

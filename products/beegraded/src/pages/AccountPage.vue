@@ -407,6 +407,57 @@
         </div>
       </q-card>
 
+      <!-- Creative Arts Gr 4-9 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="palette" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Skeppende Kunste (Gr 4–9)' : 'Creative Arts (Gr 4–9)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Visuele Kunste, Musiek, Drama en Dans — teorie en SA kunsgeskiedenis' : 'Visual Arts, Music, Drama and Dance — theory and SA arts history' }}
+        </div>
+        <div class="row items-center q-gutter-sm q-mb-sm">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="artsGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[4,5,6,7,8,9].map(g => ({ label: `Gr ${g}`, value: g }))"
+            @update:model-value="artsStrand = 'visual_arts'"
+          />
+        </div>
+        <div class="row q-gutter-xs q-mb-md" style="flex-wrap: wrap;">
+          <q-btn no-caps size="sm" icon="palette"
+            :outline="artsStrand !== 'visual_arts'" :color="artsStrand === 'visual_arts' ? 'pink-6' : 'grey-5'"
+            :label="lang === 'af' ? 'Visuele Kunste' : 'Visual Arts'"
+            @click="artsStrand = 'visual_arts'" />
+          <q-btn no-caps size="sm" icon="music_note"
+            :outline="artsStrand !== 'music'" :color="artsStrand === 'music' ? 'deep-purple-6' : 'grey-5'"
+            :label="lang === 'af' ? 'Musiek' : 'Music'"
+            @click="artsStrand = 'music'" />
+          <q-btn no-caps size="sm" icon="theater_comedy"
+            :outline="artsStrand !== 'drama'" :color="artsStrand === 'drama' ? 'deep-orange-6' : 'grey-5'"
+            :label="lang === 'af' ? 'Drama' : 'Drama'"
+            @click="artsStrand = 'drama'" />
+          <q-btn no-caps size="sm" icon="directions_run"
+            :outline="artsStrand !== 'dance'" :color="artsStrand === 'dance' ? 'teal-6' : 'grey-5'"
+            :label="lang === 'af' ? 'Dans' : 'Dance'"
+            @click="artsStrand = 'dance'" />
+        </div>
+        <q-banner v-if="artsError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ artsError }}
+        </q-banner>
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/creative_arts/${artsGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingArts"
+            @click="generateArtsTest" />
+        </div>
+      </q-card>
+
       <!-- Change Password -->
       <q-card flat class="bee-card q-pa-lg q-mb-md">
         <div class="text-subtitle1 text-weight-bold q-mb-md" style="color: #78350f;">
@@ -563,6 +614,12 @@ const emsError = ref('')
 const techGrade = ref(7)
 const generatingTech = ref(false)
 const techError = ref('')
+
+// Creative Arts — Gr 4-9
+const artsGrade = ref(7)
+const artsStrand = ref('visual_arts')
+const generatingArts = ref(false)
+const artsError = ref('')
 
 async function setPreferredLanguage(newLang: string) {
   savingLang.value = newLang
@@ -724,6 +781,24 @@ async function generateTechTest() {
     techError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
   } finally {
     generatingTech.value = false
+  }
+}
+
+async function generateArtsTest() {
+  generatingArts.value = true
+  artsError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'creative_arts',
+      grade: artsGrade.value,
+      language: lang.value,
+      strand: artsStrand.value,
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    artsError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingArts.value = false
   }
 }
 

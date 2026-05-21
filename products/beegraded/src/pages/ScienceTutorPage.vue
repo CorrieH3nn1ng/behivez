@@ -239,6 +239,7 @@ const subjectLabel = computed(() => {
     social_sciences: { en: 'Social Sciences', af: 'Sosiale Wetenskappe' },
     ems:             { en: 'EMS', af: 'EBW' },
     technology:      { en: 'Technology', af: 'Tegnologie' },
+    creative_arts:   { en: 'Creative Arts', af: 'Skeppende Kunste' },
   }
   const l = labels[subjectCode.value]
   return l ? (lang.value === 'af' ? l.af : l.en) : subjectCode.value
@@ -291,6 +292,13 @@ const emsStrands = [
   { value: 'business', icon: 'storefront', labelEn: 'Business Environment', labelAf: 'Besigheidsomgewing', descEn: 'Consumer rights, supply and demand, advertising', descAf: 'Verbruikersregte, vraag en aanbod, reklame' },
 ]
 
+const creativeArtsStrands = [
+  { value: 'visual_arts', icon: 'palette', labelEn: 'Visual Arts', labelAf: 'Visuele Kunste', descEn: 'Elements of art, colour theory, SA and world art history', descAf: 'Kunselemente, kleurteorie, SA en wêreldkunsgeskiedenis' },
+  { value: 'music', icon: 'music_note', labelEn: 'Music', labelAf: 'Musiek', descEn: 'Notation, music history, SA music and musicians', descAf: 'Notasie, musiekgeskiedenis, SA musiek en musici' },
+  { value: 'drama', icon: 'theater_comedy', labelEn: 'Drama', labelAf: 'Drama', descEn: 'Theatre forms, dramatic conventions, SA theatre', descAf: 'Teatervorme, dramatiese konvensies, SA teater' },
+  { value: 'dance', icon: 'directions_run', labelEn: 'Dance', labelAf: 'Dans', descEn: 'Elements of dance, SA traditional dances, dance styles', descAf: 'Danselemente, SA tradisionele danse, dansstyle' },
+]
+
 const technologyStrands = [
   { value: 'all', icon: 'apps', labelEn: 'All Topics', labelAf: 'Alle Onderwerpe', descEn: 'Mix of all Technology topics', descAf: 'Mengsel van alle Tegnologie-onderwerpe' },
   { value: 'design', icon: 'architecture', labelEn: 'Design Process', labelAf: 'Ontwerpproses', descEn: 'Investigate, design, make, evaluate, communicate', descAf: 'Ondersoek, ontwerp, maak, evalueer, kommunikeer' },
@@ -308,6 +316,7 @@ const strands = computed(() => {
     case 'social_sciences': return socialSciencesStrands
     case 'ems': return emsStrands
     case 'technology': return technologyStrands
+    case 'creative_arts': return creativeArtsStrands
     default: return naturalScienceStrands
   }
 })
@@ -360,6 +369,7 @@ function categoryColor(cat: string): string {
     entrepreneur: 'orange', business: 'purple',
     design: 'amber', structures: 'brown', mechanical: 'grey',
     electrical: 'yellow', processing: 'cyan',
+    visual_arts: 'pink', music: 'purple', drama: 'deep-orange', dance: 'teal',
   }
   return colors[cat] || 'grey'
 }
@@ -379,6 +389,7 @@ function categoryIcon(cat: string): string {
     entrepreneur: 'rocket_launch', business: 'storefront',
     design: 'architecture', structures: 'domain', mechanical: 'settings',
     electrical: 'electric_bolt', processing: 'factory',
+    visual_arts: 'palette', music: 'music_note', drama: 'theater_comedy', dance: 'directions_run',
   }
   return icons[cat] || 'circle'
 }
@@ -411,6 +422,10 @@ function categoryLabel(cat: string): string {
     mechanical: { en: 'Mechanical Systems', af: 'Meganiese Stelsels' },
     electrical: { en: 'Electrical Systems', af: 'Elektriese Stelsels' },
     processing: { en: 'Processing', af: 'Prosessering' },
+    visual_arts: { en: 'Visual Arts', af: 'Visuele Kunste' },
+    music: { en: 'Music', af: 'Musiek' },
+    drama: { en: 'Drama', af: 'Drama' },
+    dance: { en: 'Dance', af: 'Dans' },
   }
   const l = labels[cat]
   return l ? (lang.value === 'af' ? l.af : l.en) : cat
@@ -486,6 +501,8 @@ function resetAll() {
 }
 
 onMounted(() => {
-  selectedStrand.value = subjectCode.value === 'social_sciences' ? 'history' : 'all'
+  if (subjectCode.value === 'social_sciences') selectedStrand.value = 'history'
+  else if (subjectCode.value === 'creative_arts') selectedStrand.value = 'visual_arts'
+  else selectedStrand.value = 'all'
 })
 </script>

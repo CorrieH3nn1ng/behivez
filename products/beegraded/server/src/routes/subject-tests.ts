@@ -432,6 +432,15 @@ IMPORTANT:
     },
   },
 
+  creative_arts: {
+    questionCount: 20,
+    timeLimitSec: 1800,
+    nameEn: 'Creative Arts',
+    nameAf: 'Skeppende Kunste',
+    grades: [4,5,6,7,8,9],
+    buildPrompt: (grade: number) => buildCreativeArtsPrompt(grade, 'visual_arts'),
+  },
+
   technology: {
     questionCount: 20,
     timeLimitSec: 1800,
@@ -484,6 +493,72 @@ IMPORTANT:
     },
   },
 };
+
+// Creative Arts strand prompt (Visual Arts, Music, Drama, Dance)
+function buildCreativeArtsPrompt(grade: number, strand: string): string {
+  const isSenior = grade >= 7;
+
+  const strands: Record<string, { label: string; topics: string }> = {
+    visual_arts: {
+      label: 'Visual Arts',
+      topics: isSenior
+        ? `elements of art (line, shape, colour, texture, space, value, form) and how artists use them; principles of design (balance, contrast, emphasis, rhythm, unity, proportion, movement); colour theory (complementary, analogous, split-complementary schemes; tints and shades); art history: Renaissance (Leonardo da Vinci, Michelangelo), Impressionism (Monet, Renoir), Cubism (Picasso); SA artists: Irma Stern, Gerard Sekoto, William Kentridge, Pierneef; art techniques: watercolour, acrylic, printmaking, sculpture, collage; composition and the rule of thirds; graphic design principles`
+        : `elements of art: line (types and uses), shape (geometric vs organic), colour (primary, secondary, tertiary), texture (tactile vs visual), space (positive and negative); colour wheel: primary (red, blue, yellow), secondary (orange, green, purple), warm vs cool colours, complementary colours; SA traditional art: Ndebele geometric patterns and symbolism, San/Bushman rock art (Drakensberg), Zulu beadwork colour meanings, Sotho murals; basic drawing techniques: sketching, shading, proportion; famous artworks and their artists`,
+    },
+    music: {
+      label: 'Music',
+      topics: isSenior
+        ? `music notation: reading rhythms (crotchet=1 beat, minim=2 beats, semibreve=4 beats, quaver=½ beat), time signatures (2/4, 3/4, 4/4, 6/8), rests, key signatures (major/minor); music forms: binary (AB), ternary (ABA), rondo (ABACADA), theme and variations; music periods: Baroque (Bach, Handel), Classical (Mozart, Beethoven), Romantic (Chopin, Brahms); SA music history: marabi and early township jazz, mbaqanga, kwaito, amapiano; SA icons: Hugh Masekela (flugelhorn/jazz), Miriam Makeba (Mama Africa, click song), Abdullah Ibrahim (Dollar Brand), Ladysmith Black Mambazo (isicathamiya/mbube); African music characteristics: call and response, polyrhythm, pentatonic scale, improvisation, community function`
+        : `elements of music: rhythm (beat, tempo — fast/slow), melody (pitch — high/low), harmony, dynamics (forte/loud, piano/soft, crescendo, diminuendo), timbre (tone colour), texture (thick/thin); music notation basics: treble clef, note names (EGBDF, FACE), time signatures (2/4, 3/4, 4/4); instrument families: strings (violin, guitar, cello), woodwind (flute, clarinet, saxophone), brass (trumpet, trombone), percussion (drums, marimba, xylophone); SA music genres: gospel, kwaito, maskandi, marabi; SA musicians: Ladysmith Black Mambazo, Miriam Makeba; voice types: soprano, alto, tenor, bass`,
+    },
+    drama: {
+      label: 'Drama',
+      topics: isSenior
+        ? `theatre forms: tragedy (protagonist falls due to flaw), comedy (humorous resolution), farce (exaggerated comedy), melodrama (heightened emotion), physical theatre, musical theatre; dramatic conventions: soliloquy (character alone speaks thoughts aloud), monologue (long speech to others), aside (spoken to audience not other characters), dramatic irony (audience knows more than characters), flashback, narrator; staging: blocking (movement on stage), stage areas (upstage, downstage, stage left/right), proscenium/thrust/theatre-in-the-round staging; SA theatre: Athol Fugard (Sizwe Banzi is Dead, Master Harold and the Boys), Mbongeni Ngema (Sarafina!), Barney Simon; devised theatre; Bertolt Brecht and Epic Theatre`
+        : `elements of drama: character (protagonist, antagonist, supporting), plot (exposition, rising action, climax, falling action, resolution), setting (time and place), conflict (person vs person/self/nature/society), theme (central message); drama techniques: mime (acting without words), improvisation (unscripted performance), role play, freeze frame, hot seating (questioning a character); playwriting basics: stage directions, dialogue, scenes and acts; SA performance traditions: praise poetry (izibongo), storytelling (iintsomi), community theatre; body and voice in performance: posture, gesture, facial expression, projection, pace, pause`,
+    },
+    dance: {
+      label: 'Dance',
+      topics: isSenior
+        ? `elements of dance: body (body parts, actions — locomotor and non-locomotor), space (level, direction, pathway, size), time (tempo, rhythm, duration), energy (force, flow — bound/free), relationships (unison, canon, mirroring, contrast); dance styles: African (polyrhythm, improvisation, community function, grounded movement), contemporary (modern technique, floor work, release technique), jazz (syncopation, isolations, commercial style), hip-hop (breaking, locking, popping), ballet (classical vocabulary); SA traditional dances: Zulu indlamu (stamping, warriors), Zulu ingoma (women's dance), Xhosa umtshotsho, Sotho moribelo, Venda tshigombela, Ndebele traditional ceremonies; SA dance companies and choreographers; choreographic devices: motif and development, repetition, canon, accumulation, retrograde`
+        : `elements of dance: body (what moves), space (where you move — levels: low/middle/high; directions: forward/backward/sideways; pathways: straight/curved/zigzag), time (how fast or slow — beat, rhythm, tempo), energy (how you move — smooth/sharp, heavy/light, fast/slow); SA traditional dances: Zulu indlamu (stamping warrior dance), Xhosa dances and ululation, Sotho moribelo, Venda tshigombela, Cape Malay ghoema; dance health and safety: warming up, cooling down, stretching safely, preventing injury, hydration; basic dance steps and terminology: gallop, skip, chassé, step-touch, grapevine; dance in SA culture: celebration, storytelling, community, ritual`,
+    },
+  };
+
+  const s = strands[strand] || strands.visual_arts;
+
+  return `You are a South African Creative Arts teacher creating a ${s.label} theory practice test for Grade ${grade} learners.
+
+Generate exactly 20 multiple choice questions testing ${s.label} knowledge and theory.
+
+Cover these topics:
+  ${s.topics}
+
+Each question must:
+- Be appropriate for Grade ${grade} SA CAPS Creative Arts (${s.label}) curriculum
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH Afrikaans AND English
+
+Return ONLY a valid JSON array:
+[
+  {
+    "question_af": "Die Afrikaanse vraag hier...",
+    "question_en": "The English question here...",
+    "options": ["(A) ...", "(B) ...", "(C) ...", "(D) ..."],
+    "correct": 0,
+    "category": "${strand}"
+  }
+]
+
+Where "correct" is the 0-based index (0=A, 1=B, 2=C, 3=D).
+
+IMPORTANT:
+- Use South African context and artists/musicians/performers throughout
+- Mix knowledge questions with application questions (e.g. identify, analyse, describe)
+- Grade ${grade} appropriate vocabulary and difficulty
+- Do NOT include any text outside the JSON array`;
+}
 
 // Social Sciences strand prompt (History or Geography)
 function buildSocialSciencesPrompt(grade: number, strand: string): string {
@@ -657,6 +732,8 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
     strandPrompt = buildNaturalScienceStrandPrompt(gradeNum, strand);
   } else if (strand && subject_code === 'social_sciences') {
     strandPrompt = buildSocialSciencesPrompt(gradeNum, strand);
+  } else if (subject_code === 'creative_arts') {
+    strandPrompt = buildCreativeArtsPrompt(gradeNum, strand || 'visual_arts');
   }
   const prompt = strandPrompt || config.buildPrompt(gradeNum);
 
@@ -783,6 +860,7 @@ Be STRICT. A child who reads both languages should never get a different answer 
       life_and_living: 'Life & Living', matter_and_materials: 'Matter & Materials',
       energy_and_change: 'Energy & Change', earth_and_beyond: 'Earth & Beyond',
       history: 'History', geography: 'Geography',
+      visual_arts: 'Visual Arts', music: 'Music', drama: 'Drama', dance: 'Dance',
     };
     const strandSuffix = strand && strandLabels[strand] ? ` — ${strandLabels[strand]}` : '';
     const templateName = lang === 'af'
@@ -1491,6 +1569,55 @@ IMPORTANT:
 - Grade ${grade} appropriate difficulty and language
 - South African context where possible
 - ${categoryInstruction}
+- Do NOT include any text outside the JSON array`;
+  }
+
+  if (subjectCode === 'creative_arts') {
+    const selectedStrand = strand && strand !== 'all' ? strand : 'visual_arts';
+
+    const strandTopics: Record<string, string> = {
+      visual_arts: grade >= 7
+        ? 'elements of art (line, shape, colour, texture, space, value, form); principles of design (balance, contrast, emphasis, rhythm, unity, proportion, movement); colour theory (complementary, analogous, split-complementary schemes; tints/shades/tones); art history movements (Renaissance, Impressionism, Cubism, Abstract Expressionism); SA artists (Irma Stern, Gerard Sekoto, William Kentridge, Pierneef, Alexis Preller); printmaking techniques (relief, intaglio, screen print); composition principles (rule of thirds, golden ratio, focal point)'
+        : 'elements of art: line, shape, colour (primary, secondary, tertiary), texture, space (positive/negative); colour theory: primary colours (red, blue, yellow), secondary colours (orange, green, purple), warm vs cool colours, complementary colours; SA traditional art: Ndebele geometric patterns and beadwork, San rock art (Drakensberg), Zulu beadwork, Sotho murals; basic techniques: sketching, shading, proportion; famous artists and their artworks',
+      music: grade >= 7
+        ? 'music notation: treble clef, note values (semibreve, minim, crotchet, quaver, semiquaver), time signatures (2/4, 3/4, 4/4, 6/8), key signatures, rests; music periods: Baroque (Bach, Handel — characteristics), Classical (Haydn, Mozart, Beethoven), Romantic (Chopin, Brahms); music forms: binary (AB), ternary (ABA), rondo, theme and variations; SA music: marabi, mbaqanga, kwaito, amapiano origins; SA legends: Hugh Masekela (flugelhorn, jazz activist), Miriam Makeba (click song, Pata Pata), Abdullah Ibrahim, Ladysmith Black Mambazo (isicathamiya); African music: call and response, polyrhythm, pentatonic scale'
+        : 'elements of music: rhythm (beat, tempo), melody (pitch, scale), harmony (chords), dynamics (forte, piano, crescendo, diminuendo), timbre, texture; basic notation: treble clef, note names on the staff (EGBDF lines, FACE spaces), crotchet=1 beat, minim=2 beats, semibreve=4 beats; instrument families: strings (violin, viola, cello, double bass, guitar), woodwind (flute, clarinet, oboe, saxophone), brass (trumpet, trombone, French horn, tuba), percussion (drums, marimba, xylophone, piano); SA music: township gospel, kwaito (origins), maskandi; voice types: soprano, alto, tenor, bass',
+      drama: grade >= 7
+        ? 'dramatic genres: tragedy (hamartia, catharsis), comedy (types: comedy of manners, slapstick, satire), farce, melodrama, absurdism, physical theatre; dramatic conventions: soliloquy, monologue, aside, dramatic irony, flashback, freeze frame, narrator; staging elements: blocking, proxemics (use of space), stage areas (upstage/downstage, stage left/right/centre), staging configurations (proscenium, thrust, in-the-round, traverse); SA theatre history: Athol Fugard (Sizwe Banzi is Dead, Master Harold), Mbongeni Ngema (Sarafina!), Barney Simon; Brechtian Epic Theatre (Verfremdungseffekt, didactic theatre); devised and community theatre'
+        : 'elements of drama: character (protagonist, antagonist), plot structure (exposition, rising action, climax, falling action, resolution — Freytag\'s pyramid), setting, conflict (person vs person, self, nature, society), theme; drama techniques: mime, improvisation, role play, freeze frame, hot seating, thought tracking, still image; playwright terminology: stage directions, dialogue, monologue, scene, act; SA performance traditions: praise poetry (izibongo/direto), storytelling, community theatre, street theatre; performance skills: body language, facial expression, vocal projection, pace, pause, pitch',
+      dance: grade >= 7
+        ? 'elements of dance: body (actions — locomotor: walk/run/jump/hop/skip/gallop/slide/leap; non-locomotor: bend/stretch/twist/swing/sway), space (level/direction/pathway/size/shape), time (beat/rhythm/tempo/duration/accent), energy (force: strong/gentle; flow: free/bound; weight: heavy/light), relationships (unison, canon, mirroring, question and answer, contrast, complement); dance styles: African (polyrhythm, grounded, improvisation, community function), contemporary/modern (Graham, Limón, release technique), jazz (syncopation, isolations, high kicks), hip-hop (breaking, locking, popping, krump), ballet (barre work, positions 1-5 of feet and arms); SA dances: Zulu indlamu (powerful stamping, warrior tradition), isicathamiya (Zulu men\'s choral), Sotho moribelo, Venda tshigombela; choreographic devices: motif and development, repetition, retrograde, inversion, augmentation, canon'
+        : 'elements of dance: body (what body parts move and how), space (levels: low/middle/high; directions: forward/backward/sideways/diagonal; pathways: straight/curved/zigzag; personal and general space), time (beat, rhythm, tempo: fast/slow, sudden/sustained), energy (how movement feels: sharp/smooth, heavy/light, strong/gentle); SA traditional dances: Zulu indlamu (warrior stamping dance), Xhosa traditional dances and ululation, Sotho moribelo, Venda tshigombela, Cape Malay ghoema traditions; dance health and safety: warming up (mobilisation, stretching), cooling down, common dance injuries and prevention, nutrition and hydration; basic dance steps: gallop, skip, chassé, step-touch, grapevine, pivot turn; dance vocabulary: choreographer, performer, audience, improvisation',
+    };
+
+    const topicGuide = strandTopics[selectedStrand] || strandTopics.visual_arts;
+    const strandLabels: Record<string, string> = {
+      visual_arts: 'Visual Arts', music: 'Music', drama: 'Drama', dance: 'Dance',
+    };
+    const strandLabel = strandLabels[selectedStrand] || 'Visual Arts';
+
+    return `You are a South African Creative Arts (${strandLabel}) tutor creating concept revision cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key ${strandLabel} theory for Grade ${grade} SA CAPS Creative Arts.
+
+Key topics to cover:
+  ${topicGuide}
+
+For each card provide:
+- term_en: the key concept, technique, term, artist, or element in English
+- term_af: in Afrikaans
+- definition_en: a clear, accurate Grade ${grade}-level explanation — what it is, how it works, or what makes it significant
+- definition_af: the same in Afrikaans
+- example_en: a specific South African example, artwork, performance, or real-world application
+- example_af: in Afrikaans
+- category: "${selectedStrand}"
+
+Return ONLY a valid JSON array with the structure above.
+
+IMPORTANT:
+- Prioritise South African artists, musicians, performers, and cultural examples
+- Mix theory/terminology cards with artist/cultural knowledge cards
+- Definitions must be accurate and Grade ${grade} appropriate
 - Do NOT include any text outside the JSON array`;
   }
 

@@ -1045,22 +1045,26 @@ router.post('/mock', optionalAuth, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
   const { subject_name, grade, scope, language } = req.body;
 
-  if (!subject_name || !grade || !Array.isArray(scope) || scope.length === 0) {
-    throw new AppError('subject_name, grade and scope (array of topics) are required', 400);
+  if (!subject_name || !grade) {
+    throw new AppError('subject_name and grade are required', 400);
   }
   const gradeNum = parseInt(grade);
   if (gradeNum < 1 || gradeNum > 12) throw new AppError('Grade must be 1–12', 400);
-  if (scope.length > 10) throw new AppError('Maximum 10 topics per mock assessment', 400);
+
+  const effectiveScope = Array.isArray(scope) && scope.length > 0 ? (scope as string[]) : null;
+  if (effectiveScope && effectiveScope.length > 10) throw new AppError('Maximum 10 topics per mock assessment', 400);
 
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) throw new AppError('GEMINI_API_KEY not configured', 500);
 
   const lang = language || 'en';
-  const qCount = Math.min(Math.max(scope.length * 4, 12), 30);
+  const qCount = effectiveScope ? Math.min(Math.max(effectiveScope.length * 4, 12), 30) : 30;
   const timeLimitSec = qCount * 90;
-  const scopeList = (scope as string[]).map((t, i) => `${i + 1}. ${t}`).join('\n');
 
-  const prompt = `You are a South African ${subject_name} teacher creating a personalised mock exam for Grade ${gradeNum} learners.
+  const prompt = effectiveScope
+    ? (() => {
+        const scopeList = effectiveScope.map((t, i) => `${i + 1}. ${t}`).join('\n');
+        return `You are a South African ${subject_name} teacher creating a personalised mock exam for Grade ${gradeNum} learners.
 
 The learner's study scope for this exam:
 ${scopeList}
@@ -1089,6 +1093,37 @@ Return ONLY a valid JSON array:
 IMPORTANT:
 - scope_topic must be EXACTLY one of the topic strings provided — copy it verbatim, no paraphrasing
 - Every topic must appear in at least 2 questions — cover all topics
+- Grade ${gradeNum} appropriate language and difficulty
+- Use South African context and examples where relevant
+- Questions must test understanding, not just recall
+- Do NOT include any text outside the JSON array`;
+      })()
+    : `You are a South African ${subject_name} teacher creating a broad mock exam for Grade ${gradeNum} learners.
+
+Generate exactly 30 multiple choice questions covering the full Grade ${gradeNum} SA CAPS ${subject_name} curriculum.
+
+Each question must:
+- Be appropriate for Grade ${gradeNum} South African CAPS curriculum
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH English AND Afrikaans
+- Cover a broad range of CAPS topics for this subject and grade
+
+Return ONLY a valid JSON array:
+[
+  {
+    "question_en": "...",
+    "question_af": "...",
+    "options": ["(A) ...", "(B) ...", "(C) ...", "(D) ..."],
+    "correct": 0,
+    "scope_topic": "general",
+    "category": "general"
+  }
+]
+
+IMPORTANT:
+- Cover the full breadth of the Grade ${gradeNum} ${subject_name} CAPS curriculum
+- First 15 questions easier, last 15 harder
 - Grade ${gradeNum} appropriate language and difficulty
 - Use South African context and examples where relevant
 - Questions must test understanding, not just recall

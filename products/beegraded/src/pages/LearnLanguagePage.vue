@@ -48,7 +48,10 @@
             <div class="text-body1 text-grey-6 q-mt-sm">
               {{ currentWord.pronunciation }}
             </div>
-            <q-btn flat round icon="volume_up" color="amber-8" size="lg" class="q-mt-sm" @click.stop="speakPronunciation(currentWord.pronunciation)" />
+            <div v-if="currentWord.pronunciation_native && homeLangName" class="text-caption text-blue-6 q-mt-xs">
+              {{ homeLangName }}: {{ currentWord.pronunciation_native }}
+            </div>
+            <q-btn flat round icon="volume_up" color="amber-8" size="lg" class="q-mt-sm" @click.stop="speakPronunciation(currentWord.word, currentWord.pronunciation)" />
             <div class="text-caption text-grey-4 q-mt-sm">tap card to reveal meaning</div>
           </template>
           <template v-else>
@@ -57,8 +60,9 @@
             </div>
             <div class="q-mt-md q-pa-sm" style="background: #fef9ee; border-radius: 8px;">
               <div style="font-size: 15px; color: #555;">
-                <q-btn flat dense round icon="volume_up" size="sm" color="amber-8" class="q-mr-xs" @click.stop="speakPronunciation(currentWord.pronunciation)" />
+                <q-btn flat dense round icon="volume_up" size="sm" color="amber-8" class="q-mr-xs" @click.stop="speakPronunciation(currentWord.word, currentWord.pronunciation)" />
                 <b>{{ currentWord.word }}</b> — {{ currentWord.pronunciation }}
+                <span v-if="currentWord.pronunciation_native && homeLangName" class="text-caption text-blue-6 q-ml-sm">({{ currentWord.pronunciation_native }})</span>
               </div>
               <div class="q-mt-sm" style="font-size: 14px; color: #666;">
                 "{{ currentWord.example }}"
@@ -172,7 +176,7 @@
           <q-list dense separator>
             <q-item v-for="w in words" :key="w.word">
               <q-item-section avatar>
-                <q-btn flat dense round icon="volume_up" size="sm" color="amber-8" @click="speakPronunciation(w.pronunciation)" />
+                <q-btn flat dense round icon="volume_up" size="sm" color="amber-8" @click="speakPronunciation(w.word, w.pronunciation)" />
               </q-item-section>
               <q-item-section>
                 <q-item-label class="text-weight-bold">{{ w.word }}</q-item-label>
@@ -215,10 +219,23 @@ import { useI18n } from 'src/i18n'
 
 const route = useRoute()
 const { lang } = useI18n()
-const homeLang = ref('en') // user's preferred language
+const homeLang = ref('en')
+const homeLangName = computed(() => {
+  const names: Record<string, string> = {
+    zu: 'IsiZulu', xh: 'IsiXhosa', tn: 'Setswana', nso: 'Sepedi',
+    st: 'Sesotho', ve: 'Tshivenḓa', ss: 'Siswati', ts: 'Xitsonga', nr: 'isiNdebele',
+  }
+  return names[homeLang.value] || ''
+})
 const targetLang = computed(() => (route.params.language as string) || 'setswana')
 const targetLangName = computed(() => {
-  const names: Record<string, string> = { setswana: 'Setswana', afrikaans: 'Afrikaans', english: 'English' }
+  const names: Record<string, string> = {
+    setswana: 'Setswana', afrikaans: 'Afrikaans', english: 'English',
+    french: 'French', zulu: 'IsiZulu', xhosa: 'IsiXhosa',
+    sepedi: 'Sepedi', sesotho: 'Sesotho', venda: 'Tshivenḓa',
+    swati: 'Siswati', tsonga: 'Xitsonga', ndebele: 'isiNdebele',
+    spanish: 'Spanish', portuguese: 'Portuguese', swahili: 'Kiswahili (Swahili)',
+  }
   return names[targetLang.value] || targetLang.value
 })
 
@@ -261,19 +278,49 @@ const quizOptions = computed(() => {
   return options
 })
 
-// Speak the pronunciation guide using an English voice (more accurate than trying raw Setswana)
-function speakPronunciation(pronunciation: string) {
-  if (!('speechSynthesis' in window) || !pronunciation) return
+// BCP47 codes for Web Speech API — SA languages first, then others
+const LANG_BCP47: Record<string, string> = {
+  afrikaans: 'af-ZA', zulu: 'zu-ZA', xhosa: 'xh-ZA', setswana: 'tn-ZA',
+  sepedi: 'nso', sesotho: 'st-ZA', venda: 've-ZA', swati: 'ss-ZA',
+  tsonga: 'ts-ZA', ndebele: 'nr-ZA', english: 'en-ZA',
+  french: 'fr-FR', portuguese: 'pt-PT', spanish: 'es-ES', swahili: 'sw',
+}
+
+function speakPronunciation(word: string, pronunciation: string) {
+  if (!('speechSynthesis' in window)) return
   window.speechSynthesis.cancel()
-  // Clean up pronunciation for speech — remove hyphens so it flows naturally
-  const cleaned = pronunciation.replace(/-/g, '').toLowerCase()
-  const utterance = new SpeechSynthesisUtterance(cleaned)
+
+  const bcp47 = LANG_BCP47[targetLang.value] || 'en-ZA'
+  const langPrefix = bcp47.split('-')[0]
+
+  // Wait for voices to be ready, then speak
+  const trySpeak = () => {
+    const voices = window.speechSynthesis.getVoices()
+    // Try to find a native voice for this language
+    const nativeVoice = voices.find(v => v.lang === bcp47)
+      || voices.find(v => v.lang.startsWith(langPrefix) && langPrefix !== 'en')
+      || null
+
+    const utterance = new SpeechSynthesisUtterance()
+    if (nativeVoice) {
+      // Native voice available — speak the actual word
+      utterance.text = word
+      utterance.voice = nativeVoice
+      utterance.rate = 0.65
+    } else {
+      // No native voice — speak phonetic guide using English voice
+      utterance.text = pronunciation.replace(/-/g, ' ').toLowerCase()
+      const enVoice = voices.find(v => v.lang.startsWith('en')) || null
+      if (enVoice) utterance.voice = enVoice
+      utterance.rate = 0.6
+    }
+    utterance.pitch = 1.0
+    window.speechSynthesis.speak(utterance)
+  }
+
   const voices = window.speechSynthesis.getVoices()
-  const enVoice = voices.find(v => v.lang.startsWith('en')) || null
-  if (enVoice) utterance.voice = enVoice
-  utterance.rate = 0.6 // Slow so learner can hear each syllable
-  utterance.pitch = 1.0
-  window.speechSynthesis.speak(utterance)
+  if (voices.length > 0) trySpeak()
+  else window.speechSynthesis.onvoiceschanged = trySpeak
 }
 
 function categoryColor(cat: string): string {
@@ -299,6 +346,7 @@ async function generateLesson() {
     const { data } = await backendApi.post('/subject-tests/lesson', {
       language: targetLang.value,
       level: level.value,
+      home_language: homeLang.value,
     })
     words.value = data.words
   } catch (err: any) {
@@ -354,23 +402,22 @@ function resetLearn() {
   flipped.value = false
 }
 
-// Get the translation in the user's home language
 function homeTranslation(w: any): string {
   if (homeLang.value === 'af') return w.translation_af || w.translation_en || w.translation || ''
+  if (w.translation_native && homeLangName.value) return w.translation_native
   return w.translation_en || w.translation || ''
 }
 
 function homeExample(w: any): string {
   if (homeLang.value === 'af') return w.example_af || w.example_en || w.example_translation || ''
+  if (w.example_native && homeLangName.value) return w.example_native
   return w.example_en || w.example_translation || ''
 }
 
 onMounted(async () => {
-  // Load user's preferred language
   try {
     const { data } = await backendApi.get('/profile')
     if (data.language) homeLang.value = data.language
   } catch { /* use default en */ }
-  homeLang.value = lang.value || 'en'
 })
 </script>

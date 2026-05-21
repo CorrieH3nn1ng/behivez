@@ -907,7 +907,7 @@ Be STRICT. A child who reads both languages should never get a different answer 
 // POST /api/subject-tests/lesson — Generate a vocabulary lesson for language learning
 router.post('/lesson', optionalAuth, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
-  const { language, level } = req.body;
+  const { language, level, home_language } = req.body;
 
   if (!language) throw new AppError('language is required', 400);
 
@@ -969,7 +969,15 @@ IMPORTANT:
 - Use correct ${targetLang} spelling and grammar — double-check before including
 - The pronunciation guide must be VERY detailed and accurate
 - Make it fun and practical for daily use in South Africa
-- Do NOT include any text outside the JSON array`;
+- Do NOT include any text outside the JSON array${
+  home_language && !['en', 'af'].includes(home_language) && NATIVE_LANG_NAMES[home_language]
+    ? `\n\nADDITIONAL: For each word, also include:
+- "translation_native": the translation in ${NATIVE_LANG_NAMES[home_language]}
+- "pronunciation_native": pronunciation guide written for ${NATIVE_LANG_NAMES[home_language]} speakers (use ${NATIVE_LANG_NAMES[home_language]} phonetics and familiar sounds, NOT English phonetics)
+
+These are for learners whose home language is ${NATIVE_LANG_NAMES[home_language]}. Translations must be ACCURATE.`
+    : ''
+}`;
 
   try {
     const geminiResponse = await callGemini(geminiKey, {
@@ -1202,9 +1210,14 @@ IMPORTANT:
   }
 });
 
+const NATIVE_LANG_NAMES: Record<string, string> = {
+  zu: 'IsiZulu', xh: 'IsiXhosa', tn: 'Setswana', nso: 'Sepedi',
+  st: 'Sesotho', ve: 'Tshivenḓa', ss: 'Siswati', ts: 'Xitsonga', nr: 'isiNdebele',
+};
+
 // POST /api/subject-tests/tutor — Generate concept cards for any subject (tutoring mode)
 router.post('/tutor', optionalAuth, async (req: AuthRequest, res: Response) => {
-  const { subject_code, grade, strand } = req.body;
+  const { subject_code, grade, strand, native_language } = req.body;
 
   if (!subject_code || !grade) throw new AppError('subject_code and grade are required', 400);
 
@@ -1219,7 +1232,17 @@ router.post('/tutor', optionalAuth, async (req: AuthRequest, res: Response) => {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) throw new AppError('GEMINI_API_KEY not configured', 500);
 
-  const prompt = buildTutorPrompt(subject_code, gradeNum, strand);
+  const basePrompt = buildTutorPrompt(subject_code, gradeNum, strand);
+  const nativeName = native_language ? NATIVE_LANG_NAMES[native_language] : null;
+  const prompt = nativeName
+    ? basePrompt + `\n\nADDITIONAL REQUIREMENT — MOTHER TONGUE EDUCATION:
+For every card in the JSON array, also include these three fields:
+- "term_native": the key term translated accurately into ${nativeName}
+- "definition_native": the definition translated accurately into ${nativeName} (clear, grade-appropriate)
+- "example_native": the example translated accurately into ${nativeName}
+
+These translations are for learners whose home language is ${nativeName}. Accuracy is critical — use real, correct ${nativeName} vocabulary and grammar.`
+    : basePrompt;
 
   try {
     const geminiResponse = await callGemini(geminiKey, {

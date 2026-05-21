@@ -96,6 +96,7 @@
           <template v-else>
             <div class="text-h6 text-weight-bold text-amber-8 q-mb-md">
               {{ lang === 'af' ? currentConcept.term_af : currentConcept.term_en }}
+              <span v-if="currentConcept.term_native && nativeLangName" class="text-grey-5 text-body2 q-ml-sm">/ {{ currentConcept.term_native }}</span>
             </div>
             <div class="q-pa-sm q-mb-sm" style="background: #fef9ee; border-radius: 8px; text-align: left;">
               <div style="font-size: 15px; color: #333; line-height: 1.5;">
@@ -105,11 +106,19 @@
                 {{ lang === 'af' ? currentConcept.definition_en : currentConcept.definition_af }}
               </div>
             </div>
+            <div v-if="currentConcept.definition_native && nativeLangName" class="q-pa-sm q-mb-sm" style="background: #eff6ff; border-radius: 8px; text-align: left; border-left: 3px solid #3b82f6;">
+              <div class="text-caption text-blue-7 text-weight-bold q-mb-xs">{{ nativeLangName }}</div>
+              <div style="font-size: 14px; color: #1e40af; line-height: 1.5;">{{ currentConcept.definition_native }}</div>
+            </div>
             <div class="q-pa-sm" style="background: #f0fdf4; border-radius: 8px; text-align: left;">
               <q-icon name="lightbulb" color="green-7" size="16px" class="q-mr-xs" />
               <span style="font-size: 13px; color: #444;">
                 {{ lang === 'af' ? currentConcept.example_af : currentConcept.example_en }}
               </span>
+            </div>
+            <div v-if="currentConcept.example_native && nativeLangName" class="q-pa-sm q-mt-xs" style="background: #f0f9ff; border-radius: 8px; text-align: left;">
+              <q-icon name="translate" color="blue-5" size="16px" class="q-mr-xs" />
+              <span style="font-size: 13px; color: #0369a1;">{{ currentConcept.example_native }}</span>
             </div>
           </template>
         </q-card>
@@ -327,6 +336,15 @@ const strandLabel = computed(() => {
   return s ? (lang.value === 'af' ? s.labelAf : s.labelEn) : ''
 })
 
+const nativeLang = ref('')
+const nativeLangName = computed(() => {
+  const names: Record<string, string> = {
+    zu: 'IsiZulu', xh: 'IsiXhosa', tn: 'Setswana', nso: 'Sepedi',
+    st: 'Sesotho', ve: 'Tshivenḓa', ss: 'Siswati', ts: 'Xitsonga', nr: 'isiNdebele',
+  }
+  return names[nativeLang.value] || ''
+})
+
 const loading = ref(false)
 const error = ref('')
 const concepts = ref<any[]>([])
@@ -446,6 +464,7 @@ async function generateLesson() {
       subject_code: subjectCode.value,
       grade: grade.value,
       strand: selectedStrand.value === 'all' ? undefined : selectedStrand.value,
+      native_language: nativeLang.value || undefined,
     })
     concepts.value = data.concepts
   } catch (err: any) {
@@ -500,9 +519,15 @@ function resetAll() {
   phase.value = 'learn'
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (subjectCode.value === 'social_sciences') selectedStrand.value = 'history'
   else if (subjectCode.value === 'creative_arts') selectedStrand.value = 'visual_arts'
   else selectedStrand.value = 'all'
+
+  try {
+    const { data } = await backendApi.get('/profile')
+    const l = data.language || ''
+    if (!['en', 'af', ''].includes(l)) nativeLang.value = l
+  } catch { /* use no native lang */ }
 })
 </script>

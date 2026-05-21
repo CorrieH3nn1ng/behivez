@@ -36,29 +36,20 @@
         </div>
         <div class="text-caption text-grey-6 q-mb-md">
           {{ lang === 'af'
-            ? 'Hierdie taal word gebruik vir die koppelvlak en as verstek vir nuwe kinders se toetse.'
-            : 'This language is used for the interface and as the default for new children\'s tests.' }}
+            ? 'Jou huistaal / moedertaal. Gebruik vir die koppelvlak, kinders se toetse, EN vir verduidelikings in tutormodus in jou taal.'
+            : 'Your home language / mother tongue. Used for the interface, children\'s tests, AND for explanations in tutor mode.' }}
         </div>
 
-        <div class="row q-gutter-sm">
-          <q-btn
-            v-for="l in languageOptions"
-            :key="l.value"
-            no-caps
-            :outline="selectedLang !== l.value"
-            :class="selectedLang === l.value ? 'btn-bee' : ''"
-            :color="selectedLang === l.value ? undefined : 'grey-7'"
-            @click="setPreferredLanguage(l.value)"
-            :loading="savingLang === l.value"
-            class="col"
-            style="min-height: 56px;"
-          >
-            <div>
-              <div class="text-weight-bold">{{ l.label }}</div>
-              <div class="text-caption" style="opacity: 0.7;">{{ l.native }}</div>
-            </div>
-          </q-btn>
-        </div>
+        <q-select
+          v-model="selectedLang"
+          outlined dense
+          :label="lang === 'af' ? 'Kies taal' : 'Select language'"
+          :options="languageOptions"
+          emit-value map-options
+          :loading="!!savingLang"
+          @update:model-value="setPreferredLanguage"
+          style="max-width: 320px;"
+        />
       </q-card>
 
       <!-- Children (edit grade, language) -->
@@ -537,9 +528,17 @@ const loadingProfile = ref(true)
 const selectedLang = ref('af')
 const savingLang = ref('')
 const languageOptions = [
-  { label: 'Afrikaans', native: 'Afrikaans', value: 'af' },
-  { label: 'English', native: 'English', value: 'en' },
-  { label: 'Setswana', native: 'Setswana', value: 'tn' },
+  { label: 'Afrikaans', value: 'af' },
+  { label: 'English', value: 'en' },
+  { label: 'IsiZulu', value: 'zu' },
+  { label: 'IsiXhosa', value: 'xh' },
+  { label: 'Setswana', value: 'tn' },
+  { label: 'Sepedi', value: 'nso' },
+  { label: 'Sesotho', value: 'st' },
+  { label: 'Tshivenḓa', value: 've' },
+  { label: 'Siswati', value: 'ss' },
+  { label: 'Xitsonga', value: 'ts' },
+  { label: 'isiNdebele', value: 'nr' },
 ]
 
 // Children

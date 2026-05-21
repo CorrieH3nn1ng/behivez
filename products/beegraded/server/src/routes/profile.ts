@@ -14,8 +14,10 @@ async function getOrCreateLocalUser(prisma: PrismaClient, req: AuthRequest) {
   let user = await prisma.users.findUnique({ where: { email: req.userEmail } });
   if (!user) {
     user = await prisma.users.create({
-      data: { email: req.userEmail, name: null },
+      data: { email: req.userEmail, name: req.userName || null },
     });
+  } else if (!user.name && req.userName) {
+    user = await prisma.users.update({ where: { id: user.id }, data: { name: req.userName } });
   }
   return user;
 }
@@ -42,7 +44,8 @@ router.patch('/', authenticate, async (req: AuthRequest, res: Response) => {
 
   const { language, name } = req.body;
   const data: any = {};
-  if (language && ['af', 'en', 'tn'].includes(language)) data.language = language;
+  const validLangs = ['af', 'en', 'zu', 'xh', 'tn', 'nso', 'st', 've', 'ss', 'ts', 'nr'];
+  if (language && validLangs.includes(language)) data.language = language;
   if (name !== undefined) data.name = name;
 
   const updated = await prisma.users.update({

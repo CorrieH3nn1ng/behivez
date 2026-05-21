@@ -111,11 +111,275 @@
         <div class="text-caption text-grey-6 q-mb-md">
           {{ lang === 'af' ? 'Leer nuwe woorde met flitskaarte en vasvrae' : 'Learn new words with flashcards and quizzes' }}
         </div>
-        <div class="row q-gutter-sm">
-          <q-btn outline color="cyan-8" no-caps icon="translate" label="Setswana" class="col" to="/workspace/learn/setswana" />
-          <q-btn outline color="orange-8" no-caps icon="auto_stories" label="Afrikaans" class="col" to="/workspace/learn/afrikaans" />
-          <q-btn outline color="purple" no-caps icon="menu_book" label="English" class="col" to="/workspace/learn/english" />
+
+        <div class="text-caption text-weight-bold text-grey-7 q-mb-xs">
+          {{ lang === 'af' ? 'SA Amptelike Tale' : 'SA Official Languages' }}
         </div>
+
+        <div class="row q-col-gutter-xs q-mb-md" style="flex-wrap: wrap;">
+          <div v-for="l in saLanguages" :key="l.code" class="col-6 col-sm-4">
+            <q-btn outline :color="l.color" no-caps icon="translate" :label="l.label"
+              class="full-width" style="font-size: 12px;" :to="`/workspace/learn/${l.code}`" />
+          </div>
+        </div>
+
+        <div class="text-caption text-weight-bold text-grey-7 q-mb-xs">
+          {{ lang === 'af' ? 'Internasionale Tale' : 'International Languages' }}
+        </div>
+        <div class="row q-gutter-sm" style="flex-wrap: wrap;">
+          <q-btn outline color="blue-8" no-caps icon="flag" label="French" style="flex: 1; min-width: 120px;" to="/workspace/learn/french" />
+          <q-btn outline color="orange-9" no-caps icon="flag" label="Portuguese" style="flex: 1; min-width: 120px;" to="/workspace/learn/portuguese" />
+          <q-btn outline color="red-7" no-caps icon="flag" label="Spanish" style="flex: 1; min-width: 120px;" to="/workspace/learn/spanish" />
+          <q-btn outline color="teal-6" no-caps icon="flag" label="Swahili" style="flex: 1; min-width: 120px;" to="/workspace/learn/swahili" />
+        </div>
+      </q-card>
+
+      <!-- Braille Literacy -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <span style="font-size: 22px; margin-right: 8px;">⠃⠗⠇</span>
+          {{ lang === 'af' ? 'Braille Geletterdheid' : 'Braille Literacy' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af'
+            ? 'Leer die volledige Braille-alfabet, syfers en leestekens — met puntwysiger en toets'
+            : 'Learn the full Braille alphabet, numbers and punctuation — with dot visualiser and quiz' }}
+        </div>
+        <q-btn outline color="amber-8" no-caps icon="touch_app"
+          :label="lang === 'af' ? 'Begin Braille Leer' : 'Start Braille Lessons'"
+          to="/workspace/braille" />
+      </q-card>
+
+      <!-- Science: Life Skills Gr 1-3 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="child_care" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Lewensvaardighede (Gr 1–3)' : 'Life Skills — Beginning Knowledge (Gr 1–3)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Diere, plante, weer, liggaam en veiligheid' : 'Animals, plants, weather, body and safety' }}
+        </div>
+        <div class="row items-center q-gutter-sm q-mb-md">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="lifeSkillsGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[{ label: 'Gr 1', value: 1 }, { label: 'Gr 2', value: 2 }, { label: 'Gr 3', value: 3 }]"
+          />
+        </div>
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/life_skills/${lifeSkillsGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingLifeSkills"
+            @click="generateLifeSkillsTest" />
+        </div>
+        <q-banner v-if="lifeSkillsError" class="bg-red-1 text-red-8 q-mt-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ lifeSkillsError }}
+        </q-banner>
+      </q-card>
+
+      <!-- Science: Natural Science Gr 4-9 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="science" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Natuurwetenskap (Gr 4–9)' : 'Natural Sciences (Gr 4–9)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Lewe, Materie, Energie en die Aarde — alle CAPS-modules' : 'Life, Matter, Energy and Earth — all CAPS modules' }}
+        </div>
+
+        <div class="row items-center q-gutter-sm q-mb-md">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="scienceGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[4,5,6,7,8,9].map(g => ({ label: `Gr ${g}`, value: g }))"
+            @update:model-value="scienceStrand = ''"
+          />
+        </div>
+
+        <!-- Strand selector -->
+        <div class="q-mb-md">
+          <div class="text-caption text-grey-7 q-mb-xs">
+            {{ lang === 'af' ? 'Fokus op strand (opsioneel):' : 'Focus on strand (optional):' }}
+          </div>
+          <div class="row q-gutter-xs" style="flex-wrap: wrap;">
+            <q-btn
+              v-for="s in scienceStrands"
+              :key="s.value"
+              no-caps size="sm"
+              :outline="scienceStrand !== s.value"
+              :color="scienceStrand === s.value ? 'amber-8' : 'grey-5'"
+              :icon="s.icon"
+              :label="lang === 'af' ? s.labelAf : s.labelEn"
+              @click="scienceStrand = scienceStrand === s.value ? '' : s.value"
+            />
+          </div>
+        </div>
+
+        <q-banner v-if="scienceError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ scienceError }}
+        </q-banner>
+
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/natural_science/${scienceGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingScience"
+            @click="generateScienceTest" />
+        </div>
+      </q-card>
+
+      <!-- Mathematics Gr 7-9 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="calculate" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Wiskunde (Gr 7–9)' : 'Mathematics (Gr 7–9)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Algebra, meetkunde, funksies, finansiële wiskunde en datahantering' : 'Algebra, geometry, functions, financial maths and data handling' }}
+        </div>
+        <div class="row items-center q-gutter-sm q-mb-md">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="mathSubjectGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[7,8,9].map(g => ({ label: `Gr ${g}`, value: g }))"
+          />
+        </div>
+        <q-banner v-if="mathSubjectError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ mathSubjectError }}
+        </q-banner>
+        <q-btn class="btn-bee" no-caps icon="play_arrow"
+          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+          :loading="generatingMath"
+          @click="generateMathSubjectTest" />
+      </q-card>
+
+      <!-- Life Orientation Gr 4-9 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="self_improvement" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Lewensoriëntering (Gr 4–9)' : 'Life Orientation (Gr 4–9)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Persoonlike ontwikkeling, menseregte, loopbaan, fisiese opvoeding' : 'Personal development, human rights, career choices, physical education' }}
+        </div>
+        <div class="row items-center q-gutter-sm q-mb-md">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="loGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[4,5,6,7,8,9].map(g => ({ label: `Gr ${g}`, value: g }))"
+          />
+        </div>
+        <q-banner v-if="loError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ loError }}
+        </q-banner>
+        <q-btn class="btn-bee" no-caps icon="play_arrow"
+          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+          :loading="generatingLO"
+          @click="generateLOTest" />
+      </q-card>
+
+      <!-- Social Sciences Gr 4-9 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="public" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Sosiale Wetenskappe (Gr 4–9)' : 'Social Sciences (Gr 4–9)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Geskiedenis en Aardrykskunde — SA en wêreld CAPS-kurrikulum' : 'History and Geography — SA and world CAPS curriculum' }}
+        </div>
+        <div class="row items-center q-gutter-sm q-mb-sm">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="socialGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[4,5,6,7,8,9].map(g => ({ label: `Gr ${g}`, value: g }))"
+          />
+        </div>
+        <div class="row q-gutter-sm q-mb-md">
+          <q-btn no-caps size="sm" icon="history_edu"
+            :outline="socialStrand !== 'history'" :color="socialStrand === 'history' ? 'amber-8' : 'grey-5'"
+            :label="lang === 'af' ? 'Geskiedenis' : 'History'"
+            @click="socialStrand = 'history'" />
+          <q-btn no-caps size="sm" icon="map"
+            :outline="socialStrand !== 'geography'" :color="socialStrand === 'geography' ? 'amber-8' : 'grey-5'"
+            :label="lang === 'af' ? 'Aardrykskunde' : 'Geography'"
+            @click="socialStrand = 'geography'" />
+        </div>
+        <q-banner v-if="socialError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ socialError }}
+        </q-banner>
+        <q-btn class="btn-bee" no-caps icon="play_arrow"
+          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+          :loading="generatingSocial"
+          @click="generateSocialTest" />
+      </q-card>
+
+      <!-- EMS Gr 4-9 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="account_balance" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'EBW (Gr 4–9)' : 'EMS (Gr 4–9)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Ekonomie, finansiële geletterdheid en entrepreneurskap' : 'Economy, financial literacy and entrepreneurship' }}
+        </div>
+        <div class="row items-center q-gutter-sm q-mb-md">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="emsGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[4,5,6,7,8,9].map(g => ({ label: `Gr ${g}`, value: g }))"
+          />
+        </div>
+        <q-banner v-if="emsError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ emsError }}
+        </q-banner>
+        <q-btn class="btn-bee" no-caps icon="play_arrow"
+          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+          :loading="generatingEMS"
+          @click="generateEMSTest" />
+      </q-card>
+
+      <!-- Technology Gr 4-9 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="engineering" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Tegnologie (Gr 4–9)' : 'Technology (Gr 4–9)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Ontwerpproses, strukture, meganiese en elektriese stelsels' : 'Design process, structures, mechanical and electrical systems' }}
+        </div>
+        <div class="row items-center q-gutter-sm q-mb-md">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="techGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[4,5,6,7,8,9].map(g => ({ label: `Gr ${g}`, value: g }))"
+          />
+        </div>
+        <q-banner v-if="techError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ techError }}
+        </q-banner>
+        <q-btn class="btn-bee" no-caps icon="play_arrow"
+          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+          :loading="generatingTech"
+          @click="generateTechTest" />
       </q-card>
 
       <!-- Change Password -->
@@ -216,6 +480,65 @@ const showCurrent = ref(false)
 const showNew = ref(false)
 const changingPassword = ref(false)
 
+// SA official languages for the language tutor
+const saLanguages = [
+  { code: 'afrikaans', label: 'Afrikaans', color: 'orange-8' },
+  { code: 'english', label: 'English', color: 'purple' },
+  { code: 'setswana', label: 'Setswana', color: 'cyan-8' },
+  { code: 'zulu', label: 'IsiZulu', color: 'green-8' },
+  { code: 'xhosa', label: 'IsiXhosa', color: 'teal-8' },
+  { code: 'sepedi', label: 'Sepedi', color: 'indigo-6' },
+  { code: 'sesotho', label: 'Sesotho', color: 'deep-purple-6' },
+  { code: 'venda', label: 'Tshivenḓa', color: 'brown-6' },
+  { code: 'swati', label: 'Siswati', color: 'pink-7' },
+  { code: 'tsonga', label: 'Xitsonga', color: 'lime-8' },
+  { code: 'ndebele', label: 'isiNdebele', color: 'amber-9' },
+]
+
+// Science test generation — Natural Science Gr 4-9
+const scienceGrade = ref(7)
+const scienceStrand = ref('')
+const generatingScience = ref(false)
+const scienceError = ref('')
+
+const scienceStrands = [
+  { value: 'life_and_living',     labelEn: 'Life & Living',     labelAf: 'Lewe & Lewende',  icon: 'eco' },
+  { value: 'matter_and_materials', labelEn: 'Matter & Materials', labelAf: 'Materie',         icon: 'science' },
+  { value: 'energy_and_change',   labelEn: 'Energy & Change',   labelAf: 'Energie',          icon: 'bolt' },
+  { value: 'earth_and_beyond',    labelEn: 'Earth & Beyond',    labelAf: 'Aarde & Verder',   icon: 'public' },
+]
+
+// Life Skills — Gr 1-3
+const lifeSkillsGrade = ref(1)
+const generatingLifeSkills = ref(false)
+const lifeSkillsError = ref('')
+
+// Mathematics — Gr 7-9
+const mathSubjectGrade = ref(7)
+const generatingMath = ref(false)
+const mathSubjectError = ref('')
+
+// Life Orientation — Gr 4-9
+const loGrade = ref(7)
+const generatingLO = ref(false)
+const loError = ref('')
+
+// Social Sciences — Gr 4-9
+const socialGrade = ref(7)
+const socialStrand = ref('history')
+const generatingSocial = ref(false)
+const socialError = ref('')
+
+// EMS — Gr 4-9
+const emsGrade = ref(7)
+const generatingEMS = ref(false)
+const emsError = ref('')
+
+// Technology — Gr 4-9
+const techGrade = ref(7)
+const generatingTech = ref(false)
+const techError = ref('')
+
 async function setPreferredLanguage(newLang: string) {
   savingLang.value = newLang
   try {
@@ -255,6 +578,127 @@ async function handleChangePassword() {
     Notify.create({ type: 'negative', message: err?.response?.data?.error || 'Failed to change password' })
   } finally {
     changingPassword.value = false
+  }
+}
+
+async function generateLifeSkillsTest() {
+  generatingLifeSkills.value = true
+  lifeSkillsError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'life_skills',
+      grade: lifeSkillsGrade.value,
+      language: lang.value,
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    lifeSkillsError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingLifeSkills.value = false
+  }
+}
+
+async function generateScienceTest() {
+  generatingScience.value = true
+  scienceError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'natural_science',
+      grade: scienceGrade.value,
+      language: lang.value,
+      ...(scienceStrand.value ? { strand: scienceStrand.value } : {}),
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    scienceError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingScience.value = false
+  }
+}
+
+async function generateMathSubjectTest() {
+  generatingMath.value = true
+  mathSubjectError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'mathematics',
+      grade: mathSubjectGrade.value,
+      language: lang.value,
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    mathSubjectError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingMath.value = false
+  }
+}
+
+async function generateLOTest() {
+  generatingLO.value = true
+  loError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'life_orientation',
+      grade: loGrade.value,
+      language: lang.value,
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    loError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingLO.value = false
+  }
+}
+
+async function generateSocialTest() {
+  generatingSocial.value = true
+  socialError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'social_sciences',
+      grade: socialGrade.value,
+      language: lang.value,
+      strand: socialStrand.value,
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    socialError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingSocial.value = false
+  }
+}
+
+async function generateEMSTest() {
+  generatingEMS.value = true
+  emsError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'ems',
+      grade: emsGrade.value,
+      language: lang.value,
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    emsError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingEMS.value = false
+  }
+}
+
+async function generateTechTest() {
+  generatingTech.value = true
+  techError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'technology',
+      grade: techGrade.value,
+      language: lang.value,
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    techError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingTech.value = false
   }
 }
 

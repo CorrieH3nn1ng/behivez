@@ -1219,6 +1219,281 @@ For each card provide:
 Return ONLY a valid JSON array with the same structure. Keep language very simple — Grade ${grade} reading level. Do NOT include any text outside the JSON array.`;
   }
 
+  if (subjectCode === 'mathematics') {
+    const strandTopics: Record<string, string> = {
+      numbers: grade === 7
+        ? 'integers (positive, negative, absolute value); fractions, decimals, percentages (conversion and operations); exponents (squares, cubes, square roots); scientific notation; ratio and proportion'
+        : grade === 8
+          ? 'rational vs irrational numbers; integer exponents (laws: product, quotient, power of a power); scientific notation; square roots and cube roots; ordering real numbers on a number line'
+          : 'surds (simplify, rationalise); laws of exponents with rational exponents; number patterns and sequences; arithmetic and geometric sequences',
+      algebra: grade === 7
+        ? 'algebraic expressions (terms, coefficients, like terms); simplifying expressions; substitution; expanding brackets; simple linear equations (solving for x); word problems to equations'
+        : grade === 8
+          ? 'factorising (common factor, difference of squares); product of two binomials (FOIL); linear equations and inequalities; simultaneous equations (substitution method); algebraic fractions'
+          : 'factorising trinomials; difference of squares; algebraic fractions; quadratic equations (factorisation method); simultaneous equations (elimination and substitution); inequalities on a number line',
+      geometry: grade === 7
+        ? 'types of angles (acute, obtuse, reflex, supplementary, complementary, vertically opposite, co-interior, alternate); properties of triangles (equilateral, isosceles, scalene); quadrilaterals; perimeter and area of 2D shapes; volume and surface area basics'
+        : grade === 8
+          ? 'theorem of Pythagoras (a²+b²=c²) and its applications; similar vs congruent triangles; properties of quadrilaterals (parallelogram, rhombus, rectangle, square, trapezium); area, perimeter; surface area and volume of prisms and cylinders'
+          : 'congruency and similarity theorems; Pythagoras in 3D problems; surface area and volume of pyramids, cones, spheres; formal geometric proofs; trigonometry basics (sin, cos, tan ratios in right-angled triangles)',
+      functions: grade >= 8
+        ? grade === 8
+          ? 'input-output relationships; linear functions (y = mx + c); gradient (positive, negative, zero, undefined); y-intercept and x-intercept; plotting linear functions on Cartesian plane; interpreting graphs'
+          : 'linear functions: gradient, y-intercept, finding equations; quadratic functions (y = ax²): shape, vertex, intercepts; inverse proportion (y = a/x); plotting and interpreting graphs; finding equations from graphs'
+        : 'basic input-output tables; Cartesian plane (x and y axes, quadrants, plotting points); straight-line graphs through the origin',
+      data: 'mean, median, mode, range — calculating and interpreting; frequency tables and tally charts; bar graphs, pie charts, histograms, line graphs — drawing and interpreting; scatter plots (Gr 9); probability (theoretical vs experimental); probability scale 0 to 1; tree diagrams for compound events',
+      financial: 'simple interest formula (A = P(1 + in)); compound interest formula (A = P(1 + i)ⁿ); hire purchase (deposit, monthly instalment, total cost); exchange rates (converting rands to other currencies); inflation; income tax basics',
+    };
+
+    const selectedStrand = strand && strand !== 'all' ? strand : null;
+    const topicGuide = selectedStrand
+      ? strandTopics[selectedStrand] || Object.values(strandTopics).slice(0, 4).join(';\n  ')
+      : Object.values(strandTopics).slice(0, 4).join(';\n  ');
+    const categoryInstruction = selectedStrand
+      ? `All cards must have category: "${selectedStrand}"`
+      : 'Spread cards across categories: numbers, algebra, geometry, data';
+
+    return `You are a South African Mathematics tutor creating concept revision cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key Mathematics concepts for Grade ${grade} SA CAPS.
+
+Key concepts to cover:
+  ${topicGuide}
+
+For each card provide:
+- term_en: the key concept, formula, or mathematical term in English
+- term_af: in Afrikaans (use correct SA maths terminology)
+- definition_en: a clear, accurate Grade ${grade}-level explanation in English — include the formula or rule if applicable
+- definition_af: the same in Afrikaans
+- example_en: a worked example with actual numbers showing how it works
+- example_af: the worked example in Afrikaans
+- category: one of [numbers, algebra, geometry, functions, data, financial]
+
+Return ONLY a valid JSON array:
+[
+  {
+    "term_en": "Pythagoras' Theorem",
+    "term_af": "Stelling van Pythagoras",
+    "definition_en": "In a right-angled triangle, the square of the hypotenuse equals the sum of the squares of the other two sides: a² + b² = c².",
+    "definition_af": "In 'n reghoekige driehoek is die kwadraat van die skuinssy gelyk aan die som van die kwadrate van die ander twee sye: a² + b² = c².",
+    "example_en": "If the two shorter sides are 3 cm and 4 cm, then c² = 9 + 16 = 25, so c = 5 cm.",
+    "example_af": "As die twee korter sye 3 cm en 4 cm is, dan is c² = 9 + 16 = 25, dus c = 5 cm.",
+    "category": "geometry"
+  }
+]
+
+IMPORTANT:
+- Always include the formula or rule in the definition where one exists
+- Worked examples must use actual numbers, not just descriptions
+- Grade ${grade} SA CAPS appropriate difficulty
+- ${categoryInstruction}
+- Do NOT include any text outside the JSON array`;
+  }
+
+  if (subjectCode === 'life_orientation') {
+    const strandTopics: Record<string, string> = {
+      personal: grade >= 7
+        ? 'self-concept and identity (factors that shape who we are); peer pressure (types, resisting pressure, healthy boundaries); decision-making models (SODAS: Situation, Options, Disadvantages, Advantages, Solution); goal setting (SMART goals); coping with stress; healthy relationships vs unhealthy relationships'
+        : 'self-concept (strengths and weaknesses, self-esteem); emotions and how to manage them; peer relationships and friendships; values and how they guide our choices; personal boundaries',
+      social: grade >= 7
+        ? 'substance abuse in South Africa (alcohol, tobacco, drugs — effects on health and society, prevention strategies); gender-based violence (GBV) — recognising and reporting; environmental responsibility; community service and active citizenship; HIV/AIDS awareness and prevention'
+        : 'family structure and roles; community helpers; diversity and inclusion (different cultures, religions, abilities); caring for the environment; community problems and solutions',
+      rights: grade >= 7
+        ? 'SA Constitution (Chapter 2 — Bill of Rights: key rights including equality, dignity, education, health); human rights violations and how to report them; gender equality; democracy and voting; responsibilities that come with rights; Chapter 9 institutions (Human Rights Commission, Gender Commission)'
+        : 'learners\' rights and responsibilities at school; the SA flag, anthem, and national symbols; democracy (free and fair elections, majority rule, minority rights); community rules and laws',
+      career: grade >= 7
+        ? 'world of work (formal vs informal sector; self-employment vs employment); further education options (universities, colleges, TVET colleges); career planning (skills audit, interests, aptitude); CV and interview basics; entrepreneurship as a career choice'
+        : 'different types of jobs and careers; skills and strengths (discovering what you are good at); interests and how they link to careers; studying and learning how to study; career research',
+      physical: 'components of physical fitness (cardiovascular endurance, muscular strength, flexibility, coordination, agility); principles of training (FITT: Frequency, Intensity, Time, Type); rules and fair play in sport; safety in sport and physical activity; first aid basics (DRABC — Danger, Response, Airway, Breathing, Circulation)',
+    };
+
+    const selectedStrand = strand && strand !== 'all' ? strand : null;
+    const topicGuide = selectedStrand
+      ? strandTopics[selectedStrand] || Object.values(strandTopics).join(';\n  ')
+      : Object.values(strandTopics).join(';\n  ');
+    const categoryInstruction = selectedStrand
+      ? `All cards must have category: "${selectedStrand}"`
+      : 'Spread cards across: personal, social, rights, career, physical';
+
+    return `You are a South African Life Orientation tutor creating concept revision cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key Life Orientation concepts for Grade ${grade} SA CAPS.
+
+Key topics to cover:
+  ${topicGuide}
+
+For each card provide:
+- term_en: the key concept, term, or skill in English
+- term_af: in Afrikaans
+- definition_en: a clear, accurate Grade ${grade}-level explanation — include relevant laws, facts or steps if applicable
+- definition_af: the same in Afrikaans
+- example_en: a practical real-life scenario using South African context
+- example_af: in Afrikaans
+- category: one of [personal, social, rights, career, physical]
+
+Return ONLY a valid JSON array with the structure above.
+
+IMPORTANT:
+- Use South African context (SA Constitution, Ubuntu, SA laws, local issues, SA sport)
+- Scenario-based examples — show real situations learners would face
+- Grade ${grade} appropriate language and complexity
+- ${categoryInstruction}
+- Do NOT include any text outside the JSON array`;
+  }
+
+  if (subjectCode === 'social_sciences') {
+    const isHistory = !strand || strand === 'all' || strand === 'history';
+    const subjectName = isHistory ? 'History' : 'Geography';
+    const category = isHistory ? 'history' : 'geography';
+
+    const historyTopics: Record<number, string> = {
+      4: 'early African societies (San/Khoikhoi hunter-gatherers and herders); Bantu-speaking farmers and their communities; early trade in southern Africa; oral traditions and how we know about the past',
+      5: 'ancient civilisations: Egypt (pharaohs, pyramids, daily life); ancient Greece (city-states, democracy, the Olympics); early kingdoms in Africa (Mali Empire, Mansa Musa)',
+      6: 'Portuguese exploration and arrival at the Cape (1488); Jan van Riebeeck and the Dutch East India Company (VOC); Dutch settlement at the Cape; slavery at the Cape; impact on indigenous peoples (Khoikhoi, San)',
+      7: 'British colonialism in South Africa; the Great Trek and its causes; Anglo-Boer Wars; discovery of diamonds and gold; migrant labour; Bambatha Rebellion',
+      8: 'apartheid laws and policies (Pass Laws, Group Areas Act, Bantu Education); the ANC and resistance (1912 founding, Defiance Campaign, Freedom Charter 1955); Sharpeville Massacre 1960; Steve Biko and Black Consciousness',
+      9: 'SA transition to democracy: unbanning of the ANC (1990), negotiations (CODESA), democratic elections (27 April 1994), inauguration of Nelson Mandela; the Truth and Reconciliation Commission (TRC); SA Constitution (1996); post-apartheid challenges (inequality, unemployment, HIV/AIDS)',
+    };
+
+    const geographyTopics: Record<number, string> = {
+      4: 'compass directions (N, S, E, W, NE, NW, SE, SW); map symbols and keys; SA provinces, capital cities and major rivers; climate and weather differences across SA',
+      5: 'the globe (latitude, longitude, equator, tropics, poles); world continents and oceans; climate zones (tropical, temperate, polar); SA biomes (grassland, fynbos, savanna, Karoo, forest)',
+      6: 'Africa — physical features (mountains, rivers, deserts); population distribution in Africa; climate regions of Africa; trade and resources in Africa; natural vs human-made features',
+      7: 'map work: scale (calculating distance), contour lines (reading relief, gradient), grid references; climate graphs; SA climate regions; energy resources in SA (coal, solar, wind, hydro); renewable vs non-renewable energy',
+      8: 'topographic map work (cross-sections, catchment areas); population geography (urbanisation, push and pull factors); settlement patterns; development indicators (GDP, HDI, literacy rate); developed vs developing countries; SA regions and economic activities',
+      9: 'advanced map work (bearing, profile, gradient calculations); climate change — causes (greenhouse gases), effects on SA (droughts, floods, heat), response strategies; food security in SA; globalisation and its impact on SA; sustainable development goals (SDGs)',
+    };
+
+    const topicGuide = isHistory
+      ? (historyTopics[grade] || historyTopics[9])
+      : (geographyTopics[grade] || geographyTopics[9]);
+
+    return `You are a South African Social Sciences (${subjectName}) tutor creating concept revision cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key ${subjectName} concepts for Grade ${grade} SA CAPS.
+
+Key topics to cover for Grade ${grade}:
+  ${topicGuide}
+
+For each card provide:
+- term_en: the key concept, event, person, place, or term in English
+- term_af: in Afrikaans
+- definition_en: a clear, accurate Grade ${grade}-level explanation — include dates, causes, effects where relevant
+- definition_af: the same in Afrikaans
+- example_en: a specific South African example, fact, or application
+- example_af: in Afrikaans
+- category: "${category}"
+
+Return ONLY a valid JSON array with the structure above.
+
+IMPORTANT:
+- All content must be factually accurate SA CAPS Grade ${grade} ${subjectName}
+- Use specific names, dates, places and facts — not vague generalisations
+- South African context throughout
+- Do NOT include any text outside the JSON array`;
+  }
+
+  if (subjectCode === 'ems') {
+    const strandTopics: Record<string, string> = {
+      economy: grade >= 7
+        ? 'economic systems (traditional, command, market, mixed); the circular flow model (households, firms, government, foreign sector); factors of production (land, labour, capital, entrepreneurship); economic sectors (primary, secondary, tertiary, quaternary); unemployment and poverty in SA'
+        : 'needs vs wants; goods vs services; economic activities (farming, mining, manufacturing, retail); the three sectors of the economy; scarcity and choice; opportunity cost',
+      financial_literacy: grade >= 7
+        ? 'types of bank accounts (cheque, savings, fixed deposit — features and uses); interest (simple vs compound, calculating interest); personal budget (income, fixed expenses, variable expenses, savings); financial documents: invoice, receipt, bank statement, budget; credit (advantages and dangers of debt)'
+        : 'income and expenses; personal budget (planning income and expenses); saving (why save, where to save); banking basics (bank account, deposit, withdrawal); financial records (receipts and invoices)',
+      entrepreneur: grade >= 7
+        ? 'characteristics of successful entrepreneurs (risk-taking, creativity, perseverance, leadership); SWOT analysis (Strengths, Weaknesses, Opportunities, Threats); business plan components (executive summary, market analysis, financial plan); forms of business ownership (sole trader, partnership, close corporation, company); profit vs loss calculation'
+        : 'who is an entrepreneur (characteristics and qualities); business ideas (how to identify opportunities); planning a small business; risks and rewards of running a business',
+      business: grade >= 7
+        ? 'consumer rights and responsibilities (Consumer Protection Act); advertising (types, target market, persuasion techniques); supply and demand (law of demand, law of supply, equilibrium price); government\'s role in the economy (taxation, spending, welfare); globalisation and international trade'
+        : 'production process (raw materials → manufacturing → distribution → consumer); local and national economy; role of business in job creation; consumer rights (right to safety, information, choice); advertising and marketing',
+    };
+
+    const selectedStrand = strand && strand !== 'all' ? strand : null;
+    const topicGuide = selectedStrand
+      ? strandTopics[selectedStrand] || Object.values(strandTopics).join(';\n  ')
+      : Object.values(strandTopics).join(';\n  ');
+    const categoryInstruction = selectedStrand
+      ? `All cards must have category: "${selectedStrand}"`
+      : 'Spread cards across: economy, financial_literacy, entrepreneur, business';
+
+    return `You are a South African Economic and Management Sciences (EMS) tutor creating concept revision cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key EMS concepts for Grade ${grade} SA CAPS.
+
+Key topics to cover:
+  ${topicGuide}
+
+For each card provide:
+- term_en: the key concept, term, or principle in English
+- term_af: in Afrikaans
+- definition_en: a clear, accurate Grade ${grade}-level explanation — include formulas or steps where applicable
+- definition_af: the same in Afrikaans
+- example_en: a practical South African business or financial example
+- example_af: in Afrikaans
+- category: one of [economy, financial_literacy, entrepreneur, business]
+
+Return ONLY a valid JSON array with the structure above.
+
+IMPORTANT:
+- Use South African context (rands, SA banks, SA businesses, SA economic issues)
+- Include calculations in examples for financial_literacy cards (show actual numbers)
+- Grade ${grade} appropriate difficulty and language
+- ${categoryInstruction}
+- Do NOT include any text outside the JSON array`;
+  }
+
+  if (subjectCode === 'technology') {
+    const strandTopics: Record<string, string> = {
+      design: 'the design process steps: Investigate (research the problem), Design (annotated sketches, choice of materials), Make (plan of action, tools, safety), Evaluate (test against criteria, suggest improvements), Communicate (present solution); design brief (problem statement, constraints, criteria); orthographic drawing basics; isometric drawing',
+      structures: grade >= 7
+        ? 'forces on structures: tension (pulling apart), compression (pushing together), torsion (twisting), shear (sliding past); how structures resist forces; triangulation for stability; properties of materials (strength, flexibility, hardness, density) and material selection; SA infrastructure examples'
+        : 'natural and man-made structures; frame structures vs shell structures; what makes structures strong (triangular frames, base area, material choice); loads (static vs dynamic); bridge types (beam, arch, suspension)',
+      mechanical: grade >= 7
+        ? 'gear systems: driver gear, driven gear, gear ratio calculation, speed increase vs torque increase; cam and follower (rotary motion → reciprocating motion); belt-and-pulley systems; linkages (parallel, reverse motion); mechanical advantage; input-process-output model'
+        : 'levers: fulcrum, load, effort; three classes of levers and examples (1st class: seesaw, 2nd class: wheelbarrow, 3rd class: tweezers); pulleys (fixed, movable, compound); gear wheels (driver and driven); wheel and axle; mechanical advantage',
+      electrical: grade >= 7
+        ? 'electronic components: resistor (colour code), capacitor, diode (direction of current), LED, transistor (as a switch); circuit symbols and reading circuit diagrams; logic gates: AND, OR, NOT — truth tables; printed circuit boards (PCB); input-process-output in electronic systems'
+        : 'electric circuits: cell, battery, bulb, switch, wire — symbols and function; series circuit (one path — voltage splits, current same); parallel circuit (multiple paths — current splits, voltage same); measuring voltage (voltmeter) and current (ammeter); circuit faults (open circuit, short circuit)',
+      processing: grade >= 7
+        ? 'food processing techniques: drying/dehydration, canning (heat and seal), pasteurisation, fermentation, freezing — how each works and preserves food; material processing: casting (pouring liquid material into a mould), forging (shaping metal with heat and pressure), extrusion, spinning; textile production (natural vs synthetic fibres); SA manufacturing industries'
+        : 'food processing (why we process food; methods: cooking, drying, pickling, freezing); separating and mixing materials; paper making process; recycling metals, plastics, paper, glass; responsible use of materials and sustainability',
+    };
+
+    const selectedStrand = strand && strand !== 'all' ? strand : null;
+    const topicGuide = selectedStrand
+      ? strandTopics[selectedStrand] || Object.values(strandTopics).join(';\n  ')
+      : Object.values(strandTopics).join(';\n  ');
+    const categoryInstruction = selectedStrand
+      ? `All cards must have category: "${selectedStrand}"`
+      : 'Spread cards across: design, structures, mechanical, electrical, processing';
+
+    return `You are a South African Technology teacher creating concept revision cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key Technology concepts for Grade ${grade} SA CAPS.
+
+Key topics to cover:
+  ${topicGuide}
+
+For each card provide:
+- term_en: the key concept, process, component, or principle in English
+- term_af: in Afrikaans
+- definition_en: a clear, accurate Grade ${grade}-level explanation — include how it works or a rule/formula where applicable
+- definition_af: the same in Afrikaans
+- example_en: a practical real-world example (preferably something a South African learner would recognise)
+- example_af: in Afrikaans
+- category: one of [design, structures, mechanical, electrical, processing]
+
+Return ONLY a valid JSON array with the structure above.
+
+IMPORTANT:
+- Include diagrams descriptions in examples where helpful (e.g. "In a 1st-class lever like a seesaw...")
+- Grade ${grade} appropriate difficulty and language
+- South African context where possible
+- ${categoryInstruction}
+- Do NOT include any text outside the JSON array`;
+  }
+
   throw new AppError(`Tutoring not yet available for ${subjectCode}`, 400);
 }
 

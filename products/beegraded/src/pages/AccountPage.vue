@@ -258,10 +258,15 @@
           <template #avatar><q-icon name="error" color="red" /></template>
           {{ mathSubjectError }}
         </q-banner>
-        <q-btn class="btn-bee" no-caps icon="play_arrow"
-          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
-          :loading="generatingMath"
-          @click="generateMathSubjectTest" />
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/mathematics/${mathSubjectGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingMath"
+            @click="generateMathSubjectTest" />
+        </div>
       </q-card>
 
       <!-- Life Orientation Gr 4-9 -->
@@ -285,10 +290,15 @@
           <template #avatar><q-icon name="error" color="red" /></template>
           {{ loError }}
         </q-banner>
-        <q-btn class="btn-bee" no-caps icon="play_arrow"
-          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
-          :loading="generatingLO"
-          @click="generateLOTest" />
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/life_orientation/${loGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingLO"
+            @click="generateLOTest" />
+        </div>
       </q-card>
 
       <!-- Social Sciences Gr 4-9 -->
@@ -322,10 +332,15 @@
           <template #avatar><q-icon name="error" color="red" /></template>
           {{ socialError }}
         </q-banner>
-        <q-btn class="btn-bee" no-caps icon="play_arrow"
-          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
-          :loading="generatingSocial"
-          @click="generateSocialTest" />
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/social_sciences/${socialGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingSocial"
+            @click="generateSocialTest" />
+        </div>
       </q-card>
 
       <!-- EMS Gr 4-9 -->
@@ -349,10 +364,15 @@
           <template #avatar><q-icon name="error" color="red" /></template>
           {{ emsError }}
         </q-banner>
-        <q-btn class="btn-bee" no-caps icon="play_arrow"
-          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
-          :loading="generatingEMS"
-          @click="generateEMSTest" />
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/ems/${emsGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingEMS"
+            @click="generateEMSTest" />
+        </div>
       </q-card>
 
       <!-- Technology Gr 4-9 -->
@@ -376,10 +396,15 @@
           <template #avatar><q-icon name="error" color="red" /></template>
           {{ techError }}
         </q-banner>
-        <q-btn class="btn-bee" no-caps icon="play_arrow"
-          :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
-          :loading="generatingTech"
-          @click="generateTechTest" />
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/technology/${techGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingTech"
+            @click="generateTechTest" />
+        </div>
       </q-card>
 
       <!-- Change Password -->

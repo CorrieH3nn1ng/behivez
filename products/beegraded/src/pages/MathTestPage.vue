@@ -36,8 +36,8 @@
         <div class="q-mt-md text-grey-7">{{ lang === 'af' ? 'Laai toets...' : 'Loading test...' }}</div>
       </div>
 
-      <!-- Question Grid -->
-      <q-card v-else-if="template" flat class="bee-card q-pa-md q-mb-md">
+      <!-- Arithmetic Question Grid -->
+      <q-card v-else-if="template && template.type !== 'problem_solving'" flat class="bee-card q-pa-md q-mb-md">
         <MathQuestionGrid
           :questions="template.questions"
           :answers="answersMap"
@@ -45,6 +45,42 @@
           @answer="handleAnswer"
         />
       </q-card>
+
+      <!-- Multiple Choice Questions -->
+      <template v-else-if="template && template.type === 'problem_solving'">
+        <q-card
+          v-for="(q, idx) in template.questions"
+          :key="idx"
+          flat
+          class="bee-card q-pa-md q-mb-sm"
+        >
+          <div class="row no-wrap items-start q-mb-sm">
+            <q-badge color="amber" class="q-mr-sm q-mt-xs" style="flex-shrink: 0;">{{ idx + 1 }}</q-badge>
+            <div class="text-body1 text-weight-medium" style="color: #1c1917; line-height: 1.5;">
+              {{ displayLang === 'af' ? (q.question_af || q.question_en) : (q.question_en || q.question_af) }}
+            </div>
+          </div>
+          <div v-if="q.question_af && q.question_en" class="text-caption text-grey-5 q-mb-sm q-pl-lg">
+            {{ displayLang === 'af' ? q.question_en : q.question_af }}
+          </div>
+          <div class="column q-gutter-xs">
+            <q-btn
+              v-for="(opt, i) in q.options"
+              :key="i"
+              no-caps
+              align="left"
+              class="full-width"
+              :outline="answersMap.get(idx) !== i"
+              :color="answersMap.get(idx) === i ? 'amber-8' : 'grey-5'"
+              :disable="!store.testActive"
+              @click="handleAnswer(idx, i)"
+              style="font-size: 14px;"
+            >
+              {{ opt }}
+            </q-btn>
+          </div>
+        </q-card>
+      </template>
 
       <!-- Done Button -->
       <div v-if="store.testActive" class="text-center q-mt-md">
@@ -74,12 +110,21 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'src/i18n'
 import { useMathTest } from 'src/composables/useMathTest'
 import { useMathTestStore } from 'src/stores/math-test'
+import { useAuthStore } from 'src/stores/auth'
 import MathTimer from 'src/components/MathTimer.vue'
 import MathQuestionGrid from 'src/components/MathQuestionGrid.vue'
 
 const { t, lang } = useI18n()
 const { getTemplate, submitAttempt } = useMathTest()
+
+// Use the test's own language setting if present, otherwise fall back to UI language
+const displayLang = computed(() => {
+  if (template.value?.language === 'afrikaans') return 'af'
+  if (template.value?.language === 'english') return 'en'
+  return lang.value
+})
 const store = useMathTestStore()
+const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -124,10 +169,15 @@ async function submitTest() {
       timeUsedSec: store.getTimeUsedSec(),
       childId,
     })
+    const query: Record<string, string> = { templateId: String(template.value.id) }
+    if (route.query.childId) query.childId = route.query.childId as string
+    const isMock = route.query.returnTo === 'mock-result'
+    const resultRoute = isMock ? 'mock-result' : 'math-result'
+    if (!isMock && route.query.returnTo) query.returnTo = route.query.returnTo as string
     router.push({
-      name: 'math-result',
+      name: resultRoute,
       params: { attemptId: result.id },
-      query: { templateId: template.value.id },
+      query,
     })
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Failed to submit test'
@@ -146,6 +196,12 @@ onMounted(async () => {
 
   try {
     template.value = await getTemplate(templateId)
+    // Auto-set playerName from auth user if not already set (for subject/mock tests from workspace)
+    if (!store.playerName && authStore.user?.name) {
+      store.setPlayerName(authStore.user.name)
+    } else if (!store.playerName) {
+      store.setPlayerName('Leerder')
+    }
     store.startTest(template.value)
   } catch (err: any) {
     error.value = err.response?.data?.message || 'Failed to load test'

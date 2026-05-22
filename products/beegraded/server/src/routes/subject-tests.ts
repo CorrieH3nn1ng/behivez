@@ -703,13 +703,489 @@ IMPORTANT:
 - Do NOT include any text outside the JSON array`;
 }
 
+// Subjects available in Cambridge and IEB (core academic subjects only)
+const CAMBRIDGE_SUBJECTS = new Set(['mathematics', 'english', 'natural_science', 'social_sciences']);
+const IEB_SUBJECTS = new Set(['mathematics', 'english', 'afrikaans', 'natural_science', 'social_sciences', 'life_orientation']);
+
+function buildCambridgeTestPrompt(subject_code: string, grade: number, strand?: string): string {
+  const level = grade <= 6 ? 'Primary' : grade <= 9 ? 'Lower Secondary' : 'IGCSE';
+  const qCount = grade <= 3 ? 20 : 30;
+
+  const subjectPrompts: Record<string, string> = {
+    mathematics: (() => {
+      const topics: Record<number, string> = {
+        1: `Number (counting 1–100, addition and subtraction to 20, shapes, simple patterns, measuring length)`,
+        2: `Number (place value to 100, addition/subtraction to 100, multiplication as grouping, fractions halves/quarters, shapes, money, time)`,
+        3: `Number (place value to 1000, multiplication/division facts to 5×5, fractions, decimals: 0.5, measurement, bar charts)`,
+        4: `Number (place value to 10 000, multiplication/division to 10×10, fractions and decimals, area and perimeter, angles, data handling)`,
+        5: `Number (integers, multiples, factors, prime numbers, fractions, decimals, percentages, negative numbers), Geometry (angles in shapes, 2D/3D shapes), Data (pie charts, mean)`,
+        6: `Number (ratio, proportion, percentage, order of operations, sequences), Algebra (simple expressions, equations), Geometry (area, volume, angles on parallel lines), Statistics`,
+        7: `Number (powers, standard form, fractions, percentages, direct/inverse proportion), Algebra (expressions, linear equations, sequences — nth term), Geometry (Pythagoras, trigonometry ratios intro, mensuration), Statistics (mean/median/mode from frequency tables, probability)`,
+        8: `Number (surds, laws of indices, standard form), Algebra (factorising, simultaneous equations, inequalities, quadratics intro), Geometry (Pythagoras, trigonometry, circle theorems intro, vectors), Statistics (histograms, cumulative frequency, probability)`,
+        9: `Number (rational/irrational, surds), Algebra (quadratics, functions, graphs, algebraic fractions), Geometry (circle theorems, transformations, trigonometry — sine/cosine rule), Statistics (scatter graphs, box plots, probability trees)`,
+      };
+      const topicText = topics[grade] || topics[9];
+      return `You are a Cambridge International ${level} Mathematics teacher creating a practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following the Cambridge International ${level} Mathematics curriculum.
+
+Cover these topics:
+  ${topicText}
+
+Each question must:
+- Follow Cambridge International ${level} style — skills-based, analytical, include calculation questions
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH English AND Afrikaans
+- Include worked-out answer options for calculation questions
+
+Return ONLY a valid JSON array:
+[
+  {
+    "question_af": "Afrikaanse vraag...",
+    "question_en": "English question...",
+    "options": ["(A) ...", "(B) ...", "(C) ...", "(D) ..."],
+    "correct": 0,
+    "category": "number"
+  }
+]
+
+IMPORTANT:
+- Use international context (do NOT limit to South African examples — use global examples)
+- First ${Math.floor(qCount / 2)} questions easier, last ${qCount - Math.floor(qCount / 2)} harder
+- Mix conceptual and calculation questions
+- Do NOT include any text outside the JSON array`;
+    })(),
+
+    english: (() => {
+      const topics = grade <= 6
+        ? `Vocabulary (word meanings, synonyms, antonyms, context clues); Reading comprehension (main idea, inference, sequencing, cause and effect); Grammar (sentence structure, tenses — simple/continuous/perfect, punctuation, direct/indirect speech); Spelling and phonics`
+        : `Reading comprehension (inference, analysis, author's purpose, figurative language — metaphor, simile, personification, irony); Grammar (tenses, active/passive voice, sentence types, direct/indirect speech, modal verbs); Vocabulary in context; Writing conventions`;
+      return `You are a Cambridge International ${level} English teacher creating a practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following the Cambridge International ${level} English curriculum.
+
+Cover these topics:
+  ${topics}
+
+Each question must:
+- Follow Cambridge International ${level} English style (British English spelling: colour, behaviour, recognise)
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in English only (Afrikaans translation for parents in question_af field)
+
+Return ONLY a valid JSON array with "question_en" (the actual question), "question_af" (translation for parents), "options", "correct", "category".
+
+IMPORTANT:
+- All answer options must be in English
+- For comprehension questions: include a short passage (2–4 sentences) in the question_en field, then ask a question about it
+- Grade ${grade} appropriate Cambridge difficulty
+- Do NOT include any text outside the JSON array`;
+    })(),
+
+    natural_science: (() => {
+      const topics = grade <= 6
+        ? `Living things (cells, life processes, food chains, habitats, plant reproduction, adaptation); Materials (properties, states of matter, changes, mixtures); Forces and energy (electricity, light, sound, forces); Earth and space (solar system, weather, rocks and soil)`
+        : grade <= 9
+          ? `Biology (cells, photosynthesis and respiration, ecosystems, reproduction); Chemistry (atoms, elements and compounds, periodic table intro, reactions, acids and bases, separation techniques); Physics (forces, energy, electricity, waves — light and sound)`
+          : `Biology (inheritance, evolution, enzymes, human systems); Chemistry (atomic structure, bonding, stoichiometry, chemical energetics, electrolysis); Physics (mechanics, waves, electricity and magnetism, radioactivity)`;
+      return `You are a Cambridge International ${level} Science teacher creating a practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following the Cambridge International ${level} Science (Combined Science / IGCSE) curriculum.
+
+Cover these topics proportionally:
+  ${topics}
+
+Each question must:
+- Follow Cambridge International ${level} Science style
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH English AND Afrikaans
+
+Return ONLY a valid JSON array with "question_en", "question_af", "options", "correct", "category" (use: biology, chemistry, physics).
+
+IMPORTANT:
+- Use international scientific context and examples
+- Test understanding and application, not just recall
+- Do NOT include any text outside the JSON array`;
+    })(),
+
+    social_sciences: (() => {
+      const isHistory = !strand || strand === 'history';
+      const topics = isHistory
+        ? grade <= 6
+          ? `Ancient civilisations (Egypt, Mesopotamia, Greece, Rome); Early human migration out of Africa; Medieval world; Age of Exploration`
+          : grade <= 9
+            ? `Imperialism and colonialism (19th century); World War I (causes, trench warfare, Treaty of Versailles); Rise of Hitler and fascism; World War II; Cold War beginnings`
+            : `Cold War (containment, Korean War, Cuban Missile Crisis, Vietnam); Decolonisation in Africa and Asia; Civil rights movements; Apartheid and its global impact; End of Cold War and fall of Berlin Wall`
+        : grade <= 6
+          ? `Maps and globes (continents, oceans, coordinates); Physical features (rivers, mountains, climate zones); Weather and climate; Population and settlements`
+          : grade <= 9
+            ? `Map skills (scale, topographic maps, grid references, contour lines); Development indicators (HDI, GDP, poverty); Climate and biomes; Rivers and drainage; Population distribution`
+            : `Advanced map work; Globalisation and trade; Climate change (causes and effects); Migration; Sustainable development; Resource management`;
+      const strandLabel = isHistory ? 'History' : 'Geography';
+      return `You are a Cambridge International ${level} ${strandLabel} teacher creating a practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following the Cambridge International ${level} ${strandLabel} curriculum.
+
+Cover these topics:
+  ${topics}
+
+Each question must:
+- Follow Cambridge International ${level} ${strandLabel} style
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH English AND Afrikaans
+
+Return ONLY a valid JSON array with "question_en", "question_af", "options", "correct", "category" (use: "${strand || 'history'}").
+
+IMPORTANT:
+- Use international historical/geographical examples (NOT South Africa exclusively)
+- Include source-based and analytical questions where appropriate
+- Do NOT include any text outside the JSON array`;
+    })(),
+  };
+
+  return subjectPrompts[subject_code] || '';
+}
+
+function buildIEBTestPrompt(subject_code: string, grade: number, strand?: string): string {
+  const qCount = grade <= 3 ? 20 : 30;
+
+  const subjectPrompts: Record<string, string> = {
+    mathematics: (() => {
+      const topics: Record<number, string> = {
+        8: `Number (rational/irrational numbers, exponents, scientific notation, surds intro); Algebra (polynomials, factorising, linear equations/inequalities, simultaneous equations); Geometry (Pythagoras, congruency, similarity, mensuration); Functions (linear, introduction to quadratic); Data Handling (statistics, probability)`,
+        9: `Number (surds, laws of exponents, number patterns); Algebra (trinomial factorisation, algebraic fractions, quadratic equations, simultaneous equations); Functions (linear and quadratic graphs, parabola, hyperbola intro); Financial Maths (simple/compound interest); Geometry (proofs, circle geometry intro); Statistics and Probability`,
+        10: `Algebra (quadratics, algebraic fractions, surds, exponents); Functions (parabola, exponential, hyperbola, logs intro); Trigonometry (sin/cos/tan, special angles, 2D problems); Euclidean Geometry (proofs, circles); Financial Maths; Statistics`,
+        11: `Algebra (polynomials, complex fractions); Functions (trig functions — graphs and equations, log functions); Trigonometry (compound angles, 3D); Geometry (circles, proofs); Financial Maths (annuities); Calculus intro; Statistics (regression)`,
+        12: `Algebra (sequences and series, sigma notation); Functions and Graphs (comprehensive); Trigonometry (proofs, general solutions); Euclidean Geometry (proofs); Calculus (limits, differentiation, integration, optimisation); Financial Maths (annuities, future value); Statistics and Probability`,
+      };
+      const topicText = topics[grade] || (grade < 8 ? `Number, Algebra, Geometry, Data Handling — Grade ${grade} IEB level` : topics[12]);
+      return `You are an IEB (Independent Examinations Board) Mathematics teacher creating a rigorous practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following IEB Mathematics curriculum standards.
+
+Cover these topics:
+  ${topicText}
+
+Each question must:
+- Follow IEB examination style — higher cognitive demand, multi-step, application-focused
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH English AND Afrikaans
+- Include calculation questions requiring working (show answers as simplified values)
+
+Return ONLY a valid JSON array with "question_en", "question_af", "options", "correct", "category".
+
+IMPORTANT:
+- IEB standard is MORE rigorous than CAPS — include challenging multi-step problems
+- Use South African context where relevant
+- Last 10 questions must be at higher cognitive level (analysis, synthesis, application)
+- Do NOT include any text outside the JSON array`;
+    })(),
+
+    english: (() => `You are an IEB English Home Language teacher creating a practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following IEB English Home Language standards.
+
+Cover:
+  Reading comprehension (deep inference, analysis, literary devices — irony, symbolism, allusion; tone and mood); Grammar (complex sentences, tenses, voice, reported speech, punctuation); Vocabulary (register, connotation, idiomatic expressions, literary terms); Language use and context
+
+Each question must:
+- Follow IEB examination style — analytical, critical thinking
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in English (with Afrikaans translation in question_af for parents)
+
+Return ONLY a valid JSON array with "question_en", "question_af", "options", "correct", "category".
+Include a short passage for comprehension questions. Grade ${grade} IEB difficulty. Do NOT include any text outside the JSON array`)(),
+
+    afrikaans: (() => `You is 'n IEB Afrikaans Huistaal-onderwyser wat 'n oefentoets vir Graad ${grade} leerders skep.
+
+Genereer presies ${qCount} meervoudigekeuse-vrae volgens IEB Afrikaans Huistaal-standaard.
+
+Dek:
+  Begripslees (inferensie, analise, literêre middele — ironie, simbool, toon, stemming); Taal (sinskonstruksie, tydvorme, direkte/indirekte rede, leestekens); Woordeskat (register, konnotasie, idiome, spreekwoorde)
+
+Elke vraag moet:
+- IEB-eksamenformaat volg — analities, hoë kognitiewe vlak
+- Presies 4 opsies hê: (A), (B), (C), (D)
+- SLEGS EEN korrekte antwoord hê
+- In Afrikaans wees (question_af = die vraag, question_en = Engelse vertaling vir ouers)
+
+Gee SLEGS 'n geldige JSON-skikking terug met "question_en", "question_af", "options", "correct", "category". Sluit 'n kort teksgedeelte in vir begripstoetsing. Graad ${grade} IEB-vlak. Geen teks buite die JSON nie`)(),
+
+    natural_science: (() => {
+      const isPhysical = !strand || strand === 'all' || grade >= 10;
+      const topics = grade <= 9
+        ? `Life Sciences (cells, ecosystems, photosynthesis, respiration, reproduction, biodiversity); Physical Sciences (matter and materials, atoms, chemical reactions, electricity, mechanics, waves)`
+        : grade === 10
+          ? `Physical Sciences: Matter and Materials (atomic structure, periodic table, chemical bonding); Mechanics (Newton's Laws, energy, momentum); Waves (electromagnetic spectrum, Doppler). Life Sciences: Biochemistry (organic molecules), Cell biology, Genetics intro`
+          : `Physical Sciences: Quantitative aspects of chemical change, Electrostatics, Circuits, Electrodynamics, Chemical equilibrium, Acids and bases. Life Sciences: Genetics and DNA, Evolution, Human impact on environment`;
+      return `You are an IEB ${grade >= 10 ? 'Physical Sciences and Life Sciences' : 'Natural Sciences'} teacher creating a practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following IEB ${grade >= 10 ? 'Physical Sciences / Life Sciences' : 'Natural Sciences'} curriculum.
+
+Cover these topics:
+  ${topics}
+
+Each question must:
+- Follow IEB examination style — rigorous, analytical, application and higher-order thinking
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH English AND Afrikaans
+
+Return ONLY a valid JSON array with "question_en", "question_af", "options", "correct", "category" (use: biology, chemistry, physics).
+
+IMPORTANT:
+- IEB standard is more rigorous than CAPS — include application and analysis questions
+- Use South African context (SA biomes, SA energy challenges, Eskom, water issues)
+- Do NOT include any text outside the JSON array`;
+    })(),
+
+    social_sciences: (() => {
+      const isHistory = !strand || strand === 'history';
+      const topics = isHistory
+        ? grade <= 9
+          ? `SA history: colonialism and resistance, apartheid laws (Group Areas Act, Population Registration Act), Defiance Campaign, Sharpeville, ANC/PAC/BCM; World History: Cold War, decolonisation, civil rights movements`
+          : `SA history: apartheid (1948–1994 in depth), resistance movements, transition to democracy; World history: causes of apartheid; historiography; source analysis methodology`
+        : grade <= 9
+          ? `SA geography: biomes, resources, urbanisation, population; Map work: topographic maps, cross-sections; Development: HDI, development gaps`
+          : `Advanced map work; Climate change: SA impact, mitigation; Globalisation; Migration patterns; Resource management; Sustainable development`;
+      const strandLabel = isHistory ? 'History' : 'Geography';
+      return `You are an IEB Social Sciences ${strandLabel} teacher creating a practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following IEB ${strandLabel} curriculum standards.
+
+Cover these topics:
+  ${topics}
+
+Each question must:
+- Follow IEB examination style — analytical, source-based where appropriate, higher-order thinking
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH English AND Afrikaans
+
+Return ONLY a valid JSON array with "question_en", "question_af", "options", "correct", "category" (use: "${strand || 'history'}").
+
+IMPORTANT:
+- IEB ${strandLabel} is more rigorous than CAPS — include analysis and evaluation questions
+- Use South African context extensively
+- Do NOT include any text outside the JSON array`;
+    })(),
+
+    life_orientation: (() => `You are an IEB Life Orientation teacher creating a practice test for Grade ${grade} learners.
+
+Generate exactly ${qCount} multiple choice questions following IEB Life Orientation curriculum.
+
+Cover:
+  Personal development (identity, resilience, mental health, relationships); Social issues (gender-based violence, substance abuse, HIV/AIDS, human rights — SA Constitution and Bill of Rights); Career planning and the world of work; Democracy and active citizenship; Physical well-being
+
+Each question must:
+- Follow IEB LO style — scenario-based, analytical, application of knowledge
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH English AND Afrikaans
+
+Return ONLY a valid JSON array with "question_en", "question_af", "options", "correct", "category". Grade ${grade} IEB LO difficulty. SA context essential. Do NOT include any text outside the JSON array`)(),
+  };
+
+  return subjectPrompts[subject_code] || '';
+}
+
+function buildCambridgeTutorPrompt(subject_code: string, grade: number, strand?: string): string {
+  const level = grade <= 6 ? 'Primary' : grade <= 9 ? 'Lower Secondary' : 'IGCSE';
+  const NATIVE_MARKER = '{{NATIVE_LANG_BLOCK}}';
+
+  const subjects: Record<string, string> = {
+    mathematics: `You are a Cambridge International ${level} Mathematics tutor creating concept cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key Cambridge ${level} Maths topics for Grade ${grade}.
+
+For each card provide:
+- term_en: the key concept or formula in English
+- term_af: in Afrikaans
+- definition_en: clear explanation at Grade ${grade} Cambridge ${level} level
+- definition_af: in Afrikaans
+- example_en: a worked example (international context — no SA context required)
+- example_af: in Afrikaans
+- category: one of [number, algebra, geometry, statistics]
+
+Return ONLY a valid JSON array. Cambridge ${level} curriculum, international examples. Do NOT include any text outside the JSON array`,
+
+    english: `You are a Cambridge International ${level} English tutor creating concept cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key Cambridge ${level} English skills.
+
+For each card provide:
+- term_en: the concept or literary term in English (British English spelling)
+- term_af: in Afrikaans
+- definition_en: clear explanation with examples of the term
+- definition_af: in Afrikaans
+- example_en: a sentence or passage showing the term in use
+- example_af: in Afrikaans
+- category: one of [comprehension, grammar, vocabulary, writing]
+
+Return ONLY a valid JSON array. Cambridge style, British English. Do NOT include any text outside the JSON array`,
+
+    natural_science: `You are a Cambridge International ${level} Science tutor creating concept cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key Cambridge ${level} Science topics.
+
+For each card provide:
+- term_en: the scientific term or concept
+- term_af: in Afrikaans
+- definition_en: accurate Grade ${grade} Cambridge ${level} definition
+- definition_af: in Afrikaans
+- example_en: a real-world application or example (international context)
+- example_af: in Afrikaans
+- category: one of [biology, chemistry, physics]
+
+Return ONLY a valid JSON array. Cambridge curriculum, accurate science. Do NOT include any text outside the JSON array`,
+
+    social_sciences: (() => {
+      const isHistory = !strand || strand === 'history';
+      return `You are a Cambridge International ${level} ${isHistory ? 'History' : 'Geography'} tutor creating concept cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering Cambridge ${level} ${isHistory ? 'History' : 'Geography'} concepts.
+
+For each card provide:
+- term_en: the historical/geographical term or concept
+- term_af: in Afrikaans
+- definition_en: accurate Cambridge ${level} level explanation
+- definition_af: in Afrikaans
+- example_en: a relevant international example
+- example_af: in Afrikaans
+- category: "${strand || 'history'}"
+
+Return ONLY a valid JSON array. Cambridge curriculum. Do NOT include any text outside the JSON array`;
+    })(),
+  };
+
+  return subjects[subject_code] || '';
+}
+
+function buildIEBTutorPrompt(subject_code: string, grade: number, strand?: string): string {
+  const subjects: Record<string, string> = {
+    mathematics: `You are an IEB Mathematics tutor creating concept revision cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key IEB Grade ${grade} Maths concepts.
+
+For each card provide:
+- term_en: the key concept, theorem, or formula in English
+- term_af: in Afrikaans
+- definition_en: rigorous Grade ${grade} IEB-level explanation — include formula and rules
+- definition_af: in Afrikaans
+- example_en: a worked multi-step example (SA context where relevant)
+- example_af: in Afrikaans
+- category: one of [algebra, geometry, functions, statistics, financial]
+
+Return ONLY a valid JSON array. IEB standard — more rigorous than CAPS. South African context. Do NOT include any text outside the JSON array`,
+
+    english: `You are an IEB English Home Language tutor creating concept cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key IEB English skills.
+
+For each card:
+- term_en: the concept or literary/language term
+- term_af: in Afrikaans
+- definition_en: IEB-level explanation with examples
+- definition_af: in Afrikaans
+- example_en: example from South African literature or context where possible
+- example_af: in Afrikaans
+- category: one of [comprehension, grammar, vocabulary, literary_terms]
+
+Return ONLY a valid JSON array. IEB standard, SA context. Do NOT include any text outside the JSON array`,
+
+    afrikaans: `Jy is 'n IEB Afrikaans Huistaal-tutor wat konsepkaarte vir Graad ${grade} leerders skep.
+
+Genereer presies 10 konsepkaarte wat sleutel IEB Afrikaans-konsepte dek.
+
+Vir elke kaart:
+- term_en: Engelse term
+- term_af: Afrikaanse term of konsep
+- definition_en: Engelse verduideliking
+- definition_af: IEB-vlak Afrikaanse verduideliking met voorbeelde
+- example_en: Engelse voorbeeld
+- example_af: Voorbeeld uit SA Afrikaanse letterkunde of konteks
+- category: een van [begrip, taal, woordeskat, letterkunde]
+
+Gee SLEGS 'n geldige JSON-skikking terug. IEB-standaard, SA konteks. Geen teks buite die JSON nie`,
+
+    natural_science: `You are an IEB ${grade >= 10 ? 'Physical Sciences and Life Sciences' : 'Natural Sciences'} tutor creating concept cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key IEB science concepts for Grade ${grade}.
+
+For each card:
+- term_en: the scientific concept or formula
+- term_af: in Afrikaans
+- definition_en: rigorous IEB-level definition — include formulae and laws where applicable
+- definition_af: in Afrikaans
+- example_en: application example with South African context
+- example_af: in Afrikaans
+- category: one of [biology, chemistry, physics]
+
+Return ONLY a valid JSON array. IEB standard, SA context. Do NOT include any text outside the JSON array`,
+
+    social_sciences: (() => {
+      const isHistory = !strand || strand === 'history';
+      return `You are an IEB Social Sciences ${isHistory ? 'History' : 'Geography'} tutor creating concept cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key IEB ${isHistory ? 'History' : 'Geography'} concepts.
+
+For each card:
+- term_en: the historical/geographical concept, term, or law
+- term_af: in Afrikaans
+- definition_en: IEB-level analytical explanation — cause, effect, significance
+- definition_af: in Afrikaans
+- example_en: SA and/or global example with analytical depth
+- example_af: in Afrikaans
+- category: "${strand || 'history'}"
+
+Return ONLY a valid JSON array. IEB standard, SA context primary. Do NOT include any text outside the JSON array`;
+    })(),
+
+    life_orientation: `You are an IEB Life Orientation tutor creating concept cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key IEB LO topics.
+
+For each card:
+- term_en: the concept or law/right/principle
+- term_af: in Afrikaans
+- definition_en: IEB LO explanation with SA legal/social context
+- definition_af: in Afrikaans
+- example_en: SA scenario-based example
+- example_af: in Afrikaans
+- category: one of [personal, social, career, democracy, physical]
+
+Return ONLY a valid JSON array. IEB LO, SA context essential. Do NOT include any text outside the JSON array`,
+  };
+
+  return subjects[subject_code] || '';
+}
+
 // POST /api/subject-tests/generate — Generate AI test for any subject
 router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
-  const { subject_code, grade, language, strand } = req.body;
+  const { subject_code, grade, language, strand, curriculum } = req.body;
 
   if (!subject_code || !grade) {
     throw new AppError('subject_code and grade are required', 400);
+  }
+
+  const gradeNum = parseInt(grade);
+  const effectiveCurriculum = curriculum || 'caps';
+
+  // For Cambridge/IEB, validate subject is supported and build curriculum-specific prompt
+  if (effectiveCurriculum === 'cambridge') {
+    if (!CAMBRIDGE_SUBJECTS.has(subject_code)) {
+      throw new AppError(`${subject_code} is not available in the Cambridge curriculum. Supported subjects: Mathematics, English, Science, History, Geography.`, 400);
+    }
+  } else if (effectiveCurriculum === 'ieb') {
+    if (!IEB_SUBJECTS.has(subject_code)) {
+      throw new AppError(`${subject_code} is not available in the IEB curriculum. Supported subjects: Mathematics, English, Afrikaans, Science, History, Geography, Life Orientation.`, 400);
+    }
   }
 
   const config = SUBJECT_CONFIGS[subject_code];
@@ -717,8 +1193,7 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
     throw new AppError(`Unknown subject: ${subject_code}`, 400);
   }
 
-  const gradeNum = parseInt(grade);
-  if (!config.grades.includes(gradeNum)) {
+  if (effectiveCurriculum === 'caps' && !config.grades.includes(gradeNum)) {
     throw new AppError(`Grade ${grade} is not available for ${subject_code}`, 400);
   }
 
@@ -727,15 +1202,24 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
     throw new AppError('GEMINI_API_KEY not configured', 500);
   }
 
-  let strandPrompt = '';
-  if (strand && subject_code === 'natural_science') {
-    strandPrompt = buildNaturalScienceStrandPrompt(gradeNum, strand);
-  } else if (strand && subject_code === 'social_sciences') {
-    strandPrompt = buildSocialSciencesPrompt(gradeNum, strand);
-  } else if (subject_code === 'creative_arts') {
-    strandPrompt = buildCreativeArtsPrompt(gradeNum, strand || 'visual_arts');
+  let prompt = '';
+  if (effectiveCurriculum === 'cambridge') {
+    prompt = buildCambridgeTestPrompt(subject_code, gradeNum, strand);
+    if (!prompt) throw new AppError(`Cambridge prompt not available for ${subject_code}`, 400);
+  } else if (effectiveCurriculum === 'ieb') {
+    prompt = buildIEBTestPrompt(subject_code, gradeNum, strand);
+    if (!prompt) throw new AppError(`IEB prompt not available for ${subject_code}`, 400);
+  } else {
+    let strandPrompt = '';
+    if (strand && subject_code === 'natural_science') {
+      strandPrompt = buildNaturalScienceStrandPrompt(gradeNum, strand);
+    } else if (strand && subject_code === 'social_sciences') {
+      strandPrompt = buildSocialSciencesPrompt(gradeNum, strand);
+    } else if (subject_code === 'creative_arts') {
+      strandPrompt = buildCreativeArtsPrompt(gradeNum, strand || 'visual_arts');
+    }
+    prompt = strandPrompt || config.buildPrompt(gradeNum);
   }
-  const prompt = strandPrompt || config.buildPrompt(gradeNum);
 
   try {
     const geminiResponse = await callGemini(geminiKey, {
@@ -863,9 +1347,10 @@ Be STRICT. A child who reads both languages should never get a different answer 
       visual_arts: 'Visual Arts', music: 'Music', drama: 'Drama', dance: 'Dance',
     };
     const strandSuffix = strand && strandLabels[strand] ? ` — ${strandLabels[strand]}` : '';
+    const curriculumPrefix = effectiveCurriculum !== 'caps' ? `${effectiveCurriculum.toUpperCase()} ` : '';
     const templateName = lang === 'af'
-      ? `${config.nameAf} Gr ${grade}${strandSuffix}`
-      : `${config.nameEn} Gr ${grade}${strandSuffix}`;
+      ? `${curriculumPrefix}${config.nameAf} Gr ${grade}${strandSuffix}`
+      : `${curriculumPrefix}${config.nameEn} Gr ${grade}${strandSuffix}`;
 
     const template = await prisma.math_test_templates.create({
       data: {
@@ -1066,6 +1551,7 @@ router.post('/mock', optionalAuth, async (req: AuthRequest, res: Response) => {
   if (!geminiKey) throw new AppError('GEMINI_API_KEY not configured', 500);
 
   const lang = language || 'en';
+  const optionsLang = lang === 'afrikaans' ? 'Afrikaans' : 'English';
   const qCount = effectiveScope ? Math.min(Math.max(effectiveScope.length * 4, 12), 30) : 30;
   const timeLimitSec = qCount * 90;
 
@@ -1083,7 +1569,8 @@ Each question must:
 - Be appropriate for Grade ${gradeNum} South African CAPS curriculum
 - Have exactly 4 options labeled (A), (B), (C), (D)
 - Have exactly ONE correct answer
-- Be in BOTH English AND Afrikaans
+- question_en = English version, question_af = Afrikaans version
+- ALL answer options (A), (B), (C), (D) must be written in ${optionsLang} ONLY
 - Have a "scope_topic" field that is an EXACT copy of one topic name from the scope list above
 
 Return ONLY a valid JSON array:
@@ -1114,7 +1601,8 @@ Each question must:
 - Be appropriate for Grade ${gradeNum} South African CAPS curriculum
 - Have exactly 4 options labeled (A), (B), (C), (D)
 - Have exactly ONE correct answer
-- Be in BOTH English AND Afrikaans
+- question_en = English version, question_af = Afrikaans version
+- ALL answer options (A), (B), (C), (D) must be written in ${optionsLang} ONLY
 - Cover a broad range of CAPS topics for this subject and grade
 
 Return ONLY a valid JSON array:
@@ -1217,22 +1705,33 @@ const NATIVE_LANG_NAMES: Record<string, string> = {
 
 // POST /api/subject-tests/tutor — Generate concept cards for any subject (tutoring mode)
 router.post('/tutor', optionalAuth, async (req: AuthRequest, res: Response) => {
-  const { subject_code, grade, strand, native_language } = req.body;
+  const { subject_code, grade, strand, native_language, curriculum } = req.body;
 
   if (!subject_code || !grade) throw new AppError('subject_code and grade are required', 400);
+
+  const gradeNum = parseInt(grade);
+  const effectiveCurriculum = curriculum || 'caps';
 
   const config = SUBJECT_CONFIGS[subject_code];
   if (!config) throw new AppError(`Unknown subject: ${subject_code}`, 400);
 
-  const gradeNum = parseInt(grade);
-  if (!config.grades.includes(gradeNum)) {
+  if (effectiveCurriculum === 'caps' && !config.grades.includes(gradeNum)) {
     throw new AppError(`Grade ${grade} is not available for ${subject_code}`, 400);
   }
 
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) throw new AppError('GEMINI_API_KEY not configured', 500);
 
-  const basePrompt = buildTutorPrompt(subject_code, gradeNum, strand);
+  let basePrompt = '';
+  if (effectiveCurriculum === 'cambridge') {
+    basePrompt = buildCambridgeTutorPrompt(subject_code, gradeNum, strand);
+    if (!basePrompt) throw new AppError(`Cambridge tutor not available for ${subject_code}`, 400);
+  } else if (effectiveCurriculum === 'ieb') {
+    basePrompt = buildIEBTutorPrompt(subject_code, gradeNum, strand);
+    if (!basePrompt) throw new AppError(`IEB tutor not available for ${subject_code}`, 400);
+  } else {
+    basePrompt = buildTutorPrompt(subject_code, gradeNum, strand);
+  }
   const nativeName = native_language ? NATIVE_LANG_NAMES[native_language] : null;
   const prompt = nativeName
     ? basePrompt + `\n\nADDITIONAL REQUIREMENT — MOTHER TONGUE EDUCATION:

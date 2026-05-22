@@ -1,0 +1,67 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#fef9c3"/>
+  <!-- Hexagon -->
+  <polygon points="151,75 361,75 466,256 361,437 151,437 46,256"
+    fill="#f59e0b" stroke="#1c1917" stroke-width="22" stroke-linejoin="round"/>
+
+  <!-- Honeycomb cells cluster (7 cells) -->
+  <!-- Cell helper: flat-top hex, r=36 -->
+  <!-- Center: (256,220) -->
+  <polygon points="292,220 274,251 238,251 220,220 238,189 274,189" fill="none" stroke="#1c1917" stroke-width="4.5"/>
+  <!-- Right: (328,220) -->
+  <polygon points="364,220 346,251 310,251 292,220 310,189 346,189" fill="none" stroke="#1c1917" stroke-width="4.5"/>
+  <!-- Upper-right: (274,158) -->
+  <polygon points="310,158 292,189 256,189 238,158 256,127 292,127" fill="none" stroke="#1c1917" stroke-width="4.5"/>
+  <!-- Upper-left: (202,158) -->
+  <polygon points="238,158 220,189 184,189 166,158 184,127 220,127" fill="none" stroke="#1c1917" stroke-width="4.5"/>
+  <!-- Left: (184,220) -->
+  <polygon points="220,220 202,251 166,251 148,220 166,189 202,189" fill="none" stroke="#1c1917" stroke-width="4.5"/>
+  <!-- Lower-left: (202,282) -->
+  <polygon points="238,282 220,313 184,313 166,282 184,251 220,251" fill="none" stroke="#1c1917" stroke-width="4.5"/>
+  <!-- Lower-right: (274,282) -->
+  <polygon points="310,282 292,313 256,313 238,282 256,251 292,251" fill="none" stroke="#1c1917" stroke-width="4.5"/>
+
+  <!-- Bee 1 — upper right (smaller, simplified) -->
+  <g transform="translate(340,148) rotate(25) scale(0.52)">
+    <!-- Antennae -->
+    <path d="M-12,-65 Q-28,-95 -38,-110" fill="none" stroke="#1c1917" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="-40" cy="-113" r="9" fill="#1c1917"/>
+    <path d="M12,-65 Q28,-95 38,-110" fill="none" stroke="#1c1917" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="40" cy="-113" r="9" fill="#1c1917"/>
+    <!-- Head -->
+    <circle cx="0" cy="-55" r="18" fill="#f59e0b" stroke="#1c1917" stroke-width="5"/>
+    <!-- Wings -->
+    <ellipse cx="-82" cy="-20" rx="82" ry="38" fill="#f59e0b" stroke="#1c1917" stroke-width="4.5" transform="rotate(-25 -82 -20)"/>
+    <ellipse cx="82" cy="-20" rx="82" ry="38" fill="#f59e0b" stroke="#1c1917" stroke-width="4.5" transform="rotate(25 82 -20)"/>
+    <!-- Thorax -->
+    <circle cx="0" cy="-10" r="30" fill="#f59e0b" stroke="#1c1917" stroke-width="5"/>
+    <!-- Abdomen -->
+    <ellipse cx="0" cy="65" rx="55" ry="68" fill="#f59e0b" stroke="#1c1917" stroke-width="5"/>
+    <rect x="-52" y="36" width="104" height="16" rx="8" fill="#1c1917"/>
+    <rect x="-46" y="62" width="92" height="16" rx="8" fill="#1c1917"/>
+    <!-- Stinger -->
+    <polygon points="-16,130 0,155 16,130" fill="#1c1917"/>
+  </g>
+
+  <!-- Bee 2 — lower left (smaller, simplified) -->
+  <g transform="translate(168,340) rotate(-25) scale(0.52)">
+    <!-- Antennae -->
+    <path d="M-12,-65 Q-28,-95 -38,-110" fill="none" stroke="#1c1917" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="-40" cy="-113" r="9" fill="#1c1917"/>
+    <path d="M12,-65 Q28,-95 38,-110" fill="none" stroke="#1c1917" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="40" cy="-113" r="9" fill="#1c1917"/>
+    <!-- Head -->
+    <circle cx="0" cy="-55" r="18" fill="#f59e0b" stroke="#1c1917" stroke-width="5"/>
+    <!-- Wings -->
+    <ellipse cx="-82" cy="-20" rx="82" ry="38" fill="#f59e0b" stroke="#1c1917" stroke-width="4.5" transform="rotate(-25 -82 -20)"/>
+    <ellipse cx="82" cy="-20" rx="82" ry="38" fill="#f59e0b" stroke="#1c1917" stroke-width="4.5" transform="rotate(25 82 -20)"/>
+    <!-- Thorax -->
+    <circle cx="0" cy="-10" r="30" fill="#f59e0b" stroke="#1c1917" stroke-width="5"/>
+    <!-- Abdomen -->
+    <ellipse cx="0" cy="65" rx="55" ry="68" fill="#f59e0b" stroke="#1c1917" stroke-width="5"/>
+    <rect x="-52" y="36" width="104" height="16" rx="8" fill="#1c1917"/>
+    <rect x="-46" y="62" width="92" height="16" rx="8" fill="#1c1917"/>
+    <!-- Stinger -->
+    <polygon points="-16,130 0,155 16,130" fill="#1c1917"/>
+  </g>
+</svg>

@@ -1,4 +1,5 @@
 {
+  "id": "bhTrending01",
   "name": "BeHivez - Content Trending Topics",
   "nodes": [
     {
@@ -17,55 +18,106 @@
     },
     {
       "parameters": {
-        "modelId": { "__rl": true, "value": "models/gemini-2.0-flash", "mode": "list" },
-        "messages": {
-          "values": [
-            {
-              "content": "You are a South African social media trends expert. List 5 topics currently trending or generating conversation in South Africa right now. Mix of politics, culture, business, and lifestyle. For each, give a short title (max 8 words) and a one-sentence description of why it's trending.\n\nReturn ONLY a JSON array, no markdown:\n[{\"title\": \"...\", \"description\": \"...\"}]"
-            }
-          ]
-        },
+        "url": "https://feeds.news24.com/articles/news24/TopStories/rss",
+        "options": { "response": { "response": { "responseFormat": "text" } } }
+      },
+      "id": "ct-rss1",
+      "name": "News24 Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://www.iol.co.za/cmlink/news-rss-1.640",
+        "options": { "response": { "response": { "responseFormat": "text" } } }
+      },
+      "id": "ct-rss2",
+      "name": "IOL Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine RSS feeds and extract headlines\nconst feeds = items.map(item => item.json.data || item.json.body || item.json);\nconst headlines = [];\n\nfor (const feed of feeds) {\n  const text = typeof feed === 'string' ? feed : JSON.stringify(feed);\n  // Extract titles from RSS XML\n  const titleMatches = text.match(/<title><!\\[CDATA\\[(.+?)\\]\\]><\\/title>/g) || text.match(/<title>(.+?)<\\/title>/g) || [];\n  for (const match of titleMatches) {\n    let title = match.replace(/<title><!\\[CDATA\\[/, '').replace(/\\]\\]><\\/title>/, '').replace(/<title>/, '').replace(/<\\/title>/, '').trim();\n    if (title && title.length > 10 && !title.includes('News24') && !title.includes('IOL') && !title.includes('RSS')) {\n      headlines.push(title);\n    }\n  }\n}\n\n// Take latest 20 headlines\nconst latest = headlines.slice(0, 20);\nreturn [{ json: { headlines: latest, headlineText: latest.join('\\n') } }];"
+      },
+      "id": "ct-combine",
+      "name": "Extract Headlines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "models/gemini-2.5-flash", "mode": "list", "cachedResultName": "models/gemini-2.5-flash" },
+        "text": "={{ 'You are a South African social media content strategist. Below are today\\'s REAL headlines from South African news sources.\\n\\nHEADLINES:\\n' + $json.headlineText + '\\n\\nFrom these headlines, pick the 5 most interesting, conversation-worthy topics for social media content. Mix serious and lighter topics. For each, give:\\n- A short catchy title (max 8 words, social-media style)\\n- A one-sentence description of why it matters\\n\\nReturn ONLY a valid JSON array, no markdown, no explanation:\\n[{\"title\": \"...\", \"description\": \"...\"}]' }}",
+        "simplifyOutput": true,
         "options": {
-          "temperature": 0.8
+          "temperature": 0.7
         }
       },
       "id": "ct-002",
-      "name": "Gemini - Get Trends",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1,
-      "position": [460, 300],
+      "name": "Gemini - Pick Trends",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [940, 300],
       "credentials": {
-        "googleGeminiApi": {
-          "id": "GEMINI_CREDENTIAL_ID",
-          "name": "Gemini API"
+        "googlePalmApi": {
+          "id": "7jOwccZ2rpWMt3vV",
+          "name": "Google Gemini(PaLM) Api account"
         }
       }
     },
     {
       "parameters": {
-        "functionCode": "let text = items[0].json.text || items[0].json.output || JSON.stringify(items[0].json);\n\n// Strip markdown code fences\ntext = text.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '').trim();\n\ntry {\n  const topics = JSON.parse(text);\n  return [{ json: { topics } }];\n} catch (e) {\n  return [{ json: { topics: [], error: 'Failed to parse trending topics' } }];\n}"
+        "jsCode": "const response = items[0].json;\nlet text = '';\n\nif (response.content && response.content.parts) {\n  text = String(response.content.parts[0].text || '');\n} else if (typeof response === 'string') {\n  text = response;\n} else if (response.text) {\n  text = String(response.text);\n} else {\n  text = JSON.stringify(response);\n}\n\ntext = text.trim();\n\n// Try to find JSON array\nconst start = text.indexOf('[');\nconst end = text.lastIndexOf(']');\nif (start >= 0 && end > start) {\n  try {\n    const topics = JSON.parse(text.substring(start, end + 1));\n    if (Array.isArray(topics)) return [{ json: { topics } }];\n  } catch(e) {}\n}\n\n// Fallback: parse numbered markdown list\nconst lines = text.split('\\n');\nconst topics = [];\nlet title = '';\nlet desc = '';\nfor (const line of lines) {\n  const m = line.match(/^\\d+\\.\\s+\\*\\*(.+?)\\*\\*/);\n  if (m) {\n    if (title) topics.push({ title, description: desc.trim() });\n    title = m[1];\n    desc = '';\n  } else if (title && line.trim()) {\n    desc += line.trim() + ' ';\n  }\n}\nif (title) topics.push({ title, description: desc.trim() });\n\nreturn [{ json: { topics } }];"
       },
       "id": "ct-003",
       "name": "Parse Response",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [680, 300]
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1180, 300]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json.topics) }}"
+        "responseBody": "={{ JSON.stringify($json.topics) }}",
+        "options": {}
       },
       "id": "ct-004",
       "name": "Response",
       "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1,
-      "position": [900, 300]
+      "typeVersion": 1.1,
+      "position": [1420, 300]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "output": "waitForAll",
+        "options": {}
+      },
+      "id": "ct-merge",
+      "name": "Merge Feeds",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [700, 300]
     }
   ],
   "connections": {
-    "Webhook": { "main": [[{ "node": "Gemini - Get Trends", "type": "main", "index": 0 }]] },
-    "Gemini - Get Trends": { "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]] },
+    "Webhook": {
+      "main": [
+        [
+          { "node": "News24 Feed", "type": "main", "index": 0 },
+          { "node": "IOL Feed", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "News24 Feed": { "main": [[{ "node": "Merge Feeds", "type": "main", "index": 0 }]] },
+    "IOL Feed": { "main": [[{ "node": "Merge Feeds", "type": "main", "index": 1 }]] },
+    "Merge Feeds": { "main": [[{ "node": "Extract Headlines", "type": "main", "index": 0 }]] },
+    "Extract Headlines": { "main": [[{ "node": "Gemini - Pick Trends", "type": "main", "index": 0 }]] },
+    "Gemini - Pick Trends": { "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]] },
     "Parse Response": { "main": [[{ "node": "Response", "type": "main", "index": 0 }]] }
   },
   "active": true,

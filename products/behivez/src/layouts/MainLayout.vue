@@ -3,7 +3,7 @@
     <q-header class="bg-white" style="border-bottom: 1px solid rgba(245,158,11,0.15);">
       <q-toolbar>
         <q-btn flat dense no-caps class="text-amber-9 q-mr-sm" @click="scrollTo('top')">
-          <q-icon name="hive" size="28px" class="q-mr-xs" />
+          <img src="/favicon.svg" style="height:34px;width:auto;" class="q-mr-xs" alt="BeHivez" />
           <span class="text-weight-bold text-h6">BeHivez</span>
         </q-btn>
         <q-space />

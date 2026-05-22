@@ -26,7 +26,11 @@
         <!-- Top: BeeGraded -->
         <a class="hex hex-satellite hex-pos-top" href="https://beegraded.co.za" target="_blank">
           <div class="hex-inner hex-live">
-            <q-icon name="grading" size="28px" color="amber-8" />
+            <!-- A+ circle badge — matches BeeGraded favicon -->
+            <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="24" r="20" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+              <text x="24" y="31" text-anchor="middle" font-size="18" font-weight="800" fill="#d97706" font-family="Arial,sans-serif">A+</text>
+            </svg>
             <div class="hex-title">BeeGraded</div>
             <q-badge color="green-8" class="hex-badge">Live</q-badge>
           </div>
@@ -35,7 +39,12 @@
         <!-- Top-Right: Pollenz -->
         <a class="hex hex-satellite hex-pos-tr" href="https://pollenz.co.za" target="_blank">
           <div class="hex-inner hex-live">
-            <q-icon name="account_balance_wallet" size="28px" color="amber-8" />
+            <!-- Money bag with R — matches Pollenz favicon -->
+            <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="30" r="13" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+              <rect x="19" y="15" width="10" height="8" rx="3" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+              <text x="24" y="35" text-anchor="middle" font-size="14" font-weight="800" fill="#d97706" font-family="Arial,sans-serif">R</text>
+            </svg>
             <div class="hex-title">Pollenz</div>
             <q-badge color="green-8" class="hex-badge">Live</q-badge>
           </div>
@@ -44,7 +53,14 @@
         <!-- Bottom-Right: Swarmz -->
         <a class="hex hex-satellite hex-pos-br" href="https://swarmz.co.za" target="_blank">
           <div class="hex-inner hex-live">
-            <q-icon name="local_shipping" size="28px" color="amber-8" />
+            <!-- Steering wheel — matches Swarmz favicon -->
+            <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="24" r="19" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+              <line x1="24" y1="24" x2="24" y2="8" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="24" y1="24" x2="37.9" y2="32" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="24" y1="24" x2="10.1" y2="32" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="24" cy="24" r="4" fill="#d97706"/>
+            </svg>
             <div class="hex-title">Swarmz</div>
             <q-badge color="green-8" class="hex-badge">Live</q-badge>
           </div>
@@ -53,7 +69,14 @@
         <!-- Bottom: Broodz -->
         <a class="hex hex-satellite hex-pos-bottom" href="https://broodz.co.za" target="_blank">
           <div class="hex-inner hex-live">
-            <q-icon name="person_search" size="28px" color="amber-8" />
+            <!-- Document with lines — matches Broodz favicon -->
+            <svg width="32" height="32" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 6 L30 6 L40 16 L40 44 L8 44 Z" fill="#fef3c7" stroke="#d97706" stroke-width="2.5" stroke-linejoin="round"/>
+              <path d="M30 6 L30 16 L40 16" fill="none" stroke="#d97706" stroke-width="2" stroke-linejoin="round"/>
+              <line x1="14" y1="23" x2="34" y2="23" stroke="#d97706" stroke-width="2" stroke-linecap="round"/>
+              <line x1="14" y1="30" x2="34" y2="30" stroke="#d97706" stroke-width="2" stroke-linecap="round"/>
+              <line x1="14" y1="37" x2="26" y2="37" stroke="#d97706" stroke-width="2" stroke-linecap="round"/>
+            </svg>
             <div class="hex-title">Broodz</div>
             <q-badge color="green-8" class="hex-badge">Live</q-badge>
           </div>
@@ -96,7 +119,7 @@
         <div v-for="product in products" :key="product.name" class="col-auto">
           <q-card class="product-card" flat bordered>
             <q-card-section class="text-center">
-              <q-icon :name="product.icon" size="48px" color="amber-8" />
+              <div v-html="product.svg" class="flex flex-center" />
               <div class="text-h5 text-weight-bold text-grey-9 q-mt-md">{{ product.name }}</div>
               <q-badge :color="product.live ? 'green-8' : 'blue-grey-7'" class="q-mt-sm">
                 {{ product.live ? 'Live' : 'Coming Soon' }}
@@ -169,7 +192,7 @@
 const products = [
   {
     name: 'BeeGraded',
-    icon: 'grading',
+    svg: `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="20" fill="#fef3c7" stroke="#d97706" stroke-width="3"/><text x="24" y="31" text-anchor="middle" font-size="18" font-weight="800" fill="#d97706" font-family="Arial,sans-serif">A+</text></svg>`,
     desc: 'AI-powered paper evaluation.<br>Upload a document, get a rubric-based report in minutes.',
     price: 'R20 per paper',
     live: true,
@@ -177,7 +200,7 @@ const products = [
   },
   {
     name: 'Pollenz',
-    icon: 'account_balance_wallet',
+    svg: `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="30" r="13" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/><rect x="19" y="15" width="10" height="8" rx="3" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/><text x="24" y="35" text-anchor="middle" font-size="14" font-weight="800" fill="#d97706" font-family="Arial,sans-serif">R</text></svg>`,
     desc: 'Income &amp; expense tracking for freelancers.<br>Auto-generate your SARS tax submission pack.',
     price: 'Pricing TBA',
     live: true,
@@ -185,7 +208,7 @@ const products = [
   },
   {
     name: 'Swarmz',
-    icon: 'local_shipping',
+    svg: `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="24" cy="24" r="19" fill="#fef3c7" stroke="#d97706" stroke-width="3"/><line x1="24" y1="24" x2="24" y2="8" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="24" x2="37.9" y2="32" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="24" x2="10.1" y2="32" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/><circle cx="24" cy="24" r="4" fill="#d97706"/></svg>`,
     desc: 'Fleet operations management.<br>Track vehicles, bookings, maintenance and costs in one place.',
     price: 'Pricing TBA',
     live: true,
@@ -193,8 +216,8 @@ const products = [
   },
   {
     name: 'Broodz',
-    icon: 'person_search',
-    desc: 'Recruitment made simple.<br>Post jobs, screen candidates, hire the right people.',
+    svg: `<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 6 L30 6 L40 16 L40 44 L8 44 Z" fill="#fef3c7" stroke="#d97706" stroke-width="2.5" stroke-linejoin="round"/><path d="M30 6 L30 16 L40 16" fill="none" stroke="#d97706" stroke-width="2" stroke-linejoin="round"/><line x1="14" y1="23" x2="34" y2="23" stroke="#d97706" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="30" x2="34" y2="30" stroke="#d97706" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="37" x2="26" y2="37" stroke="#d97706" stroke-width="2" stroke-linecap="round"/></svg>`,
+    desc: 'South African talent marketplace.<br>Artists showcase services, build galleries, get discovered.',
     price: 'Pricing TBA',
     live: true,
     url: 'https://broodz.co.za',

@@ -4,7 +4,7 @@
       <q-toolbar>
         <q-btn flat dense round icon="menu" @click="drawer = !drawer" />
         <q-btn flat dense no-caps to="/" class="q-ml-sm" :style="{ color: accentColor }">
-          <q-icon name="storefront" size="24px" class="q-mr-xs" />
+          <img src="/favicon.svg" style="height:34px;width:auto;" class="q-mr-xs" alt="Broodz" />
           <span class="text-weight-bold">Broodz</span>
         </q-btn>
 

@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
-// @ts-expect-error — pdf-parse@1.1.1 has no types
+// @ts-ignore — pdf-parse v2 typing mismatch
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth.js';
@@ -19,9 +19,11 @@ async function getOrCreateLocalUser(prisma: PrismaClient, req: AuthRequest) {
     user = await prisma.users.create({
       data: {
         email: req.userEmail,
-        name: null,
+        name: req.userName || null,
       },
     });
+  } else if (!user.name && req.userName) {
+    user = await prisma.users.update({ where: { id: user.id }, data: { name: req.userName } });
   }
   return user;
 }
@@ -51,6 +53,7 @@ function getPrisma(req: AuthRequest): PrismaClient {
 // Extract text from uploaded file buffer
 async function extractText(buffer: Buffer, mimetype: string): Promise<{ text: string; pageCount: number }> {
   if (mimetype === 'application/pdf') {
+    // @ts-ignore — pdf-parse v2 API
     const result = await pdfParse(buffer);
     return { text: result.text, pageCount: result.numpages };
   }

@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
-// @ts-expect-error — pdf-parse@1.1.1 has no types
+// @ts-ignore — pdf-parse v2 typing mismatch
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import { AuthRequest } from '../middleware/auth.js';
@@ -19,6 +19,7 @@ function getPrisma(req: AuthRequest): PrismaClient {
 
 async function extractText(buffer: Buffer, mimetype: string): Promise<string> {
   if (mimetype === 'application/pdf') {
+    // @ts-ignore — pdf-parse v2 API
     return (await pdfParse(buffer)).text;
   }
   return (await mammoth.extractRawText({ buffer })).value;

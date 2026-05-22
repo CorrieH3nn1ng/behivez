@@ -3,12 +3,17 @@ import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import { AuthRequest } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { buildPayFastFields } from './payments.js';
 
 const router = Router();
 
 function getPrisma(req: AuthRequest): PrismaClient {
   return req.app.locals.prisma;
 }
+
+const PAYFAST_URL = process.env.PAYFAST_URL || 'https://www.payfast.co.za/eng/process';
+const BASE_URL = process.env.BASE_URL || 'https://beegraded.co.za';
+const TOKEN_PRICE = 25;
 
 // GET /api/tokens/validate?code=XXX — validate a token code
 router.get('/validate', async (req: AuthRequest, res: Response) => {
@@ -18,6 +23,11 @@ router.get('/validate', async (req: AuthRequest, res: Response) => {
 
   const token = await prisma.tokens.findUnique({ where: { code } });
   if (!token) throw new AppError('Token not found', 404);
+
+  // Reject tokens still awaiting payment
+  if (token.status === 'pending_payment') {
+    throw new AppError('Token payment not yet confirmed', 402);
+  }
 
   // Get rubric if linked
   let rubric = null;
@@ -70,7 +80,7 @@ router.get('/user', async (req: AuthRequest, res: Response) => {
   res.json(tokens);
 });
 
-// POST /api/tokens/purchase — create a new token
+// POST /api/tokens/purchase — create a new token (free or PayFast)
 router.post('/purchase', async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
   const { email, coupon_code } = req.body;
@@ -94,24 +104,58 @@ router.post('/purchase', async (req: AuthRequest, res: Response) => {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
 
+  const finalPrice = discount === 100 ? 0 : Math.round(TOKEN_PRICE * (1 - discount / 100));
+  const isFree = finalPrice === 0;
+
   const token = await prisma.tokens.create({
     data: {
       code,
       email: email.toLowerCase(),
-      status: 'active',
+      status: isFree ? 'active' : 'pending_payment',
       tier: 'token',
-      price_paid: discount === 100 ? 0 : 25,
+      price_paid: finalPrice,
       coupon_code: coupon_code || null,
       expires_at: expiresAt,
     },
   });
 
-  if (discount === 100) {
+  if (isFree) {
     res.json({ token_code: code, free: true });
-  } else {
-    // Return token code — payment handled separately via PayFast
-    res.json({ token_code: code, free: false });
+    return;
   }
+
+  // Generate PayFast form for paid purchase
+  const paymentId = `BG-TK-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`;
+
+  await prisma.payments.create({
+    data: {
+      paper_id: null,
+      amount: finalPrice,
+      status: 'pending',
+      provider: 'payfast',
+      provider_ref: paymentId,
+    },
+  });
+
+  const fields = buildPayFastFields({
+    paymentId,
+    amount: `${finalPrice}.00`,
+    email: email.toLowerCase(),
+    name: 'Student',
+    itemName: 'BeeGraded Evaluation Token',
+    itemDescription: `Token ${code} — Rubric + Draft + Final + Comparison`,
+    returnUrl: `${BASE_URL}/#/thank-you?token_code=${code}&m_payment_id=${paymentId}`,
+    cancelUrl: `${BASE_URL}/#/cancel`,
+    notifyUrl: `${BASE_URL}/api/payments/notify`,
+    customStr1: code, // Token code — used by ITN to activate
+  });
+
+  res.json({
+    token_code: code,
+    free: false,
+    fields,
+    payfast_url: PAYFAST_URL,
+  });
 });
 
 export default router;

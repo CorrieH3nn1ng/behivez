@@ -105,6 +105,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       age: calculateAge(k.birthdate),
       grade: k.grade,
       language: k.language,
+      curriculum: (k as any).curriculum || 'caps',
       play_slug: k.play_slug,
       play_url: `/#/play/${k.play_slug}`,
       subjects: k.subjects.map(s => ({
@@ -126,7 +127,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 // POST /api/children — Add a child
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
-  const { name, birthdate, grade, language } = req.body;
+  const { name, birthdate, grade, language, curriculum } = req.body;
 
   if (!name || !birthdate || !grade) {
     throw new AppError('name, birthdate, and grade are required', 400);
@@ -160,6 +161,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       age,
       grade: parseInt(grade),
       language: language || 'af',
+      curriculum: ['caps', 'cambridge', 'ieb'].includes(curriculum) ? curriculum : 'caps',
       play_slug: playSlug,
     },
   });
@@ -214,7 +216,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 router.patch('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
   const childId = parseInt(req.params.id);
-  const { name, grade, language } = req.body;
+  const { name, grade, language, curriculum } = req.body;
 
   // Verify ownership
   const child = await prisma.children.findFirst({
@@ -222,12 +224,14 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   });
   if (!child) throw new AppError('Child not found', 404);
 
+  const validCurricula = ['caps', 'cambridge', 'ieb'];
   const updated = await prisma.children.update({
     where: { id: childId },
     data: {
       ...(name ? { name } : {}),
       ...(grade ? { grade: parseInt(grade) } : {}),
       ...(language ? { language } : {}),
+      ...(curriculum && validCurricula.includes(curriculum) ? { curriculum } : {}),
     },
   });
 
@@ -236,6 +240,7 @@ router.patch('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     name: updated.name,
     grade: updated.grade,
     language: updated.language,
+    curriculum: (updated as any).curriculum || 'caps',
     play_slug: updated.play_slug,
     play_url: `/#/play/${updated.play_slug}`,
   });

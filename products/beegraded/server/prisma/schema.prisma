@@ -47,7 +47,7 @@ model rubrics {
   confirmed         Boolean  @default(false)
   programme         String?
   module_name       String?
-  nqf_level         String?
+  nqf_level         Int?
   assessment_type   String?
   total_marks       Int?
   created_at        DateTime @default(now())
@@ -188,6 +188,7 @@ model children {
   age            Int?
   grade          Int       // 1-12
   language       String    @default("af") // "af", "en", "tn", etc.
+  curriculum     String    @default("caps") // "caps", "cambridge", "ieb"
   play_slug      String    @unique // e.g. "niel-20160415" — magic link identifier
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt

@@ -710,7 +710,12 @@ router.get('/:id/attempt/:attemptId', async (req: AuthRequest, res: Response) =>
       name: attempt.template.name,
       grade: attempt.template.grade,
       language: attempt.template.language,
+      subject_code: attempt.template.subject_code,
       type: isProblemSolvingAttempt ? 'problem_solving' : 'speed',
+      // Include full questions for mock assessment result analysis
+      questions: attempt.template.subject_code === 'mock_assessment'
+        ? attempt.template.questions_json
+        : undefined,
     },
   });
 });

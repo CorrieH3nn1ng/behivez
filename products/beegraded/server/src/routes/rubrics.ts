@@ -27,7 +27,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
       confirmed: false,
       programme: parsed.programme || null,
       module_name: parsed.module_name || null,
-      nqf_level: parsed.nqf_level ? String(parsed.nqf_level) : null,
+      nqf_level: parsed.nqf_level ? Number(parsed.nqf_level) : null,
       assessment_type: parsed.assessment_type || null,
       total_marks: parsed.total_marks || null,
     },

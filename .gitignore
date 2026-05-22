@@ -57,3 +57,13 @@ redeploy_*.py
 
 # All Python scripts (paramiko deploy/fix scripts with server credentials)
 *.py
+
+# Debug/temp output files
+*.txt
+!README.txt
+
+# Test images / scanned docs
+*.jpeg
+*.jpg
+!products/**/public/**/*.jpg
+!products/**/src/**/*.jpg

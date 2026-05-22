@@ -3,7 +3,11 @@
     <q-header elevated class="bg-primary text-white">
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleDrawer" />
-        <q-toolbar-title>{{ authStore.user?.fleetName || 'Swarmz' }}</q-toolbar-title>
+        <q-btn flat dense no-caps to="/" class="q-mr-sm text-white">
+          <img src="/favicon.svg" style="height:34px;width:auto;" class="q-mr-xs" alt="Swarmz" />
+          <span class="text-weight-bold">{{ authStore.user?.fleetName || 'Swarmz' }}</span>
+        </q-btn>
+        <q-space />
         <q-btn flat round icon="person" @click="$router.push('/profile')" />
       </q-toolbar>
     </q-header>

@@ -3,7 +3,7 @@
     <q-header class="bg-dark text-white" bordered>
       <q-toolbar>
         <q-btn flat dense no-caps to="/" class="text-amber q-mr-sm">
-          <q-icon name="hive" size="28px" class="q-mr-xs" />
+          <img src="/favicon.svg" style="height:34px;width:auto;" class="q-mr-xs" alt="BeeGraded" />
           <span class="text-weight-bold text-h6">BeeGraded</span>
         </q-btn>
 
@@ -14,6 +14,10 @@
           {{ couponStore.discount_percent === 100 ? 'Free' : `${couponStore.discount_percent}% off` }}
         </q-badge>
 
+        <q-btn v-if="isAdmin" flat dense no-caps to="/workspace/admin" color="red-4" class="q-mr-sm">
+          <q-icon name="admin_panel_settings" size="18px" class="q-mr-xs" />
+          <span class="gt-xs">Admin</span>
+        </q-btn>
         <q-btn flat dense no-caps to="/workspace/children" color="amber" class="q-mr-sm">
           <q-icon name="family_restroom" size="18px" class="q-mr-xs" />
           <span>{{ lang === 'af' ? 'My Kinders' : 'My Children' }}</span>
@@ -21,6 +25,10 @@
         <q-btn flat dense no-caps to="/workspace/papers" class="q-mr-sm">
           <q-icon name="description" size="18px" class="q-mr-xs" />
           <span class="gt-xs">{{ lang === 'af' ? 'Werkruimte' : 'Papers' }}</span>
+        </q-btn>
+        <q-btn flat dense no-caps to="/workspace/mock" class="q-mr-sm" color="amber-4">
+          <q-icon name="quiz" size="18px" class="q-mr-xs" />
+          <span class="gt-xs">{{ lang === 'af' ? 'Proefsitting' : 'Mock Test' }}</span>
         </q-btn>
         <q-btn flat dense no-caps class="btn-bee q-ml-sm" @click="handleNewEvaluation">
           {{ lang === 'af' ? 'Nuwe Evaluering' : 'New Evaluation' }}
@@ -41,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useAuthStore } from 'src/stores/auth'
 import { useCouponStore } from 'src/stores/coupon'
 import { useRouter } from 'vue-router'
@@ -49,6 +58,7 @@ import { useI18n } from 'src/i18n'
 
 const { lang } = useI18n()
 const authStore = useAuthStore()
+const isAdmin = computed(() => authStore.user?.role === 'OWNER' || authStore.user?.role === 'ADMIN')
 const couponStore = useCouponStore()
 const router = useRouter()
 const evalSession = useEvalSessionStore()

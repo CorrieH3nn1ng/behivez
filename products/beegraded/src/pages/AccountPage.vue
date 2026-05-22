@@ -67,7 +67,7 @@
           style="border-color: #f5f0e8; border-radius: 8px;"
         >
           <div class="text-weight-bold q-mb-sm">{{ child.name }}</div>
-          <div class="row q-gutter-sm">
+          <div class="row q-gutter-sm q-mb-sm">
             <q-select
               v-model="child.grade"
               outlined dense
@@ -85,6 +85,19 @@
               emit-value map-options
               class="col"
               @update:model-value="updateChild(child)"
+            />
+          </div>
+          <div class="row q-gutter-xs">
+            <q-btn
+              v-for="c in curriculumOptions"
+              :key="c.value"
+              no-caps dense
+              :outline="child.curriculum !== c.value"
+              :color="child.curriculum === c.value ? c.color : 'grey-6'"
+              size="sm"
+              :label="c.label"
+              class="col"
+              @click="child.curriculum = c.value; updateChild(child)"
             />
           </div>
           <div v-if="child.saved" class="text-caption text-positive q-mt-xs">
@@ -141,8 +154,32 @@
           to="/workspace/braille" />
       </q-card>
 
+      <!-- Generate for child selector -->
+      <q-card v-if="children.length > 0" flat class="bee-card q-pa-md q-mb-md" style="background: #fef9ee;">
+        <div class="row items-center q-gutter-sm">
+          <q-icon name="child_care" color="amber-8" size="20px" />
+          <div class="text-body2 text-weight-bold" style="color: #78350f;">
+            {{ lang === 'af' ? 'Genereer vir:' : 'Generate for:' }}
+          </div>
+          <q-select
+            v-model="activeChildId"
+            dense outlined
+            :options="[{ label: lang === 'af' ? '— Geen kind —' : '— No child —', value: null }, ...children.map(c => ({ label: c.name, value: c.id }))]"
+            emit-value map-options
+            style="min-width: 160px;"
+            @update:model-value="onActiveChildChange"
+          />
+          <q-badge v-if="activeCurriculum !== 'caps'" :color="activeCurriculum === 'cambridge' ? 'indigo' : 'deep-orange'" class="q-pa-xs">
+            {{ activeCurriculum === 'cambridge' ? 'Cambridge' : 'IEB' }}
+          </q-badge>
+        </div>
+        <div v-if="activeChildId && activeCurriculum !== 'caps'" class="text-caption text-blue-7 q-mt-xs q-ml-lg">
+          {{ activeCurriculum === 'cambridge' ? 'Cambridge curriculum — Maths, English, Science, History, Geography only' : 'IEB curriculum — Maths, English, Afrikaans, Science, History, Geography, Life Orientation only' }}
+        </div>
+      </q-card>
+
       <!-- Science: Life Skills Gr 1-3 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md">
+      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="child_care" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Lewensvaardighede (Gr 1–3)' : 'Life Skills — Beginning Knowledge (Gr 1–3)' }}
@@ -220,7 +257,7 @@
         <div class="row q-gutter-sm">
           <q-btn outline color="amber-8" no-caps icon="school"
             :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
-            :to="`/workspace/science/natural_science/${scienceGrade}`" />
+            :to="{ path: `/workspace/science/natural_science/${scienceGrade}`, query: activeCurriculum !== 'caps' ? { curriculum: activeCurriculum } : {} }" />
           <q-btn class="btn-bee" no-caps icon="play_arrow"
             :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
             :loading="generatingScience"
@@ -252,7 +289,7 @@
         <div class="row q-gutter-sm">
           <q-btn outline color="amber-8" no-caps icon="school"
             :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
-            :to="`/workspace/science/mathematics/${mathSubjectGrade}`" />
+            :to="{ path: `/workspace/science/mathematics/${mathSubjectGrade}`, query: activeCurriculum !== 'caps' ? { curriculum: activeCurriculum } : {} }" />
           <q-btn class="btn-bee" no-caps icon="play_arrow"
             :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
             :loading="generatingMath"
@@ -261,7 +298,7 @@
       </q-card>
 
       <!-- Life Orientation Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md">
+      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum === 'cambridge' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="self_improvement" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Lewensoriëntering (Gr 4–9)' : 'Life Orientation (Gr 4–9)' }}
@@ -284,7 +321,7 @@
         <div class="row q-gutter-sm">
           <q-btn outline color="amber-8" no-caps icon="school"
             :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
-            :to="`/workspace/science/life_orientation/${loGrade}`" />
+            :to="{ path: `/workspace/science/life_orientation/${loGrade}`, query: activeCurriculum !== 'caps' ? { curriculum: activeCurriculum } : {} }" />
           <q-btn class="btn-bee" no-caps icon="play_arrow"
             :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
             :loading="generatingLO"
@@ -326,7 +363,7 @@
         <div class="row q-gutter-sm">
           <q-btn outline color="amber-8" no-caps icon="school"
             :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
-            :to="`/workspace/science/social_sciences/${socialGrade}`" />
+            :to="{ path: `/workspace/science/social_sciences/${socialGrade}`, query: activeCurriculum !== 'caps' ? { curriculum: activeCurriculum } : {} }" />
           <q-btn class="btn-bee" no-caps icon="play_arrow"
             :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
             :loading="generatingSocial"
@@ -335,7 +372,7 @@
       </q-card>
 
       <!-- EMS Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md">
+      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="account_balance" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'EBW (Gr 4–9)' : 'EMS (Gr 4–9)' }}
@@ -367,7 +404,7 @@
       </q-card>
 
       <!-- Technology Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md">
+      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="engineering" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Tegnologie (Gr 4–9)' : 'Technology (Gr 4–9)' }}
@@ -399,7 +436,7 @@
       </q-card>
 
       <!-- Creative Arts Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md">
+      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="palette" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Skeppende Kunste (Gr 4–9)' : 'Creative Arts (Gr 4–9)' }}
@@ -527,6 +564,27 @@ const loadingProfile = ref(true)
 // Language
 const selectedLang = ref('af')
 const savingLang = ref('')
+
+// Curriculum
+const activeChildId = ref<number | null>(null)
+const activeCurriculum = ref('caps')
+const curriculumOptions = [
+  { label: 'CAPS', value: 'caps', color: 'amber-8' },
+  { label: 'Cambridge', value: 'cambridge', color: 'indigo' },
+  { label: 'IEB', value: 'ieb', color: 'deep-orange' },
+]
+function onActiveChildChange(childId: number | null) {
+  if (!childId) { activeCurriculum.value = 'caps'; return }
+  const child = children.value.find((c: any) => c.id === childId)
+  if (child) {
+    activeCurriculum.value = child.curriculum || 'caps'
+    // Auto-fill grades from child
+    const g = child.grade
+    if (g >= 1 && g <= 3) lifeSkillsGrade.value = g
+    if (g >= 4 && g <= 9) { scienceGrade.value = g; loGrade.value = g; socialGrade.value = g; emsGrade.value = g; techGrade.value = g; artsGrade.value = g }
+    if (g >= 7 && g <= 9) mathSubjectGrade.value = g
+  }
+}
 const languageOptions = [
   { label: 'Afrikaans', value: 'af' },
   { label: 'English', value: 'en' },
@@ -640,9 +698,11 @@ async function setPreferredLanguage(newLang: string) {
 
 async function updateChild(child: any) {
   try {
-    await updateChildApi(child.id, { grade: child.grade, language: child.language })
+    await updateChildApi(child.id, { grade: child.grade, language: child.language, curriculum: child.curriculum || 'caps' })
     child.saved = true
     setTimeout(() => { child.saved = false }, 2000)
+    // If this is the active child, update the active curriculum
+    if (activeChildId.value === child.id) activeCurriculum.value = child.curriculum || 'caps'
   } catch {
     Notify.create({ type: 'negative', message: lang.value === 'af' ? 'Kon nie opdateer nie' : 'Could not update' })
   }
@@ -670,6 +730,7 @@ async function generateLifeSkillsTest() {
       subject_code: 'life_skills',
       grade: lifeSkillsGrade.value,
       language: lang.value,
+      curriculum: activeCurriculum.value,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
   } catch (err: any) {
@@ -687,6 +748,7 @@ async function generateScienceTest() {
       subject_code: 'natural_science',
       grade: scienceGrade.value,
       language: lang.value,
+      curriculum: activeCurriculum.value,
       ...(scienceStrand.value ? { strand: scienceStrand.value } : {}),
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
@@ -705,6 +767,7 @@ async function generateMathSubjectTest() {
       subject_code: 'mathematics',
       grade: mathSubjectGrade.value,
       language: lang.value,
+      curriculum: activeCurriculum.value,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
   } catch (err: any) {
@@ -722,6 +785,7 @@ async function generateLOTest() {
       subject_code: 'life_orientation',
       grade: loGrade.value,
       language: lang.value,
+      curriculum: activeCurriculum.value,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
   } catch (err: any) {
@@ -740,6 +804,7 @@ async function generateSocialTest() {
       grade: socialGrade.value,
       language: lang.value,
       strand: socialStrand.value,
+      curriculum: activeCurriculum.value,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
   } catch (err: any) {
@@ -829,7 +894,7 @@ onMounted(async () => {
   // Load children
   try {
     const data = await listChildren()
-    children.value = (data.children || []).map((c: any) => ({ ...c, saved: false }))
+    children.value = (data.children || []).map((c: any) => ({ ...c, curriculum: c.curriculum || 'caps', saved: false }))
   } catch { /* no children yet */ }
 })
 </script>

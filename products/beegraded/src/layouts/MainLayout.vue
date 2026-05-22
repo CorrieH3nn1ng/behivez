@@ -3,7 +3,7 @@
     <q-header class="bg-dark text-white" bordered>
       <q-toolbar>
         <q-btn flat dense no-caps to="/" class="text-amber q-mr-sm">
-          <q-icon name="hive" size="28px" class="q-mr-xs" />
+          <img src="/favicon.svg" style="height:34px;width:auto;" class="q-mr-xs" alt="BeeGraded" />
           <span class="text-weight-bold text-h6">BeeGraded</span>
         </q-btn>
 

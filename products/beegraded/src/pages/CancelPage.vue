@@ -7,7 +7,7 @@
         No worries — your paper is still saved. You can try again anytime.
       </p>
       <div class="row q-gutter-md justify-center">
-        <q-btn class="btn-bee" no-caps label="Try Again" to="/upload" icon="refresh" />
+        <q-btn class="btn-bee" no-caps label="Try Again" to="/buy-token" icon="refresh" />
         <q-btn outline no-caps color="grey-7" label="Go Home" to="/" />
       </div>
     </q-card>

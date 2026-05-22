@@ -238,6 +238,7 @@ const { lang } = useI18n()
 
 const grade = computed(() => Number(route.params.grade) || 7)
 const subjectCode = computed(() => (route.params.subject as string) || 'natural_science')
+const curriculum = computed(() => (route.query.curriculum as string) || 'caps')
 
 const subjectLabel = computed(() => {
   const labels: Record<string, { en: string; af: string }> = {
@@ -465,6 +466,7 @@ async function generateLesson() {
       grade: grade.value,
       strand: selectedStrand.value === 'all' ? undefined : selectedStrand.value,
       native_language: nativeLang.value || undefined,
+      curriculum: curriculum.value !== 'caps' ? curriculum.value : undefined,
     })
     concepts.value = data.concepts
   } catch (err: any) {

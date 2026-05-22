@@ -1,0 +1,40 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#fef9c3"/>
+  <!-- Hexagon -->
+  <polygon points="151,75 361,75 466,256 361,437 151,437 46,256"
+    fill="#f59e0b" stroke="#1c1917" stroke-width="22" stroke-linejoin="round"/>
+  <!-- Antennae -->
+  <path d="M247,165 Q222,130 204,108" fill="none" stroke="#1c1917" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="201" cy="105" r="10" fill="#1c1917"/>
+  <path d="M271,165 Q296,130 314,108" fill="none" stroke="#1c1917" stroke-width="5.5" stroke-linecap="round"/>
+  <circle cx="317" cy="105" r="10" fill="#1c1917"/>
+  <!-- Head -->
+  <circle cx="259" cy="173" r="21" fill="#f59e0b" stroke="#1c1917" stroke-width="4.5"/>
+  <!-- Upper wings -->
+  <ellipse cx="175" cy="187" rx="95" ry="44" fill="#f59e0b" stroke="#1c1917" stroke-width="4" transform="rotate(-28 175 187)"/>
+  <path d="M192,150 Q175,187 157,210" fill="none" stroke="#1c1917" stroke-width="2.5" opacity="0.6"/>
+  <ellipse cx="343" cy="187" rx="95" ry="44" fill="#f59e0b" stroke="#1c1917" stroke-width="4" transform="rotate(28 343 187)"/>
+  <path d="M326,150 Q343,187 362,210" fill="none" stroke="#1c1917" stroke-width="2.5" opacity="0.6"/>
+  <!-- Lower wings -->
+  <ellipse cx="196" cy="238" rx="62" ry="27" fill="#f59e0b" stroke="#1c1917" stroke-width="3.5" transform="rotate(-12 196 238)"/>
+  <ellipse cx="322" cy="238" rx="62" ry="27" fill="#f59e0b" stroke="#1c1917" stroke-width="3.5" transform="rotate(12 322 238)"/>
+  <!-- Thorax -->
+  <circle cx="259" cy="220" r="36" fill="#f59e0b" stroke="#1c1917" stroke-width="4.5"/>
+  <!-- Legs -->
+  <path d="M233,220 L172,205" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+  <path d="M231,237 L161,248" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+  <path d="M237,254 L186,287" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+  <path d="M285,220 L346,205" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+  <path d="M287,237 L357,248" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+  <path d="M281,254 L332,287" stroke="#1c1917" stroke-width="4" stroke-linecap="round"/>
+  <!-- Abdomen -->
+  <ellipse cx="259" cy="312" rx="65" ry="82" fill="#f59e0b" stroke="#1c1917" stroke-width="4.5"/>
+  <rect x="197" y="281" width="124" height="19" rx="9" fill="#1c1917"/>
+  <rect x="202" y="317" width="114" height="19" rx="9" fill="#1c1917"/>
+  <rect x="212" y="351" width="94" height="13" rx="6" fill="#1c1917"/>
+  <!-- Stinger -->
+  <polygon points="249,391 259,418 269,391" fill="#1c1917"/>
+  <!-- A+ badge (BeeGraded) -->
+  <circle cx="203" cy="183" r="34" fill="#f59e0b" stroke="#1c1917" stroke-width="5"/>
+  <text x="203" y="194" text-anchor="middle" font-family="Georgia,serif" font-size="28" font-weight="bold" fill="#1c1917">A+</text>
+</svg>

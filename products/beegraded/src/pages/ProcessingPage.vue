@@ -53,6 +53,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEvaluation } from 'src/composables/useEvaluation'
 import { useEvalSessionStore } from 'src/stores/evaluation-session'
+import { Notify } from 'quasar'
 
 const props = defineProps<{
   paperId?: string
@@ -70,6 +71,7 @@ const isToken = computed(() => route.path.startsWith('/t/'))
 const isFreeSample = computed(() => route.path.startsWith('/free-sample'))
 const isTestMode = computed(() => route.query.test === '1')
 const isEvalMode = computed(() => route.query.eval === '1')
+const isPaymentSuccess = computed(() => route.query.payment === 'success')
 const testMode = computed(() => (route.query.mode as string) || 'A')
 
 const status = ref<'processing' | 'complete' | 'failed'>('processing')
@@ -133,8 +135,29 @@ onMounted(async () => {
     }
   }, 800)
 
+  // 3-minute failsafe — registered BEFORE any await so it always fires.
+  // Prevents infinite spinner if n8n hangs or crashes.
+  let timedOut = false
+  const failsafe = setTimeout(() => {
+    if (status.value === 'processing') {
+      timedOut = true
+      status.value = 'failed'
+      clearInterval(timer)
+    }
+  }, 180000)
+
+  // Show payment confirmation banner before evaluation starts
+  if (isPaymentSuccess.value) {
+    Notify.create({
+      type: 'positive',
+      message: 'Payment confirmed! Evaluating your paper now...',
+      icon: 'check_circle',
+      timeout: 6000,
+    })
+  }
+
   // Trigger evaluation via backend (backend creates DB record + calls n8n for AI only)
-  if (isToken.value || isTestMode.value || isEvalMode.value) {
+  if (isToken.value || isTestMode.value || isEvalMode.value || isPaymentSuccess.value) {
     const rubricId = isEvalMode.value ? evalSessionStore.session?.rubric_id ?? undefined : undefined
     const isFinalUpload = route.query.final === '1'
     const draftOrFinal = isFinalUpload ? 'final' as const : 'draft' as const
@@ -143,6 +166,8 @@ onMounted(async () => {
       // Await full pipeline: backend record → n8n AI → backend save
       const result = await triggerEvaluation(pid, testMode.value, isToken.value ? props.tokenCode : undefined, rubricId ?? undefined, draftOrFinal)
 
+      if (timedOut) return  // failsafe already set failed — don't overwrite
+      clearTimeout(failsafe)
       progress.value = 100
       status.value = 'complete'
       evaluationId.value = result.evaluation_id
@@ -156,19 +181,13 @@ onMounted(async () => {
         }
       }
     } catch (err) {
+      if (timedOut) return  // failsafe already set failed
+      clearTimeout(failsafe)
       console.error('Evaluate failed:', err)
       status.value = 'failed'
       clearInterval(timer)
     }
   }
-
-  // Fallback timeout (5 minutes for dual AI — Claude + Gemini)
-  setTimeout(() => {
-    if (status.value === 'processing') {
-      status.value = 'failed'
-      clearInterval(timer)
-    }
-  }, 300000)
 })
 
 onUnmounted(() => {

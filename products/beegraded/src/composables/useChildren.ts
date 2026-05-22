@@ -5,6 +5,7 @@ interface AddChildData {
   birthdate: string
   grade: number
   language: string
+  curriculum?: string
 }
 
 export function useChildren() {

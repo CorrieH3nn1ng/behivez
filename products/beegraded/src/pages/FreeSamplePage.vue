@@ -122,6 +122,7 @@ async function handleSubmit() {
     }
 
     // 2. Call n8n for AI evaluation (no DB access)
+    let aiSucceeded = false
     try {
       const { data: aiResult } = await api.post('/bg-evaluate', {
         paper_text: sampleData.paper_text,
@@ -132,19 +133,27 @@ async function handleSubmit() {
         rubric_json: null,
       }, { timeout: 300000 })
 
-      if (!aiResult.error) {
-        // 3. Save AI results to Express backend
-        await backendApi.post(`/evaluations/${sampleData.evaluation_id}/complete`, aiResult)
+      if (aiResult.error) {
+        throw new Error(aiResult.error)
       }
-    } catch {
-      // AI failed but sample record exists — user can retry
+
+      // 3. Save AI results to Express backend
+      await backendApi.post(`/evaluations/${sampleData.evaluation_id}/complete`, aiResult)
+      aiSucceeded = true
+    } catch (err: any) {
+      const msg = err?.message || 'Our AI could not process your paper. Please try again.'
+      errorMsg.value = msg
+      Notify.create({ type: 'negative', message: msg, icon: 'error' })
+      return
     }
 
-    // Navigate to processing page
-    router.push({
-      name: 'free-sample-processing',
-      params: { sampleId: String(sampleData.sample_id) },
-    })
+    // Navigate to processing page only if AI succeeded
+    if (aiSucceeded) {
+      router.push({
+        name: 'free-sample-processing',
+        params: { sampleId: String(sampleData.sample_id) },
+      })
+    }
   } catch (err: any) {
     const msg = err?.response?.data?.error || err?.response?.data?.message
     if (msg) {

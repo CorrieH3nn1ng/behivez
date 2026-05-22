@@ -263,8 +263,8 @@ async function loadData() {
     ]);
     trips.value = tripsRes.data.data;
     travelSummary.value = summaryRes.data;
-  } catch (err) {
-    console.error('Failed to load trips', err);
+  } catch {
+    // silent — loading flag cleared in finally
   } finally {
     loading.value = false;
   }

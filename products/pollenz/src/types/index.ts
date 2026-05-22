@@ -68,6 +68,31 @@ export interface Client {
 // === Shared ===
 export type EntryCategory = 'business' | 'private';
 
+// === Expense Subcategories ===
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+  is_system: boolean;
+  is_tax_deductible: boolean;
+  deduction_type: string | null;
+  sort_order: number;
+}
+
+export interface VendorRule {
+  id: string;
+  user_id: string;
+  vendor_pattern: string;
+  match_type: 'contains' | 'starts_with' | 'exact';
+  subcategory_id: string | null;
+  default_nature: EntryCategory;
+  is_active: boolean;
+  hit_count: number;
+  priority: number;
+  subcategory?: ExpenseCategory | null;
+}
+
 // === Invoices (Income) ===
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 
@@ -139,6 +164,8 @@ export interface VendorInvoice {
   confidence: number | null;
   status: VendorInvoiceStatus;
   category: EntryCategory;
+  subcategory_id: string | null;
+  subcategory?: ExpenseCategory | null;
   notes: string | null;
   documents?: Document[];
   created_at: string;

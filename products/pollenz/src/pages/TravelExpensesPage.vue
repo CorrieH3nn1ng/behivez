@@ -683,8 +683,8 @@ async function loadVehicleTrips(vehicleId: string) {
       const allRes = await tripsApi.list();
       unassignedCount.value = allRes.data.data.filter(t => !t.vehicle_id).length;
     }
-  } catch (e) {
-    console.error('Failed to load trips for vehicle', e);
+  } catch {
+    // silent — loading flag cleared in finally
   } finally {
     vTripsLoading[vehicleId] = false;
   }
@@ -704,8 +704,8 @@ async function loadVehicleExpenses(vehicleId: string) {
     ]);
     vExpensesList[vehicleId] = expRes.data.data;
     vExpenseSummaries[vehicleId] = sumRes.data;
-  } catch (e) {
-    console.error('Failed to load expenses for vehicle', e);
+  } catch {
+    // silent — loading flag cleared in finally
   } finally {
     vExpensesLoading[vehicleId] = false;
   }
@@ -750,8 +750,8 @@ async function loadVehicles() {
         } catch { /* skip */ }
       }
     }
-  } catch (e) {
-    console.error('Failed to load vehicles', e);
+  } catch {
+    // silent — loading flag cleared in finally
   } finally {
     vehiclesLoading.value = false;
   }

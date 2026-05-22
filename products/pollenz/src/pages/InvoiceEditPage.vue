@@ -36,7 +36,7 @@
               <q-input v-model.number="form.tax_rate" label="VAT Rate (%)" type="number" step="0.01" outlined dense hint="0 if not VAT registered" />
             </div>
             <div class="col-12 col-sm-6">
-              <q-input v-model="form.title" label="Title (optional)" outlined dense />
+              <q-input v-model="form.title" label="Issuer / Title" outlined dense />
             </div>
             <div class="col-12 col-sm-6">
               <q-select

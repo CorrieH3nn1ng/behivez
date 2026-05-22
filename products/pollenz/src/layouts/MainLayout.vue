@@ -4,7 +4,7 @@
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
         <q-btn flat dense no-caps to="/" class="text-amber q-mr-sm">
-          <q-icon name="hive" size="28px" class="q-mr-xs" />
+          <img src="/favicon.svg" style="height:34px;width:auto;" class="q-mr-xs" alt="Pollenz" />
           <span class="text-weight-bold text-h6">Pollenz</span>
         </q-btn>
         <q-space />

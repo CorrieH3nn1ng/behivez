@@ -24,7 +24,7 @@
       <q-card-section>
         <div class="text-h6 q-mb-sm">Upload Expense</div>
         <div class="row q-col-gutter-md">
-          <div class="col-12 col-sm-8">
+          <div class="col-12 col-sm-6">
             <q-file
               v-model="uploadFile"
               label="Drop PDF or image here"
@@ -38,15 +38,40 @@
               </template>
             </q-file>
           </div>
-          <div class="col-12 col-sm-4">
+          <div class="col-6 col-sm-3">
             <q-select
               v-model="uploadCategory"
               :options="[{ label: 'Business', value: 'business' }, { label: 'Private', value: 'private' }]"
-              label="Category"
+              label="Nature"
               outlined
               emit-value
               map-options
             />
+          </div>
+          <div class="col-6 col-sm-3">
+            <q-select
+              v-model="uploadSubcategoryId"
+              :options="subcategoryOptions"
+              label="Type (optional)"
+              outlined
+              emit-value
+              map-options
+              clearable
+            >
+              <template v-slot:option="scope">
+                <q-item v-bind="scope.itemProps">
+                  <q-item-section avatar>
+                    <q-icon :name="scope.opt.icon || 'label'" :color="scope.opt.color ? undefined : 'grey'" :style="scope.opt.color ? `color: ${scope.opt.color}` : ''" size="sm" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side v-if="scope.opt.tax_deductible">
+                    <q-badge color="green-2" text-color="green-9" label="SARS" />
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
           </div>
         </div>
         <q-btn
@@ -69,10 +94,18 @@
     <q-card>
       <q-list separator>
         <q-item v-for="vi in filteredExpenses" :key="vi.id">
+          <q-item-section avatar v-if="vi.subcategory">
+            <q-icon
+              :name="vi.subcategory.icon || 'receipt'"
+              size="sm"
+              :style="vi.subcategory.color ? `color: ${vi.subcategory.color}` : ''"
+            />
+          </q-item-section>
           <q-item-section>
             <q-item-label class="text-weight-medium">{{ vi.vendor_name || 'Unknown Vendor' }}</q-item-label>
             <q-item-label caption>
-              {{ vi.invoice_number || 'No number' }} | {{ vi.invoice_date ? vi.invoice_date.substring(0, 10) : 'No date' }}
+              {{ vi.subcategory?.name || 'Uncategorised' }} &bull;
+              {{ vi.invoice_date ? vi.invoice_date.substring(0, 10) : 'No date' }}
             </q-item-label>
             <q-item-label caption v-if="vi.confidence !== null">
               AI Confidence: {{ vi.confidence }}%
@@ -82,6 +115,7 @@
             <div class="q-gutter-xs q-mb-xs">
               <q-badge :color="viStatusColor(vi.status)" :label="vi.status" />
               <q-badge :color="vi.category === 'business' ? 'teal' : 'purple'" :label="vi.category" />
+              <q-badge v-if="vi.subcategory?.is_tax_deductible" color="green-2" text-color="green-9" label="SARS" />
             </div>
             <div v-if="vi.total" class="text-weight-bold">R {{ formatMoney(vi.total) }}</div>
           </q-item-section>
@@ -125,15 +159,53 @@
           <q-form class="q-gutter-md">
             <q-input v-model="editForm.vendor_name" label="Vendor Name" outlined dense />
             <q-input v-model="editForm.invoice_number" label="Invoice / Reference Number" outlined dense />
-            <q-select
-              v-model="editForm.category"
-              :options="[{ label: 'Business', value: 'business' }, { label: 'Private', value: 'private' }]"
-              label="Category"
-              outlined
+
+            <div class="row q-col-gutter-md">
+              <div class="col-6">
+                <q-select
+                  v-model="editForm.category"
+                  :options="[{ label: 'Business', value: 'business' }, { label: 'Private', value: 'private' }]"
+                  label="Nature"
+                  outlined dense emit-value map-options
+                />
+              </div>
+              <div class="col-6">
+                <q-select
+                  v-model="editForm.subcategory_id"
+                  :options="subcategoryOptions"
+                  label="Type"
+                  outlined dense emit-value map-options clearable
+                >
+                  <template v-slot:option="scope">
+                    <q-item v-bind="scope.itemProps">
+                      <q-item-section avatar>
+                        <q-icon :name="scope.opt.icon || 'label'" size="sm" :style="scope.opt.color ? `color: ${scope.opt.color}` : ''" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label>{{ scope.opt.label }}</q-item-label>
+                      </q-item-section>
+                      <q-item-section side v-if="scope.opt.tax_deductible">
+                        <q-badge color="green-2" text-color="green-9" label="SARS" />
+                      </q-item-section>
+                    </q-item>
+                  </template>
+                  <template v-slot:selected-item="scope">
+                    <q-icon v-if="scope.opt.icon" :name="scope.opt.icon" size="xs" class="q-mr-xs" :style="scope.opt.color ? `color: ${scope.opt.color}` : ''" />
+                    {{ scope.opt.label }}
+                  </template>
+                </q-select>
+              </div>
+            </div>
+
+            <!-- Remember this merchant -->
+            <q-checkbox
+              v-if="editForm.vendor_name && editForm.subcategory_id"
+              v-model="editForm.save_rule"
+              :label="`Always use this category for &quot;${editForm.vendor_name}&quot;`"
+              color="primary"
               dense
-              emit-value
-              map-options
             />
+
             <div class="row q-col-gutter-md">
               <div class="col-6">
                 <q-input v-model="editForm.invoice_date" label="Date" type="date" outlined dense />
@@ -201,8 +273,9 @@ import { ref, computed, onMounted } from 'vue';
 import { useQuasar } from 'quasar';
 import { useVendorInvoiceStore } from '@/stores/vendor-invoice.store';
 import { vendorInvoicesApi } from '@/services/api/vendor-invoices.api';
+import { categoriesApi } from '@/services/api/categories.api';
 import { documentsApi } from '@/services/api/documents.api';
-import type { VendorInvoice, VendorInvoiceStatus, EntryCategory } from '@/types';
+import type { VendorInvoice, VendorInvoiceStatus, EntryCategory, ExpenseCategory } from '@/types';
 
 const $q = useQuasar();
 const vendorStore = useVendorInvoiceStore();
@@ -212,12 +285,24 @@ const loading = computed(() => vendorStore.loading);
 const categoryFilter = ref('all');
 const uploadFile = ref<File | null>(null);
 const uploadCategory = ref<EntryCategory>('business');
+const uploadSubcategoryId = ref<string | null>(null);
 const uploading = ref(false);
 const aiConfigured = ref(true);
 const showEditDialog = ref(false);
 const editingInvoice = ref<VendorInvoice | null>(null);
 const saving = ref(false);
 const reExtracting = ref<string | null>(null);
+const expenseCategories = ref<ExpenseCategory[]>([]);
+
+const subcategoryOptions = computed(() =>
+  expenseCategories.value.map(c => ({
+    label: c.name,
+    value: c.id,
+    icon: c.icon,
+    color: c.color,
+    tax_deductible: c.is_tax_deductible,
+  }))
+);
 
 const filteredExpenses = computed(() => {
   if (categoryFilter.value === 'all') return vendorInvoices.value;
@@ -234,7 +319,9 @@ const editForm = ref({
   total: 0,
   status: 'pending' as VendorInvoiceStatus,
   category: 'business' as EntryCategory,
+  subcategory_id: null as string | null,
   notes: '',
+  save_rule: false,
 });
 
 function formatMoney(amount: number): string {
@@ -250,14 +337,17 @@ async function handleUpload() {
   if (!uploadFile.value) return;
   uploading.value = true;
   try {
-    const result = await vendorStore.uploadVendorInvoice(uploadFile.value, uploadCategory.value);
+    const result = await vendorStore.uploadVendorInvoice(uploadFile.value, uploadCategory.value, uploadSubcategoryId.value);
     const extraction = result.extraction as { success?: boolean };
+    const suggestedRule = result.suggested_rule as { matched?: boolean } | undefined;
     if (extraction?.success) {
-      $q.notify({ type: 'positive', message: 'Expense uploaded and data extracted!' });
+      const ruleMsg = suggestedRule?.matched ? ' Category auto-applied from your rules.' : '';
+      $q.notify({ type: 'positive', message: `Expense uploaded and data extracted!${ruleMsg}` });
     } else {
       $q.notify({ type: 'info', message: 'Expense uploaded. Review the extracted data.' });
     }
     uploadFile.value = null;
+    uploadSubcategoryId.value = null;
   } catch (err: unknown) {
     const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Upload failed';
     $q.notify({ type: 'negative', message });
@@ -278,7 +368,9 @@ function editVendorInvoice(vi: VendorInvoice) {
     total: vi.total || 0,
     status: vi.status,
     category: vi.category || 'business',
+    subcategory_id: vi.subcategory_id || null,
     notes: vi.notes || '',
+    save_rule: false,
   };
   showEditDialog.value = true;
 }
@@ -289,7 +381,10 @@ async function saveVendorInvoice() {
   try {
     await vendorStore.updateVendorInvoice(editingInvoice.value.id, editForm.value);
     showEditDialog.value = false;
-    $q.notify({ type: 'positive', message: 'Expense updated' });
+    const savedMsg = editForm.value.save_rule && editForm.value.vendor_name
+      ? ` Rule saved for "${editForm.value.vendor_name}".`
+      : '';
+    $q.notify({ type: 'positive', message: `Expense updated.${savedMsg}` });
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to update' });
   } finally {
@@ -311,7 +406,6 @@ async function handleReExtract(vi: VendorInvoice) {
     const extraction = result.extraction as { success?: boolean };
     if (extraction?.success) {
       $q.notify({ type: 'positive', message: 'Data re-extracted successfully!' });
-      // Refresh edit form if dialog is open
       if (showEditDialog.value && editingInvoice.value?.id === vi.id) {
         editVendorInvoice(result.data);
       }
@@ -340,8 +434,12 @@ function confirmDelete(vi: VendorInvoice) {
 onMounted(async () => {
   vendorStore.fetchVendorInvoices();
   try {
-    const res = await vendorInvoicesApi.aiStatus();
-    aiConfigured.value = res.data.configured;
+    const [statusRes, catRes] = await Promise.all([
+      vendorInvoicesApi.aiStatus(),
+      categoriesApi.list(),
+    ]);
+    aiConfigured.value = statusRes.data.configured;
+    expenseCategories.value = catRes.data.data;
   } catch { /* ignore */ }
 });
 </script>

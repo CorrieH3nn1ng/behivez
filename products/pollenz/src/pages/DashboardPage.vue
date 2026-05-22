@@ -26,6 +26,14 @@
       <div class="q-mt-sm text-grey-6">Loading dashboard...</div>
     </div>
 
+    <q-banner v-else-if="loadError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+      <template #avatar>
+        <q-icon name="error_outline" color="red-8" />
+      </template>
+      Failed to load dashboard. Check your connection and
+      <q-btn flat dense label="try again" color="red-8" @click="loadSummary()" />
+    </q-banner>
+
     <template v-else-if="summary">
       <!-- Period Banner -->
       <div class="text-caption text-grey-6 q-mb-md">
@@ -213,6 +221,7 @@ import { transactionsApi, type DashboardSummary } from '@/services/api/transacti
 
 const summary = ref<DashboardSummary | null>(null);
 const loading = ref(true);
+const loadError = ref(false);
 const selectedYear = ref<number>(0);
 const availableYears = ref<number[]>([]);
 
@@ -233,6 +242,7 @@ const topIncomeCategories = computed(() => {
 
 async function loadSummary(taxYear?: number) {
   loading.value = true;
+  loadError.value = false;
   try {
     const res = await transactionsApi.summary(taxYear);
     summary.value = res.data;
@@ -240,8 +250,8 @@ async function loadSummary(taxYear?: number) {
     if (!selectedYear.value) {
       selectedYear.value = res.data.tax_year;
     }
-  } catch (err) {
-    console.error('Failed to load dashboard', err);
+  } catch {
+    loadError.value = true;
   } finally {
     loading.value = false;
   }

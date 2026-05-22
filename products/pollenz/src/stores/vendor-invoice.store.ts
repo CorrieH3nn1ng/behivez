@@ -17,8 +17,8 @@ export const useVendorInvoiceStore = defineStore('vendorInvoice', () => {
     }
   }
 
-  async function uploadVendorInvoice(file: File, category = 'business') {
-    const res = await vendorInvoicesApi.upload(file, category);
+  async function uploadVendorInvoice(file: File, category = 'business', subcategoryId?: string | null) {
+    const res = await vendorInvoicesApi.upload(file, category, subcategoryId);
     vendorInvoices.value.unshift(res.data.data);
     return res.data;
   }

@@ -486,6 +486,38 @@
         </div>
       </q-card>
 
+      <!-- EGD Gr 8-12 -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
+        <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
+          <q-icon name="architecture" color="amber" class="q-mr-sm" />
+          {{ lang === 'af' ? 'Ingenieurstekene en -Ontwerp (Gr 8–12)' : 'Engineering Graphics and Design (Gr 8–12)' }}
+        </div>
+        <div class="text-caption text-grey-6 q-mb-md">
+          {{ lang === 'af' ? 'Tegniese tekene, geometriese konstruksies, ruimtemeetkunde, meganiese en siviele tekene' : 'Technical drawing, geometric constructions, solid geometry, mechanical and civil drawing' }}
+        </div>
+        <div class="row items-center q-gutter-sm q-mb-md">
+          <div class="text-body2 text-grey-7">{{ lang === 'af' ? 'Graad:' : 'Grade:' }}</div>
+          <q-btn-toggle
+            v-model="egdGrade"
+            toggle-color="amber-8" color="grey-2" text-color="grey-8" no-caps
+            :options="[8,9,10,11,12].map(g => ({ label: `Gr ${g}`, value: g }))"
+          />
+        </div>
+        <q-banner v-if="egdError" class="bg-red-1 text-red-8 q-mb-md" rounded>
+          <template #avatar><q-icon name="error" color="red" /></template>
+          {{ egdError }}
+        </q-banner>
+        <div class="row q-gutter-sm">
+          <q-btn outline color="amber-8" no-caps icon="school"
+            :label="lang === 'af' ? 'Studeer Konsepte' : 'Study Concepts'"
+            :to="`/workspace/science/egd/${egdGrade}`" />
+          <q-btn class="btn-bee" no-caps icon="play_arrow"
+            :label="lang === 'af' ? 'Genereer Toets' : 'Generate Test'"
+            :loading="generatingEGD"
+            @click="generateEGDTest" />
+        </div>
+      </q-card>
+
       <!-- Change Password -->
       <q-card flat class="bee-card q-pa-lg q-mb-md">
         <div class="text-subtitle1 text-weight-bold q-mb-md" style="color: #78350f;">
@@ -583,6 +615,7 @@ function onActiveChildChange(childId: number | null) {
     if (g >= 1 && g <= 3) lifeSkillsGrade.value = g
     if (g >= 4 && g <= 9) { scienceGrade.value = g; loGrade.value = g; socialGrade.value = g; emsGrade.value = g; techGrade.value = g; artsGrade.value = g }
     if (g >= 7 && g <= 9) mathSubjectGrade.value = g
+    if (g >= 8 && g <= 12) egdGrade.value = g
   }
 }
 const languageOptions = [
@@ -677,6 +710,11 @@ const artsGrade = ref(7)
 const artsStrand = ref('visual_arts')
 const generatingArts = ref(false)
 const artsError = ref('')
+
+// EGD — Gr 8-12
+const egdGrade = ref(10)
+const generatingEGD = ref(false)
+const egdError = ref('')
 
 async function setPreferredLanguage(newLang: string) {
   savingLang.value = newLang
@@ -863,6 +901,23 @@ async function generateArtsTest() {
     artsError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
   } finally {
     generatingArts.value = false
+  }
+}
+
+async function generateEGDTest() {
+  generatingEGD.value = true
+  egdError.value = ''
+  try {
+    const { data } = await backendApi.post('/subject-tests/generate', {
+      subject_code: 'egd',
+      grade: egdGrade.value,
+      language: lang.value,
+    })
+    router.push({ name: 'math-test', params: { templateId: data.id } })
+  } catch (err: any) {
+    egdError.value = err.response?.data?.message || (lang.value === 'af' ? 'Kon nie toets genereer nie' : 'Failed to generate test')
+  } finally {
+    generatingEGD.value = false
   }
 }
 

@@ -250,6 +250,7 @@ const subjectLabel = computed(() => {
     ems:             { en: 'EMS', af: 'EBW' },
     technology:      { en: 'Technology', af: 'Tegnologie' },
     creative_arts:   { en: 'Creative Arts', af: 'Skeppende Kunste' },
+    egd:             { en: 'Engineering Graphics and Design', af: 'Ingenieurstekene en -Ontwerp' },
   }
   const l = labels[subjectCode.value]
   return l ? (lang.value === 'af' ? l.af : l.en) : subjectCode.value
@@ -318,6 +319,14 @@ const technologyStrands = [
   { value: 'processing', icon: 'factory', labelEn: 'Processing', labelAf: 'Prosessering', descEn: 'Food and material processing, manufacturing', descAf: 'Voedsel- en materiaalverwerking, vervaardiging' },
 ]
 
+const egdStrands = [
+  { value: 'technical_drawing', icon: 'straighten', labelEn: 'Technical Drawing', labelAf: 'Tegniese Tekene', descEn: 'Lines, orthographic, isometric, oblique, perspective', descAf: 'Lyne, ortografies, isometries, skeef, perspektief' },
+  { value: 'geometric_drawing', icon: 'pentagon', labelEn: 'Geometric Drawing', labelAf: 'Geometriese Tekene', descEn: 'Constructions, polygons, tangents, conic sections', descAf: 'Konstruksies, veelhoeke, raaklyne, koniese snedes' },
+  { value: 'solid_geometry', icon: 'view_in_ar', labelEn: 'Solid Geometry', labelAf: 'Ruimtemeetkunde', descEn: 'Developments, sections, interpenetration', descAf: 'Ontwikkelings, snitte, deurdringings' },
+  { value: 'mechanical_drawing', icon: 'settings', labelEn: 'Mechanical Drawing', labelAf: 'Meganiese Tekene', descEn: 'Threads, bolts, assemblies, tolerances', descAf: 'Skroefdrade, boute, samestellings, toleransies' },
+  { value: 'civil_drawing', icon: 'home', labelEn: 'Civil Drawing', labelAf: 'Siviele Tekene', descEn: 'Floor plans, elevations, site plans, building plans', descAf: 'Vloerplanne, fasades, terreinplanne, bouplanne' },
+]
+
 const strands = computed(() => {
   switch (subjectCode.value) {
     case 'life_skills': return lifeSkillsStrands
@@ -327,6 +336,7 @@ const strands = computed(() => {
     case 'ems': return emsStrands
     case 'technology': return technologyStrands
     case 'creative_arts': return creativeArtsStrands
+    case 'egd': return egdStrands
     default: return naturalScienceStrands
   }
 })
@@ -389,6 +399,8 @@ function categoryColor(cat: string): string {
     design: 'amber', structures: 'brown', mechanical: 'grey',
     electrical: 'yellow', processing: 'cyan',
     visual_arts: 'pink', music: 'purple', drama: 'deep-orange', dance: 'teal',
+    technical_drawing: 'blue', geometric_drawing: 'teal', solid_geometry: 'brown',
+    mechanical_drawing: 'grey', civil_drawing: 'amber',
   }
   return colors[cat] || 'grey'
 }
@@ -409,6 +421,8 @@ function categoryIcon(cat: string): string {
     design: 'architecture', structures: 'domain', mechanical: 'settings',
     electrical: 'electric_bolt', processing: 'factory',
     visual_arts: 'palette', music: 'music_note', drama: 'theater_comedy', dance: 'directions_run',
+    technical_drawing: 'straighten', geometric_drawing: 'pentagon', solid_geometry: 'view_in_ar',
+    mechanical_drawing: 'settings', civil_drawing: 'home',
   }
   return icons[cat] || 'circle'
 }
@@ -445,6 +459,11 @@ function categoryLabel(cat: string): string {
     music: { en: 'Music', af: 'Musiek' },
     drama: { en: 'Drama', af: 'Drama' },
     dance: { en: 'Dance', af: 'Dans' },
+    technical_drawing: { en: 'Technical Drawing', af: 'Tegniese Tekene' },
+    geometric_drawing: { en: 'Geometric Drawing', af: 'Geometriese Tekene' },
+    solid_geometry: { en: 'Solid Geometry', af: 'Ruimtemeetkunde' },
+    mechanical_drawing: { en: 'Mechanical Drawing', af: 'Meganiese Tekene' },
+    civil_drawing: { en: 'Civil Drawing', af: 'Siviele Tekene' },
   }
   const l = labels[cat]
   return l ? (lang.value === 'af' ? l.af : l.en) : cat
@@ -524,6 +543,7 @@ function resetAll() {
 onMounted(async () => {
   if (subjectCode.value === 'social_sciences') selectedStrand.value = 'history'
   else if (subjectCode.value === 'creative_arts') selectedStrand.value = 'visual_arts'
+  else if (subjectCode.value === 'egd') selectedStrand.value = 'technical_drawing'
   else selectedStrand.value = 'all'
 
   try {

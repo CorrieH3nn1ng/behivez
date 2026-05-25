@@ -492,6 +492,68 @@ IMPORTANT:
 - Do NOT include any text outside the JSON array`;
     },
   },
+
+  egd: {
+    questionCount: 25,
+    timeLimitSec: 2400,
+    nameEn: 'Engineering Graphics and Design',
+    nameAf: 'Ingenieurstekene en -Ontwerp',
+    grades: [8,9,10,11,12],
+    buildPrompt: (grade: number) => {
+      const isFET = grade >= 10;
+      const topics = isFET
+        ? grade <= 10
+          ? `  * Technical Drawing: orthographic projection (1st angle vs 3rd angle — symbol and layout), isometric drawing (isometric circles as ellipses), oblique projection (cavalier vs cabinet, receding angle), one-point and two-point perspective drawing
+  * Geometric Drawing: constructing regular polygons (triangle, square, pentagon, hexagon, octagon), tangent constructions, ellipse (concentric circle method), conic sections
+  * Solid Geometry: development (unfolding) of right prisms, cylinders, cones and pyramids; true shape of a cut surface; frustum development
+  * Mechanical Drawing: conventional thread representations (external and internal), bolt-and-nut proportional drawing, keys and keyways, reading assembly drawings, bill of materials
+  * Civil Drawing: reading floor plans (walls, doors, windows, rooms), front and side elevations, site plans (north point, setbacks, scale), scale calculations`
+          : `  * Technical Drawing: auxiliary views (1st and 2nd auxiliary planes), true shape of oblique surfaces, advanced isometric and oblique, two-point perspective (measuring point method)
+  * Geometric Drawing: advanced constructions (loci, cycloids, involutes, ellipse by trammel method, tangencies between circles), traces of lines and planes
+  * Solid Geometry: interpenetration of solids (cylinder–cylinder, cylinder–prism, prism–prism), development of interpenetrating solids, truncated solids with oblique cuts
+  * Descriptive Geometry: traces of lines and planes, inclinations to HP and VP, true length of oblique lines, true shape by revolution
+  * Mechanical Drawing: detail drawings with ISO tolerances, surface finish and welding symbols, section views (full section, half section, removed section), assembly drawings
+  * Civil Drawing: complete building set (floor plan, front and side elevations, cross-section, roof plan, site plan); structural drawings (foundations, columns, beams)`
+        : `  * Drawing Standards: line types and their meaning (outline, hidden, centre, dimension, section), drawing instruments (compass, set squares, protractor, T-square, scale rule), SA drawing standards (SANS/ISO), title block information
+  * Orthographic Projection: 1st angle projection; drawing top view, front view, side view of simple objects; reading 2D views to identify 3D shapes; interpreting hidden lines and centre lines
+  * Isometric Drawing: isometric axes (30°), constructing 3D objects on isometric grid, isometric circles (ellipses), isometric dimensioning
+  * Oblique Drawing: cavalier (full depth) vs cabinet (half depth) oblique; receding angle (30° or 45°); drawing simple 3D objects
+  * Geometric Construction: bisecting lines and angles, constructing perpendiculars, tangent to a circle, regular polygons (hexagon, octagon), arcs of tangency`;
+
+      return `You are a South African Engineering Graphics and Design (EGD) teacher creating a theory and knowledge practice test for Grade ${grade}.
+
+Generate exactly 25 multiple choice questions. Each question must:
+- Be appropriate for the Grade ${grade} SA CAPS EGD curriculum
+- Test knowledge of drawing conventions, theory, terminology, and interpretation
+- Have exactly 4 options labeled (A), (B), (C), (D)
+- Have exactly ONE correct answer
+- Be in BOTH Afrikaans AND English
+- Cover these topics proportionally:
+${topics}
+
+Return ONLY a valid JSON array:
+[
+  {
+    "question_af": "Die Afrikaanse vraag hier...",
+    "question_en": "The English question here...",
+    "options": ["(A) ...", "(B) ...", "(C) ...", "(D) ..."],
+    "correct": 0,
+    "category": "technical_drawing"
+  }
+]
+
+Where "correct" is the 0-based index (0=A, 1=B, 2=C, 3=D).
+
+IMPORTANT:
+- Focus on THEORY and KNOWLEDGE — not "draw this" tasks (these are MCQ)
+- Test terminology (What is cavalier oblique? What does a hidden line represent? What symbol identifies 1st angle projection?)
+- Test standards (SANS/ISO line types, projection symbols, drawing conventions)
+- Test interpretation (What view does this describe? What does this symbol mean?)
+- Use South African CAPS EGD context and SANS/ISO standards
+- Grade ${grade} appropriate difficulty
+- Do NOT include any text outside the JSON array`;
+    },
+  },
 };
 
 // Creative Arts strand prompt (Visual Arts, Music, Drama, Dance)
@@ -2175,6 +2237,69 @@ IMPORTANT:
 - Prioritise South African artists, musicians, performers, and cultural examples
 - Mix theory/terminology cards with artist/cultural knowledge cards
 - Definitions must be accurate and Grade ${grade} appropriate
+- Do NOT include any text outside the JSON array`;
+  }
+
+  if (subjectCode === 'egd') {
+    const isFET = grade >= 10;
+    const strandTopics: Record<string, string> = {
+      technical_drawing: isFET
+        ? grade >= 11
+          ? 'auxiliary views: primary auxiliary (true shape of inclined surfaces), secondary auxiliary; true length of oblique lines; traces of lines; two-point perspective by measuring point method; advanced orthographic with inclined and oblique surfaces'
+          : 'orthographic projection: 1st angle (European) vs 3rd angle (American) — symbol, layout and key differences; drawing all three views of objects with inclined surfaces; isometric drawing (isometric ellipses for circles, hatching, dimensioning); oblique projection: cavalier (1:1 depth) vs cabinet (1:2 depth), receding angle 30° or 45°; one-point and two-point perspective'
+        : 'types of drawing lines: continuous thick (outline), continuous thin (dimension/projection/hatching), dashed thin (hidden detail), chain thin (centre line), chain thick (cutting plane); drawing instruments: compass, 45° set square, 30°/60° set square, protractor, T-square, scale rule; SA drawing standards (SANS 10111); drawing paper sizes A0–A4; title block contents; scales: enlargement (2:1), full size (1:1), reduction (1:2, 1:10); 1st angle orthographic projection of simple prisms; isometric drawing on isometric grid',
+      geometric_drawing: isFET
+        ? grade >= 11
+          ? 'conic sections: ellipse (concentric circle, parallelogram, trammel and trammel-in-rectangle methods), parabola (rectangle and tangent-from-vertex methods), hyperbola (rectangle method); loci: equidistant from a point (circle), from a line (parallel), from two points (perpendicular bisector), locus of a point on a rolling circle (cycloid); involute of a circle; tangency between two arcs and a straight line'
+          : 'regular polygon construction: equilateral triangle, square, regular pentagon (accurate method), regular hexagon (using compass), regular octagon (from given square); inscribed circle and circumscribed circle; ellipse by concentric circle method (locating foci, drawing); tangent to a circle at a point on it; tangent from an external point to a circle; common external tangent to two equal and unequal circles'
+        : 'geometric constructions: bisect a line segment (perpendicular bisector), bisect an angle, erect a perpendicular at a point on a line, drop a perpendicular from a point to a line; inscribed hexagon and square in a circle; tangent to a circle at a point on the circumference; arc tangent joining two straight lines (internal and external corner radius); constructing an equilateral triangle; dividing a line into equal parts',
+      solid_geometry: isFET
+        ? grade >= 11
+          ? 'interpenetration of solids: two cylinders of equal diameter at right angles (curve of intersection), cylinder penetrating a rectangular prism, two rectangular prisms; development of interpenetrating solids; truncated cylinder (oblique cut) — development and true shape; truncated cone (oblique cut) — development; frustum of oblique pyramid — development; true shape of cut surfaces through various solids'
+          : 'development (surface unfolding) of right prisms: square, rectangular, triangular, hexagonal prisms; development of right cylinder; development of right pyramid: square, rectangular, triangular base; development of right cone; frustum of cone; frustum of pyramid; true shape of cut surface (section) through a prism and cylinder using auxiliary plane'
+        : '3D solids: prisms (triangular, rectangular, square, hexagonal), cylinders, cones, pyramids — naming faces, edges, vertices; Euler\'s formula F + V − E = 2; sectional views: what they show, hatching conventions (angle 45°, spacing, opposite parts), material-specific hatching symbols; development of a right square prism (box) — concept; understanding how a 3D solid maps to orthographic views',
+      mechanical_drawing: isFET
+        ? 'thread conventions: external thread (ISO V-thread — major diameter shown as thick lines, minor diameter as thin lines, helix = thin slanting lines); internal thread (in section — minor diameter thick, major diameter thin); stud (B.S.W. proportions from d); hexagonal bolt and nut — drawing in three views using proportional dimensions (from bolt diameter d); keys: Woodruff key, feather key, Gib-head key — drawing and purpose; bearing representations (plain journal bearing, ball bearing in section); reading assembly drawings — identifying parts, understanding section conventions, reading a bill of materials (BOM); ISO tolerance system: clearance fit, interference fit, transition fit — definitions and examples'
+        : 'conventional thread representation: external thread (continuous thick lines for crest, continuous thin for root, thin slanting lines for helix); thread terminology: major diameter, minor diameter, pitch, lead, thread angle; standard thread designations (M10 × 1.5 means M = metric, 10 = major diameter, 1.5 = pitch); bolts and nuts: proportional dimensions from bolt diameter d; identifying parts in a simple assembly drawing; fastener types: bolts, studs, screws, set screws; welding symbols: fillet weld, butt weld — basic identification',
+      civil_drawing: isFET
+        ? 'complete set of building drawings: site plan (plot boundary, north point, setbacks, building outline, scale 1:200 or 1:500), floor plan (wall thickness 230 mm cavity or 110 mm single, door symbols with swing, window symbols — fixed/sliding/casement, room labels, dimensions, scale 1:100), front and side elevations (roof pitch, window and door heights, DPC line, floor levels), cross-section through a building (foundation, wall construction, roof structure, overhangs), roof plan (identifying roof types — gabled, hipped, flat, lean-to); building regulations: 3 m side setback, 5 m street setback, 60% coverage maximum; reading contour lines on a site plan'
+        : 'reading a floor plan: rooms (bedroom, kitchen, bathroom, lounge), walls (thick lines = walls), doors (quarter-circle arc shows direction of opening), windows (three parallel lines), scale (1:100 means 1 cm on drawing = 100 cm = 1 m in reality); SA building drawing conventions: symbols for light switch, power outlet, ceiling light, toilet, bath, basin; elevation: shows the outside face of a building — front elevation (most important facade), side elevation, rear elevation; scale calculations: if scale is 1:50 and drawing shows 4 cm, actual length = 4 × 50 = 200 cm = 2 m; north point on site plan; understanding site plan vs floor plan vs elevation',
+    };
+
+    const availableStrands = isFET
+      ? ['technical_drawing', 'geometric_drawing', 'solid_geometry', 'mechanical_drawing', 'civil_drawing']
+      : ['technical_drawing', 'geometric_drawing', 'solid_geometry', 'civil_drawing'];
+    const selectedStrand = strand && strand !== 'all' ? strand : null;
+    const topicGuide = selectedStrand
+      ? strandTopics[selectedStrand] || availableStrands.map(s => strandTopics[s]).join(';\n  ')
+      : availableStrands.map(s => strandTopics[s]).join(';\n  ');
+    const categoryInstruction = selectedStrand
+      ? `All cards must have category: "${selectedStrand}"`
+      : `Spread cards across: ${availableStrands.join(', ')}`;
+
+    return `You are a South African Engineering Graphics and Design (EGD) tutor creating concept revision cards for Grade ${grade} learners.
+
+Generate exactly 10 concept cards covering key EGD theory and knowledge for Grade ${grade} SA CAPS.
+
+Key topics to cover:
+  ${topicGuide}
+
+For each card provide:
+- term_en: the key concept, term, drawing standard, or convention in English
+- term_af: in Afrikaans (use correct SA EGD/drawing terminology)
+- definition_en: a clear, accurate Grade ${grade}-level explanation — include the rule, standard, or how it works
+- definition_af: the same in Afrikaans
+- example_en: a practical drawing or design example (how it looks, when it's used, what it means)
+- example_af: in Afrikaans
+- category: one of [${availableStrands.join(', ')}]
+
+Return ONLY a valid JSON array with the structure above.
+
+IMPORTANT:
+- EGD terminology must be technically accurate (SANS/ISO drawing standards, CAPS EGD curriculum)
+- Explain visual concepts clearly in words (e.g. "An isometric circle is drawn as an ellipse with its major axis perpendicular to the isometric axis")
+- Grade ${grade} appropriate difficulty and terminology
+- ${categoryInstruction}
 - Do NOT include any text outside the JSON array`;
   }
 

@@ -1,0 +1,43 @@
+services:
+  mailserver:
+    image: ghcr.io/docker-mailserver/docker-mailserver:14
+    container_name: saas-mail-1
+    hostname: mail.behivez.co.za
+    domainname: behivez.co.za
+    restart: unless-stopped
+    ports:
+      - "25:25"
+      - "143:143"
+      - "587:587"
+      - "993:993"
+    volumes:
+      - /opt/saas/mailserver/data/mail:/var/mail
+      - /opt/saas/mailserver/config:/tmp/docker-mailserver
+      - /etc/localtime:/etc/localtime:ro
+      - /opt/saas/mailserver/mail.crt:/etc/ssl/mail/mail.crt:ro
+      - /opt/saas/mailserver/mail.key:/etc/ssl/mail/mail.key:ro
+    environment:
+      - ENABLE_RSPAMD=0
+      - ENABLE_CLAMAV=0
+      - ENABLE_SPAMASSASSIN=0
+      - ENABLE_AMAVIS=0
+      - SPOOF_PROTECTION=1
+      - ONE_DIR=1
+      - POSTFIX_INET_PROTOCOLS=ipv4
+      - PERMIT_DOCKER=network
+      - SSL_TYPE=manual
+      - SSL_CERT_PATH=/etc/ssl/mail/mail.crt
+      - SSL_KEY_PATH=/etc/ssl/mail/mail.key
+      - TLS_LEVEL=intermediate
+      - LOG_LEVEL=info
+    cap_add:
+      - NET_ADMIN
+    networks:
+      - saas_internal
+      - saas_web
+
+networks:
+  saas_internal:
+    external: true
+  saas_web:
+    external: true

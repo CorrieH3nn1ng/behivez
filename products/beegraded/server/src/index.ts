@@ -15,6 +15,7 @@ import mathTestRoutes from './routes/math-tests.js';
 import childrenRoutes from './routes/children.js';
 import profileRoutes from './routes/profile.js';
 import subjectTestRoutes from './routes/subject-tests.js';
+import subscriptionRoutes from './routes/subscription.js';
 import adminRoutes from './routes/admin.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requireAdmin } from './middleware/auth.js';
@@ -49,6 +50,7 @@ app.use('/api/math-tests', mathTestRoutes);
 app.use('/api/children', childrenRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/subject-tests', subjectTestRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/admin', requireAdmin, adminRoutes);
 
 // Error handler

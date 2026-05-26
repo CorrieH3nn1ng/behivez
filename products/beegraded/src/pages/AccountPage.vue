@@ -5,6 +5,38 @@
         {{ lang === 'af' ? 'My Rekening' : 'My Account' }}
       </h2>
 
+      <!-- Subscription Status -->
+      <q-card flat class="bee-card q-pa-lg q-mb-md"
+        :style="subscription.plan === 'free' ? 'border: 2px solid #fbbf24;' : 'border: 2px solid #16a34a;'">
+        <div class="row items-center q-gutter-sm">
+          <q-icon :name="subscription.plan === 'free' ? 'lock' : 'verified'" :color="subscription.plan === 'free' ? 'amber-7' : 'green'" size="28px" />
+          <div>
+            <div class="text-subtitle1 text-weight-bold" style="color: #78350f;">
+              {{ subscription.plan === 'free'
+                ? (lang === 'af' ? 'Gratis Plan' : 'Free Plan')
+                : subscription.plan === 'per_subject'
+                  ? (lang === 'af' ? 'Per Vak Plan' : 'Per Subject Plan')
+                  : subscription.plan === 'three_subjects'
+                    ? (lang === 'af' ? '3 Vakke Plan' : '3 Subjects Plan')
+                    : (lang === 'af' ? 'Alle Vakke Plan' : 'All Subjects Plan') }}
+            </div>
+            <div v-if="subscription.expires_at" class="text-caption text-grey-6">
+              {{ lang === 'af' ? 'Verval:' : 'Expires:' }} {{ new Date(subscription.expires_at).toLocaleDateString() }}
+            </div>
+            <div v-if="subscription.plan !== 'free' && subscription.subjects.length" class="text-caption text-grey-7">
+              {{ subscription.subjects.join(', ') }}
+            </div>
+          </div>
+          <q-space />
+          <q-btn v-if="subscription.plan === 'free'" class="btn-bee" no-caps icon="upgrade" size="sm"
+            :label="lang === 'af' ? 'Opgradeer' : 'Upgrade'"
+            :to="{ name: 'subscribe' }" />
+          <q-btn v-else outline color="amber-8" no-caps icon="refresh" size="sm"
+            :label="lang === 'af' ? 'Hernu / Verander' : 'Renew / Change'"
+            :to="{ name: 'subscribe' }" />
+        </div>
+      </q-card>
+
       <!-- Profile Info -->
       <q-card flat class="bee-card q-pa-lg q-mb-md">
         <div class="text-subtitle1 text-weight-bold q-mb-md" style="color: #78350f;">
@@ -581,6 +613,7 @@ import { useI18n } from 'src/i18n'
 import { useAuthStore } from 'src/stores/auth'
 import { backendApi } from 'src/boot/axios'
 import { useChildren } from 'src/composables/useChildren'
+import { useSubscription } from 'src/composables/useSubscription'
 import { Notify } from 'quasar'
 import axios from 'axios'
 
@@ -588,6 +621,7 @@ const { lang, setLanguage } = useI18n()
 const authStore = useAuthStore()
 const router = useRouter()
 const { listChildren, updateChild: updateChildApi } = useChildren()
+const { subscription, loadSubscription } = useSubscription()
 
 // Profile
 const profile = ref<any>(null)
@@ -951,5 +985,8 @@ onMounted(async () => {
     const data = await listChildren()
     children.value = (data.children || []).map((c: any) => ({ ...c, curriculum: c.curriculum || 'caps', saved: false }))
   } catch { /* no children yet */ }
+
+  // Load subscription
+  await loadSubscription()
 })
 </script>

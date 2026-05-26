@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
-import { AuthRequest } from '../middleware/auth.js';
+import { authenticate, AuthRequest } from '../middleware/auth.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -93,6 +93,59 @@ export function buildPayFastFields(opts: {
   return fields;
 }
 
+// POST /api/payments/subscribe — Generate PayFast form for grade subscription
+router.post('/subscribe', authenticate, async (req: AuthRequest, res: Response) => {
+  if (!PAYFAST_MERCHANT_ID) throw new AppError('PayFast not configured', 500);
+
+  const { plan, subjects = [] } = req.body;
+  const VALID_PLANS: Record<string, number> = {
+    per_subject: 29,
+    three_subjects: 69,
+    all_subjects: 99,
+  };
+
+  if (!VALID_PLANS[plan]) throw new AppError('Invalid plan', 400);
+  if (plan === 'per_subject' && subjects.length !== 1) throw new AppError('per_subject plan requires exactly 1 subject', 400);
+  if (plan === 'three_subjects' && subjects.length !== 3) throw new AppError('three_subjects plan requires exactly 3 subjects', 400);
+
+  const amount = VALID_PLANS[plan];
+  const paymentId = `BGSUB-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`;
+
+  // custom_str1 encodes all subscription details for ITN activation
+  // Format: BGSUB|authUserId|plan|subject1,subject2 (| is safe — UUIDs use only hex and -)
+  const customStr1 = `BGSUB|${req.userId}|${plan}|${subjects.join(',')}`;
+
+  await req.app.locals.prisma.payments.create({
+    data: {
+      amount,
+      status: 'pending',
+      provider: 'payfast',
+      provider_ref: paymentId,
+    },
+  });
+
+  const planLabels: Record<string, string> = {
+    per_subject: 'BeeGraded Per Subject (R29/month)',
+    three_subjects: 'BeeGraded 3 Subjects (R69/month)',
+    all_subjects: 'BeeGraded All Subjects (R99/month)',
+  };
+
+  const fields = buildPayFastFields({
+    paymentId,
+    amount: `${amount}.00`,
+    email: req.userEmail!,
+    name: req.userName || 'Student',
+    itemName: planLabels[plan],
+    itemDescription: subjects.length ? `Subjects: ${subjects.join(', ')}` : 'All subjects',
+    returnUrl: `${BASE_URL}/#/subscribe/success?plan=${plan}`,
+    cancelUrl: `${BASE_URL}/#/subscribe`,
+    notifyUrl: `${BASE_URL}/api/payments/notify`,
+    customStr1,
+  });
+
+  res.json({ fields, payfast_url: PAYFAST_URL });
+});
+
 // POST /api/payments/initiate — Generate PayFast form for paper evaluation
 router.post('/initiate', async (req: AuthRequest, res: Response) => {
   if (!PAYFAST_MERCHANT_ID) throw new AppError('PayFast not configured', 500);
@@ -158,11 +211,26 @@ router.post('/notify', async (req: AuthRequest, res: Response) => {
       data: { status: 'complete' },
     });
 
-    // 4. If this is a token purchase, activate the token
+    // 4. Token purchase activation
     if (custom_str1 && custom_str1.startsWith('BG-')) {
       await prisma.tokens.updateMany({
         where: { code: custom_str1, status: 'pending_payment' },
         data: { status: 'active' },
+      });
+    }
+
+    // 5. Subscription activation — custom_str1 = "BGSUB|authUserId|plan|subjects_csv"
+    if (custom_str1 && custom_str1.startsWith('BGSUB|')) {
+      const parts = custom_str1.split('|');
+      const authUserId = parts[1];
+      const plan = parts[2];
+      const subjects = parts[3] ? parts[3].split(',').filter(Boolean) : [];
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+      await prisma.grade_subscriptions.upsert({
+        where: { auth_user_id: authUserId },
+        create: { auth_user_id: authUserId, plan, subjects, status: 'active', payment_ref: m_payment_id, expires_at: expiresAt },
+        update: { plan, subjects, status: 'active', payment_ref: m_payment_id, expires_at: expiresAt },
       });
     }
   }

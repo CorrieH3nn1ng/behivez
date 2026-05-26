@@ -224,10 +224,9 @@ const papersTiers = [
 
 function goGrades() {
   if (authStore.isLoggedIn) {
-    router.push('/workspace/children')
+    router.push('/subscribe')
   } else {
-    localStorage.setItem('bg_product', 'grades')
-    router.push('/get-started?redirect=/workspace/children')
+    router.push('/get-started?redirect=/subscribe')
   }
 }
 

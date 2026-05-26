@@ -220,6 +220,18 @@ model child_subjects {
   @@unique([child_id, subject_id])
 }
 
+model grade_subscriptions {
+  id           Int       @id @default(autoincrement())
+  auth_user_id String    @unique // UUID from shared auth-api
+  plan         String    @default("free") // free | per_subject | three_subjects | all_subjects
+  subjects     String[]  // selected subject codes — empty means all
+  status       String    @default("active") // active | cancelled
+  payment_ref  String?   // PayFast m_payment_id
+  expires_at   DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+}
+
 model parent_consent {
   id             Int       @id @default(autoincrement())
   parent_id      String    @unique // auth user UUID

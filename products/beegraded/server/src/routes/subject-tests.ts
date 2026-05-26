@@ -1236,6 +1236,24 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
     throw new AppError('subject_code and grade are required', 400);
   }
 
+  // Subscription gate — OWNER/ADMIN bypass, free tier blocked
+  if (req.userId && req.userRole !== 'OWNER' && req.userRole !== 'ADMIN') {
+    const sub = await prisma.grade_subscriptions.findUnique({ where: { auth_user_id: req.userId } });
+    const isActive = sub?.status === 'active' && (!sub.expires_at || sub.expires_at > new Date());
+    const plan = isActive ? sub!.plan : 'free';
+
+    if (plan === 'free') {
+      throw new AppError('Upgrade your plan to access AI subject tests', 403);
+    }
+    if ((plan === 'per_subject' || plan === 'three_subjects') && sub!.subjects.length > 0) {
+      if (!sub!.subjects.includes(subject_code)) {
+        throw new AppError(`Your plan doesn't include ${subject_code}`, 403);
+      }
+    }
+  } else if (!req.userId) {
+    throw new AppError('Please sign in to generate subject tests', 401);
+  }
+
   const gradeNum = parseInt(grade);
   const effectiveCurriculum = curriculum || 'caps';
 
@@ -1770,6 +1788,21 @@ router.post('/tutor', optionalAuth, async (req: AuthRequest, res: Response) => {
   const { subject_code, grade, strand, native_language, curriculum } = req.body;
 
   if (!subject_code || !grade) throw new AppError('subject_code and grade are required', 400);
+
+  // Subscription gate
+  if (req.userId && req.userRole !== 'OWNER' && req.userRole !== 'ADMIN') {
+    const prisma = getPrisma(req);
+    const sub = await prisma.grade_subscriptions.findUnique({ where: { auth_user_id: req.userId } });
+    const isActive = sub?.status === 'active' && (!sub.expires_at || sub.expires_at > new Date());
+    const plan = isActive ? sub!.plan : 'free';
+
+    if (plan === 'free') throw new AppError('Upgrade your plan to access study mode', 403);
+    if ((plan === 'per_subject' || plan === 'three_subjects') && sub!.subjects.length > 0) {
+      if (!sub!.subjects.includes(subject_code)) throw new AppError(`Your plan doesn't include ${subject_code}`, 403);
+    }
+  } else if (!req.userId) {
+    throw new AppError('Please sign in to use study mode', 401);
+  }
 
   const gradeNum = parseInt(grade);
   const effectiveCurriculum = curriculum || 'caps';

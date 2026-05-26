@@ -20,6 +20,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'report', name: 'report', component: () => import('pages/ReportPage.vue') },
       { path: 'thank-you', name: 'thank-you', component: () => import('pages/ThankYouPage.vue') },
       { path: 'cancel', name: 'cancel', component: () => import('pages/CancelPage.vue') },
+      { path: 'subscribe', name: 'subscribe', component: () => import('pages/SubscribePage.vue') },
+      { path: 'subscribe/success', name: 'subscribe-success', component: () => import('pages/SubscribeSuccessPage.vue') },
 
       // Child play page (magic link — no auth)
       { path: 'play/:slug', name: 'child-play', component: () => import('pages/ChildPlayPage.vue'), props: true },

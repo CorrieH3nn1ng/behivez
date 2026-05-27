@@ -127,7 +127,7 @@ router.post('/purchase', async (req: AuthRequest, res: Response) => {
   // Generate PayFast form for paid purchase
   const paymentId = `BG-TK-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`;
 
-  await prisma.payments.create({
+  const payment = await prisma.payments.create({
     data: {
       paper_id: null,
       amount: finalPrice,
@@ -137,17 +137,18 @@ router.post('/purchase', async (req: AuthRequest, res: Response) => {
     },
   });
 
+  await prisma.tokens.update({
+    where: { id: token.id },
+    data: { payment_id: payment.id },
+  });
+
   const fields = buildPayFastFields({
     paymentId,
     amount: `${finalPrice}.00`,
-    email: email.toLowerCase(),
-    name: 'Student',
     itemName: 'BeeGraded Evaluation Token',
-    itemDescription: `Token ${code} — Rubric + Draft + Final + Comparison`,
     returnUrl: `${BASE_URL}/#/thank-you?token_code=${code}&m_payment_id=${paymentId}`,
     cancelUrl: `${BASE_URL}/#/cancel`,
     notifyUrl: `${BASE_URL}/api/payments/notify`,
-    customStr1: code, // Token code — used by ITN to activate
   });
 
   res.json({

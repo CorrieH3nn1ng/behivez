@@ -33,14 +33,30 @@ const PAYFAST_VALID_IPS = [
   '41.74.179.220', '41.74.179.221', '41.74.179.222', '41.74.179.223',
 ];
 
+/**
+ * PHP urlencode()-compatible encoding.
+ * encodeURIComponent leaves ( ) ! ~ * ' unencoded — PHP encodes them.
+ * PayFast's server uses PHP urlencode, so we must match it exactly.
+ */
+function phpUrlencode(str: string): string {
+  return encodeURIComponent(str)
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A')
+    .replace(/~/g, '%7E')
+    .replace(/%20/g, '+');
+}
+
 /** Generate PayFast signature (MD5 of param string + passphrase) */
 export function generatePayFastSignature(fields: Record<string, string>, passphrase: string): string {
   const paramString = Object.entries(fields)
     .filter(([, v]) => v !== '')
-    .map(([k, v]) => `${k}=${encodeURIComponent(v.trim()).replace(/%20/g, '+')}`)
+    .map(([k, v]) => `${k}=${phpUrlencode(v.trim())}`)
     .join('&');
 
-  const toHash = passphrase ? `${paramString}&passphrase=${encodeURIComponent(passphrase.trim())}` : paramString;
+  const toHash = passphrase ? `${paramString}&passphrase=${phpUrlencode(passphrase.trim())}` : paramString;
   return crypto.createHash('md5').update(toHash).digest('hex');
 }
 
@@ -49,29 +65,24 @@ function verifyITNSignature(body: Record<string, string>, passphrase: string): b
   const receivedSig = body.signature;
   if (!receivedSig) return false;
 
-  // Rebuild param string from all fields except signature
   const paramString = Object.entries(body)
     .filter(([k]) => k !== 'signature')
-    .map(([k, v]) => `${k}=${encodeURIComponent(String(v).trim()).replace(/%20/g, '+')}`)
+    .map(([k, v]) => `${k}=${phpUrlencode(String(v).trim())}`)
     .join('&');
 
-  const toHash = passphrase ? `${paramString}&passphrase=${encodeURIComponent(passphrase.trim())}` : paramString;
+  const toHash = passphrase ? `${paramString}&passphrase=${phpUrlencode(passphrase.trim())}` : paramString;
   const expected = crypto.createHash('md5').update(toHash).digest('hex');
   return expected === receivedSig;
 }
 
-/** Build PayFast form fields for a payment */
+/** Build PayFast form fields — minimal required fields only to avoid signature issues */
 export function buildPayFastFields(opts: {
   paymentId: string;
   amount: string;
-  email: string;
-  name: string;
   itemName: string;
-  itemDescription: string;
   returnUrl: string;
   cancelUrl: string;
   notifyUrl: string;
-  customStr1?: string;
 }): Record<string, string> {
   const fields: Record<string, string> = {
     merchant_id: PAYFAST_MERCHANT_ID,
@@ -79,15 +90,10 @@ export function buildPayFastFields(opts: {
     return_url: opts.returnUrl,
     cancel_url: opts.cancelUrl,
     notify_url: opts.notifyUrl,
-    name_first: opts.name || 'Student',
-    email_address: opts.email,
     m_payment_id: opts.paymentId,
     amount: opts.amount,
     item_name: opts.itemName,
-    item_description: opts.itemDescription,
   };
-
-  if (opts.customStr1) fields.custom_str1 = opts.customStr1;
 
   fields.signature = generatePayFastSignature(fields, PAYFAST_PASSPHRASE);
   return fields;
@@ -108,39 +114,34 @@ router.post('/subscribe', authenticate, async (req: AuthRequest, res: Response) 
   if (plan === 'per_subject' && subjects.length !== 1) throw new AppError('per_subject plan requires exactly 1 subject', 400);
   if (plan === 'three_subjects' && subjects.length !== 3) throw new AppError('three_subjects plan requires exactly 3 subjects', 400);
 
+  const prisma = req.app.locals.prisma;
   const amount = VALID_PLANS[plan];
   const paymentId = `BGSUB-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`;
 
-  // custom_str1 encodes all subscription details for ITN activation
-  // Format: BGSUB|authUserId|plan|subject1,subject2 (| is safe — UUIDs use only hex and -)
-  const customStr1 = `BGSUB|${req.userId}|${plan}|${subjects.join(',')}`;
+  // Store subscription intent BEFORE PayFast redirect so ITN can look it up by payment_ref
+  await prisma.grade_subscriptions.upsert({
+    where: { auth_user_id: req.userId! },
+    create: { auth_user_id: req.userId!, plan, subjects, status: 'pending', payment_ref: paymentId },
+    update: { plan, subjects, status: 'pending', payment_ref: paymentId },
+  });
 
-  await req.app.locals.prisma.payments.create({
-    data: {
-      amount,
-      status: 'pending',
-      provider: 'payfast',
-      provider_ref: paymentId,
-    },
+  await prisma.payments.create({
+    data: { amount, status: 'pending', provider: 'payfast', provider_ref: paymentId },
   });
 
   const planLabels: Record<string, string> = {
-    per_subject: 'BeeGraded Per Subject (R29/month)',
-    three_subjects: 'BeeGraded 3 Subjects (R69/month)',
-    all_subjects: 'BeeGraded All Subjects (R99/month)',
+    per_subject: 'BeeGraded Per Subject Plan',
+    three_subjects: 'BeeGraded Three Subjects Plan',
+    all_subjects: 'BeeGraded All Subjects Plan',
   };
 
   const fields = buildPayFastFields({
     paymentId,
     amount: `${amount}.00`,
-    email: req.userEmail!,
-    name: req.userName || 'Student',
     itemName: planLabels[plan],
-    itemDescription: subjects.length ? `Subjects: ${subjects.join(', ')}` : 'All subjects',
     returnUrl: `${BASE_URL}/#/subscribe/success?plan=${plan}`,
     cancelUrl: `${BASE_URL}/#/subscribe`,
     notifyUrl: `${BASE_URL}/api/payments/notify`,
-    customStr1,
   });
 
   res.json({ fields, payfast_url: PAYFAST_URL });
@@ -170,10 +171,7 @@ router.post('/initiate', async (req: AuthRequest, res: Response) => {
   const fields = buildPayFastFields({
     paymentId,
     amount: '20.00',
-    email,
-    name: name || 'Student',
     itemName: 'BeeGraded Paper Evaluation',
-    itemDescription: `Mode ${mode || 'A'} evaluation`,
     returnUrl: `${BASE_URL}/#/workspace/processing/${paper_id}?mode=${mode || 'A'}&payment=success`,
     cancelUrl: `${BASE_URL}/#/cancel`,
     notifyUrl: `${BASE_URL}/api/payments/notify`,
@@ -187,9 +185,10 @@ router.post('/notify', async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
   const body = req.body as Record<string, string>;
 
-  // 1. Verify source IP (trust x-forwarded-for from nginx)
+  // 1. Verify source IP — skip in sandbox mode
+  const isSandbox = PAYFAST_URL.includes('sandbox');
   const sourceIp = (req.headers['x-forwarded-for'] as string || req.ip || '').split(',')[0].trim();
-  if (process.env.NODE_ENV === 'production' && !PAYFAST_VALID_IPS.includes(sourceIp)) {
+  if (!isSandbox && process.env.NODE_ENV === 'production' && !PAYFAST_VALID_IPS.includes(sourceIp)) {
     console.warn(`PayFast ITN: rejected IP ${sourceIp}`);
     res.status(403).send('Forbidden');
     return;
@@ -202,7 +201,7 @@ router.post('/notify', async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const { m_payment_id, payment_status, custom_str1 } = body;
+  const { m_payment_id, payment_status, custom_str1 = '' } = body;
 
   // 3. Update payment record
   if (m_payment_id && payment_status === 'COMPLETE') {
@@ -211,26 +210,23 @@ router.post('/notify', async (req: AuthRequest, res: Response) => {
       data: { status: 'complete' },
     });
 
-    // 4. Token purchase activation
-    if (custom_str1 && custom_str1.startsWith('BG-')) {
-      await prisma.tokens.updateMany({
-        where: { code: custom_str1, status: 'pending_payment' },
-        data: { status: 'active' },
-      });
+    // 4. Token purchase activation — look up token by payment link
+    if (m_payment_id && m_payment_id.startsWith('BG-TK-')) {
+      const payment = await prisma.payments.findFirst({ where: { provider_ref: m_payment_id } });
+      if (payment) {
+        await prisma.tokens.updateMany({
+          where: { payment_id: payment.id, status: 'pending_payment' },
+          data: { status: 'active' },
+        });
+      }
     }
 
-    // 5. Subscription activation — custom_str1 = "BGSUB|authUserId|plan|subjects_csv"
-    if (custom_str1 && custom_str1.startsWith('BGSUB|')) {
-      const parts = custom_str1.split('|');
-      const authUserId = parts[1];
-      const plan = parts[2];
-      const subjects = parts[3] ? parts[3].split(',').filter(Boolean) : [];
+    // 5. Subscription activation — look up pending subscription by payment_ref
+    if (m_payment_id && m_payment_id.startsWith('BGSUB-')) {
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-      await prisma.grade_subscriptions.upsert({
-        where: { auth_user_id: authUserId },
-        create: { auth_user_id: authUserId, plan, subjects, status: 'active', payment_ref: m_payment_id, expires_at: expiresAt },
-        update: { plan, subjects, status: 'active', payment_ref: m_payment_id, expires_at: expiresAt },
+      await prisma.grade_subscriptions.updateMany({
+        where: { payment_ref: m_payment_id, status: 'pending' },
+        data: { status: 'active', expires_at: expiresAt },
       });
     }
   }

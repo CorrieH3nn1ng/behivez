@@ -99,6 +99,7 @@ export const useAuthStore = defineStore('auth', {
         localStorage.removeItem('sz_access_token');
         localStorage.removeItem('sz_refresh_token');
         localStorage.removeItem('sz_user');
+        localStorage.removeItem('sz_settings');
         this.user = null;
         this.isAuthenticated = false;
       }

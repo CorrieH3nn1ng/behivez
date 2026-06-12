@@ -23,6 +23,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'vehicle/:id/trips', name: 'trip-log', props: true, component: () => import('pages/TripLogPage.vue') },
       { path: 'tax-report', name: 'tax-report', component: () => import('pages/TaxReportPage.vue') },
       { path: 'drivers', name: 'drivers', component: () => import('pages/DriversPage.vue') },
+      { path: 'onboarding', name: 'onboarding', component: () => import('pages/OnboardingPage.vue') },
+      { path: 'settings', name: 'settings', component: () => import('pages/SettingsPage.vue') },
       { path: 'profile', name: 'profile', component: () => import('pages/ProfilePage.vue') },
     ],
   },

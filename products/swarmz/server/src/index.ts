@@ -9,6 +9,7 @@ import driverRoutes from './routes/drivers.js';
 import tripRoutes from './routes/trips.js';
 import vehicleExpenseRoutes from './routes/vehicleExpenses.js';
 import sarsRoutes from './routes/sars.js';
+import settingsRoutes from './routes/settings.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/drivers', driverRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/vehicle-expenses', vehicleExpenseRoutes);
 app.use('/api/sars', sarsRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Error handler
 app.use(errorHandler);

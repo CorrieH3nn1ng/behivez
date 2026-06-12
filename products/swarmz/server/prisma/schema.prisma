@@ -25,11 +25,36 @@ model User {
   refreshTokens   RefreshToken[]
   trips           Trip[]
   vehicleExpenses VehicleExpense[]
+  settings        UserSettings?
 }
 
 enum Plan {
   SOLO
   FLEET
+}
+
+// ── User Settings (feature modules + notification preferences) ──
+// The subscription TIER controls what's *available*; the USER chooses
+// here what's actually switched ON. Normal drivers hide Tax/SARS;
+// self-employed & fleet opt in. Notifications are opt-in (default OFF).
+model UserSettings {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  onboarded Boolean  @default(false)
+  persona   String?  // just_my_car | self_employed | fleet (presets toggles, fully overridable)
+
+  // Feature modules the user has switched ON (expenses is core — always on, no flag)
+  moduleAiScan Boolean @default(false) // AI slip/invoice scanning
+  moduleTax    Boolean @default(false) // logbook + SARS tax report
+  moduleFleet  Boolean @default(false) // drivers + status workflow
+
+  // Notification preferences — opt-in, default OFF (no death-by-notifications)
+  notifications Json   @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model RefreshToken {

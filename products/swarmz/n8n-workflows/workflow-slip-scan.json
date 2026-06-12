@@ -1,0 +1,98 @@
+{
+  "id": "sz-slip-scan",
+  "name": "Swarmz - Slip / Invoice Scan (Gemini Vision)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sz-slip-scan",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "sz-sl-0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "sz-slip-scan"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst { file_data, mime_type, filename } = body;\n\nif (!file_data) {\n  throw new Error('No file_data provided');\n}\n\nconst buffer = Buffer.from(file_data, 'base64');\nconst binary = await this.helpers.prepareBinaryData(\n  buffer,\n  filename || 'slip.jpg',\n  mime_type || 'image/jpeg'\n);\n\nreturn {\n  json: { filename, mime_type, sizeBytes: buffer.length },\n  binary: { data: binary }\n};"
+      },
+      "id": "sz-sl-0002",
+      "name": "Convert to Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "document",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "text": "You are a South African vehicle expense slip / invoice reader. Extract the expense details from this photo of a till slip, fuel receipt, or invoice.\n\nReturn ONLY valid JSON with this exact structure:\n{\n  \"vendor\": \"merchant / business name (e.g. Engen, Shell, Tiger Wheel & Tyre, the workshop name)\",\n  \"date\": \"purchase date in YYYY-MM-DD format\",\n  \"amount\": total amount paid INCLUDING VAT as a number in rands (e.g. 850.50),\n  \"category\": one of \"FUEL\", \"SERVICE\", \"TYRES\", \"INSURANCE\", \"TOLL\", \"LICENCE\", \"PARKING\", \"FINANCE\", \"OTHER\",\n  \"litres\": litres of fuel as a number if this is a fuel purchase, otherwise null,\n  \"pricePerLitre\": price per litre as a number if printed, otherwise null,\n  \"odometerKm\": odometer / km reading as a number if shown on the slip, otherwise null,\n  \"confidence\": \"high\" or \"medium\" or \"low\"\n}\n\nRules:\n- 'amount' is the TOTAL paid (grand total incl VAT), NOT the subtotal.\n- Fuel slip -> category FUEL and fill litres + pricePerLitre if printed.\n- Tyres / wheels / alignment -> TYRES. Mechanic / oil / service / parts -> SERVICE. Toll gate -> TOLL. Parking -> PARKING. Insurance premium -> INSURANCE. Vehicle licence renewal -> LICENCE. Finance / lease instalment -> FINANCE. Anything else -> OTHER.\n- Convert ANY date format to YYYY-MM-DD.\n- Use null for any number you cannot read; use an empty string for text you cannot read.\n- Return ONLY the JSON, no markdown, no explanation.",
+        "inputType": "binary",
+        "binaryPropertyName": "data",
+        "simplifyOutput": true,
+        "options": {}
+      },
+      "id": "sz-sl-0003",
+      "name": "Gemini Vision",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [680, 300],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "EvKtWixbMXBZfXjW",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = items[0].json;\n\nlet text = '';\nif (typeof response === 'string') {\n  text = response;\n} else if (typeof response.text === 'string') {\n  text = response.text;\n} else if (typeof response.output === 'string') {\n  text = response.output;\n} else if (typeof response.content === 'string') {\n  text = response.content;\n} else if (response.content && response.content.parts && response.content.parts.length > 0) {\n  text = String(response.content.parts[0].text || '');\n} else if (response.candidates && response.candidates.length > 0) {\n  const parts = response.candidates[0].content.parts;\n  if (parts && parts.length > 0) text = String(parts[0].text || '');\n} else if (response.vendor || response.amount || response.category) {\n  // Response is already the parsed object\n  text = JSON.stringify(response);\n} else {\n  text = JSON.stringify(response);\n}\n\nif (!text) {\n  return [{ json: { error: 'AI could not read the slip. Please try a clearer photo.' } }];\n}\n\nlet jsonStr = text.trim();\nif (jsonStr.startsWith('```')) {\n  jsonStr = jsonStr.replace(/^```(?:json)?\\n?/, '').replace(/\\n?```$/, '');\n}\nconst firstBrace = jsonStr.indexOf('{');\nif (firstBrace > 0) jsonStr = jsonStr.substring(firstBrace);\nif (!jsonStr.endsWith('}')) {\n  const lastBrace = jsonStr.lastIndexOf('}');\n  if (lastBrace > 0) jsonStr = jsonStr.substring(0, lastBrace + 1);\n}\n\nconst VALID = ['FUEL','SERVICE','TYRES','INSURANCE','TOLL','LICENCE','PARKING','FINANCE','DEPRECIATION','OTHER'];\nconst num = (v) => {\n  if (v === null || v === undefined || v === '') return null;\n  const n = parseFloat(String(v).replace(/[^0-9.]/g, ''));\n  return isNaN(n) ? null : n;\n};\n\ntry {\n  const parsed = JSON.parse(jsonStr);\n  let category = String(parsed.category || 'OTHER').toUpperCase();\n  if (!VALID.includes(category)) category = 'OTHER';\n  return [{ json: {\n    vendor: parsed.vendor || '',\n    date: parsed.date || null,\n    amount: num(parsed.amount),\n    category: category,\n    litres: num(parsed.litres),\n    pricePerLitre: num(parsed.pricePerLitre),\n    odometerKm: num(parsed.odometerKm),\n    confidence: parsed.confidence || 'medium'\n  } }];\n} catch (e) {\n  return [{ json: { error: 'AI response was not valid JSON. Please try again with a clearer photo.', raw: String(text) } }];\n}"
+      },
+      "id": "sz-sl-0004",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "sz-sl-0005",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Convert to Binary", "type": "main", "index": 0 }]]
+    },
+    "Convert to Binary": {
+      "main": [[{ "node": "Gemini Vision", "type": "main", "index": 0 }]]
+    },
+    "Gemini Vision": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{ "name": "swarmz" }]
+}

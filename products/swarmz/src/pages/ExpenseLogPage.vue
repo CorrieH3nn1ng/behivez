@@ -8,7 +8,31 @@
           <div class="text-h5 text-weight-bold">Expenses</div>
           <div class="text-subtitle2 text-grey-7">{{ vehicle.name || `${vehicle.make} ${vehicle.model}` }} &middot; {{ vehicle.registration }}</div>
         </div>
-        <q-btn color="primary" icon="add" label="Log Expense" @click="showForm = true" />
+        <q-btn
+          v-if="settings.modules.aiScan"
+          color="primary"
+          icon="document_scanner"
+          label="Scan slip"
+          :loading="scanning"
+          class="q-mr-sm"
+          @click="triggerScan"
+        />
+        <q-btn
+          :color="settings.modules.aiScan ? 'grey-7' : 'primary'"
+          :outline="settings.modules.aiScan"
+          icon="add"
+          label="Log manually"
+          @click="openManual"
+        />
+        <!-- Hidden capture input driven by the Scan slip button -->
+        <q-file
+          ref="scanFileRef"
+          v-model="scanFile"
+          accept="image/*"
+          capture="environment"
+          style="display: none"
+          @update:model-value="scanSlip"
+        />
       </div>
 
       <!-- Filters -->
@@ -44,7 +68,7 @@
       <div v-else-if="!loading" class="text-center q-pa-xl">
         <q-icon name="receipt_long" size="64px" color="grey-4" />
         <div class="text-h6 text-grey-5 q-mt-md">No expenses logged yet</div>
-        <q-btn color="primary" icon="add" label="Log First Expense" class="q-mt-lg" @click="showForm = true" />
+        <q-btn color="primary" icon="add" label="Log First Expense" class="q-mt-lg" @click="openManual" />
       </div>
 
       <q-inner-loading :showing="loading" />
@@ -58,7 +82,23 @@
     <q-dialog v-model="showForm" persistent>
       <q-card style="min-width: 360px; max-width: 500px">
         <q-card-section>
-          <div class="text-h6">Log Expense</div>
+          <div class="text-h6">{{ aiPrefilled ? 'Review scanned expense' : 'Log Expense' }}</div>
+        </q-card-section>
+
+        <!-- AI scan result banner -->
+        <q-card-section v-if="aiPrefilled" class="q-py-none">
+          <q-banner
+            dense
+            rounded
+            :class="scanConfidence === 'high' ? 'bg-green-1 text-green-8' : 'bg-orange-1 text-orange-8'"
+          >
+            <template v-slot:avatar>
+              <q-icon :name="scanConfidence === 'high' ? 'check_circle' : 'info'" />
+            </template>
+            {{ scanConfidence === 'high'
+              ? 'Scanned successfully — please check the details and save.'
+              : 'Some fields may need a quick check — please review before saving.' }}
+          </q-banner>
         </q-card-section>
 
         <q-card-section class="q-gutter-sm">
@@ -92,10 +132,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
-import { Notify } from 'quasar';
+import { Notify, QFile } from 'quasar';
+import axios from 'axios';
 import { api } from 'boot/axios';
+import { useSettingsStore } from 'stores/settings';
 
 const props = defineProps<{ id: string }>();
+
+const settings = useSettingsStore();
 
 const vehicle = ref<any>(null);
 const expenses = ref<any[]>([]);
@@ -103,6 +147,14 @@ const loading = ref(false);
 const saving = ref(false);
 const showForm = ref(false);
 const filterCategory = ref('ALL');
+
+// AI slip scanning
+const SLIP_WEBHOOK_URL = '/webhook/sz-slip-scan';
+const scanFileRef = ref<QFile | null>(null);
+const scanFile = ref<File | null>(null);
+const scanning = ref(false);
+const aiPrefilled = ref(false);
+const scanConfidence = ref('');
 
 const categoryOptions = ['ALL', 'FUEL', 'SERVICE', 'TYRES', 'INSURANCE', 'TOLL', 'LICENCE', 'PARKING', 'FINANCE', 'DEPRECIATION', 'OTHER'];
 const expenseCategories = [
@@ -193,12 +245,13 @@ async function saveExpense() {
       if (form.odometerKm) fd.append('odometerKm', String(form.odometerKm));
     }
     if (form.receipt) fd.append('receipt', form.receipt);
+    fd.append('source', aiPrefilled.value ? 'AI_EXTRACTED' : 'MANUAL');
 
     await api.post('/vehicle-expenses', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
-    Notify.create({ type: 'positive', message: 'Expense logged' });
+    Notify.create({ type: 'positive', message: aiPrefilled.value ? 'Scanned expense saved' : 'Expense logged' });
     showForm.value = false;
     resetForm();
     await loadData();
@@ -219,6 +272,89 @@ function resetForm() {
   form.pricePerLitre = null;
   form.odometerKm = null;
   form.receipt = null;
+  aiPrefilled.value = false;
+  scanConfidence.value = '';
+  scanFile.value = null;
+}
+
+function openManual() {
+  resetForm();
+  showForm.value = true;
+}
+
+function triggerScan() {
+  scanFileRef.value?.pickFiles();
+}
+
+// Downscale + JPEG-compress before sending to the AI gateway (keeps it fast on mobile data)
+function compressImage(file: File, maxWidth = 1600, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas not supported')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+      };
+      img.onerror = reject;
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function scanSlip(file: File | null) {
+  if (!file) return;
+  scanning.value = true;
+  try {
+    const base64 = await compressImage(file);
+    // Image goes to n8n (the only AI gateway) — never to our Express backend
+    const { data } = await axios.post(SLIP_WEBHOOK_URL, {
+      file_data: base64,
+      mime_type: 'image/jpeg',
+      filename: file.name || 'slip.jpg',
+    }, { timeout: 120000 });
+
+    if (data.error) {
+      Notify.create({ type: 'negative', message: data.error });
+      return;
+    }
+
+    // Pre-fill the expense form from the AI extraction — user reviews before saving
+    resetForm();
+    if (data.category) form.category = data.category;
+    if (data.amount != null) form.amount = data.amount;
+    if (data.date) form.date = data.date;
+    if (data.vendor) form.vendor = data.vendor;
+    if (data.litres != null) form.litres = data.litres;
+    if (data.pricePerLitre != null) form.pricePerLitre = data.pricePerLitre;
+    if (data.odometerKm != null) form.odometerKm = data.odometerKm;
+    form.receipt = file; // keep the photo as the receipt proof
+
+    scanConfidence.value = data.confidence || 'medium';
+    aiPrefilled.value = true;
+    showForm.value = true;
+  } catch (err: any) {
+    console.error('Slip scan failed:', err);
+    Notify.create({
+      type: 'negative',
+      message: 'Could not read the slip. Try a clearer photo, or log it manually.',
+    });
+  } finally {
+    scanning.value = false;
+    scanFile.value = null;
+  }
 }
 
 onMounted(loadData);

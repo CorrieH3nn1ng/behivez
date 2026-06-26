@@ -39,6 +39,9 @@
             <span class="q-ml-sm text-positive text-weight-bold">
               ({{ t('correct_answer') }}: {{ a.correctAnswer }})
             </span>
+            <div v-if="a.question_home" class="text-caption text-grey-5" style="font-style: italic;">
+              {{ a.question_home }}
+            </div>
           </div>
         </q-card>
 

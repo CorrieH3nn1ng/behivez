@@ -60,8 +60,8 @@
               {{ displayLang === 'af' ? (q.question_af || q.question_en) : (q.question_en || q.question_af) }}
             </div>
           </div>
-          <div v-if="q.question_af && q.question_en" class="text-caption text-grey-5 q-mb-sm q-pl-lg">
-            {{ displayLang === 'af' ? q.question_en : q.question_af }}
+          <div v-if="q.question_home || (q.question_af && q.question_en)" class="text-caption text-grey-5 q-mb-sm q-pl-lg">
+            {{ q.question_home || (displayLang === 'af' ? q.question_en : q.question_af) }}
           </div>
           <div class="column q-gutter-xs">
             <q-btn

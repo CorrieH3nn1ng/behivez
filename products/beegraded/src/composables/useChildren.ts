@@ -5,6 +5,7 @@ interface AddChildData {
   birthdate: string
   grade: number
   language: string
+  home_language?: string | null
   curriculum?: string
 }
 

@@ -112,13 +112,22 @@
             <q-select
               v-model="child.language"
               outlined dense
-              :label="lang === 'af' ? 'Taal' : 'Language'"
+              :label="lang === 'af' ? 'Toets-taal' : 'Test language'"
               :options="languageOptions.map(l => ({ label: l.label, value: l.value }))"
               emit-value map-options
               class="col"
               @update:model-value="updateChild(child)"
             />
           </div>
+          <q-select
+            v-model="child.home_language"
+            outlined dense clearable
+            :label="lang === 'af' ? 'Huistaal (vir vertalings, bv. Setswana)' : 'Home language (for translations, e.g. Setswana)'"
+            :options="languageOptions.map(l => ({ label: l.label, value: l.value }))"
+            emit-value map-options
+            class="q-mb-sm"
+            @update:model-value="updateChild(child)"
+          />
           <div class="row q-gutter-xs">
             <q-btn
               v-for="c in curriculumOptions"
@@ -211,7 +220,7 @@
       </q-card>
 
       <!-- Science: Life Skills Gr 1-3 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
+      <q-card v-if="fitsChild(1, 3)" flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="child_care" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Lewensvaardighede (Gr 1–3)' : 'Life Skills — Beginning Knowledge (Gr 1–3)' }}
@@ -243,7 +252,7 @@
       </q-card>
 
       <!-- Science: Natural Science Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md">
+      <q-card v-if="fitsChild(4, 9)" flat class="bee-card q-pa-lg q-mb-md">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="science" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Natuurwetenskap (Gr 4–9)' : 'Natural Sciences (Gr 4–9)' }}
@@ -298,7 +307,7 @@
       </q-card>
 
       <!-- Mathematics Gr 7-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md">
+      <q-card v-if="fitsChild(7, 9)" flat class="bee-card q-pa-lg q-mb-md">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="calculate" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Wiskunde (Gr 7–9)' : 'Mathematics (Gr 7–9)' }}
@@ -330,7 +339,7 @@
       </q-card>
 
       <!-- Life Orientation Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum === 'cambridge' ? 'opacity: 0.45; pointer-events: none;' : ''">
+      <q-card v-if="fitsChild(4, 9)" flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum === 'cambridge' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="self_improvement" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Lewensoriëntering (Gr 4–9)' : 'Life Orientation (Gr 4–9)' }}
@@ -362,7 +371,7 @@
       </q-card>
 
       <!-- Social Sciences Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md">
+      <q-card v-if="fitsChild(4, 9)" flat class="bee-card q-pa-lg q-mb-md">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="public" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Sosiale Wetenskappe (Gr 4–9)' : 'Social Sciences (Gr 4–9)' }}
@@ -404,7 +413,7 @@
       </q-card>
 
       <!-- EMS Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
+      <q-card v-if="fitsChild(4, 9)" flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="account_balance" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'EBW (Gr 4–9)' : 'EMS (Gr 4–9)' }}
@@ -436,7 +445,7 @@
       </q-card>
 
       <!-- Technology Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
+      <q-card v-if="fitsChild(4, 9)" flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="engineering" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Tegnologie (Gr 4–9)' : 'Technology (Gr 4–9)' }}
@@ -468,7 +477,7 @@
       </q-card>
 
       <!-- Creative Arts Gr 4-9 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
+      <q-card v-if="fitsChild(4, 9)" flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="palette" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Skeppende Kunste (Gr 4–9)' : 'Creative Arts (Gr 4–9)' }}
@@ -519,7 +528,7 @@
       </q-card>
 
       <!-- EGD Gr 8-12 -->
-      <q-card flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
+      <q-card v-if="fitsChild(8, 12)" flat class="bee-card q-pa-lg q-mb-md" :style="activeCurriculum !== 'caps' ? 'opacity: 0.45; pointer-events: none;' : ''">
         <div class="text-subtitle1 text-weight-bold q-mb-xs" style="color: #78350f;">
           <q-icon name="architecture" color="amber" class="q-mr-sm" />
           {{ lang === 'af' ? 'Ingenieurstekene en -Ontwerp (Gr 8–12)' : 'Engineering Graphics and Design (Gr 8–12)' }}
@@ -607,7 +616,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'src/i18n'
 import { useAuthStore } from 'src/stores/auth'
@@ -668,6 +677,19 @@ const languageOptions = [
 
 // Children
 const children = ref<any[]>([])
+
+// When a child is selected in "Generate for:", only show subjects that fit their grade.
+// No child selected → show every subject (parent browsing all grades).
+const activeChild = computed<any>(() => {
+  if (!activeChildId.value) return null
+  return children.value.find((c: any) => c.id === activeChildId.value) || null
+})
+const activeChildGrade = computed<number | null>(() => activeChild.value ? activeChild.value.grade : null)
+function fitsChild(min: number, max: number): boolean {
+  const g = activeChildGrade.value
+  if (g == null) return true
+  return g >= min && g <= max
+}
 const gradeOptions = Array.from({ length: 12 }, (_, i) => ({
   label: `Gr ${i + 1}`,
   value: i + 1,
@@ -770,7 +792,7 @@ async function setPreferredLanguage(newLang: string) {
 
 async function updateChild(child: any) {
   try {
-    await updateChildApi(child.id, { grade: child.grade, language: child.language, curriculum: child.curriculum || 'caps' })
+    await updateChildApi(child.id, { grade: child.grade, language: child.language, home_language: child.home_language || null, curriculum: child.curriculum || 'caps' })
     child.saved = true
     setTimeout(() => { child.saved = false }, 2000)
     // If this is the active child, update the active curriculum
@@ -801,7 +823,8 @@ async function generateLifeSkillsTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'life_skills',
       grade: lifeSkillsGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
       curriculum: activeCurriculum.value,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
@@ -819,7 +842,8 @@ async function generateScienceTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'natural_science',
       grade: scienceGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
       curriculum: activeCurriculum.value,
       ...(scienceStrand.value ? { strand: scienceStrand.value } : {}),
     })
@@ -838,7 +862,8 @@ async function generateMathSubjectTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'mathematics',
       grade: mathSubjectGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
       curriculum: activeCurriculum.value,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
@@ -856,7 +881,8 @@ async function generateLOTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'life_orientation',
       grade: loGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
       curriculum: activeCurriculum.value,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
@@ -874,7 +900,8 @@ async function generateSocialTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'social_sciences',
       grade: socialGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
       strand: socialStrand.value,
       curriculum: activeCurriculum.value,
     })
@@ -893,7 +920,8 @@ async function generateEMSTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'ems',
       grade: emsGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
   } catch (err: any) {
@@ -910,7 +938,8 @@ async function generateTechTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'technology',
       grade: techGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
   } catch (err: any) {
@@ -927,7 +956,8 @@ async function generateArtsTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'creative_arts',
       grade: artsGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
       strand: artsStrand.value,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
@@ -945,7 +975,8 @@ async function generateEGDTest() {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: 'egd',
       grade: egdGrade.value,
-      language: lang.value,
+      language: activeChild.value?.language || lang.value,
+      home_language: activeChild.value?.home_language || undefined,
     })
     router.push({ name: 'math-test', params: { templateId: data.id } })
   } catch (err: any) {

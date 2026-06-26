@@ -173,7 +173,9 @@ function primaryQuestion(q: any): string {
 }
 
 function secondaryQuestion(q: any): string {
-  // Show the translation as secondary (italic)
+  // Show the translation as secondary (italic).
+  // Prefer the home-language translation (e.g. Setswana) when present.
+  if (q.question_home) return q.question_home
   if (subjectCode.value === 'english') return q.question_af || ''
   if (subjectCode.value === 'afrikaans') return q.question_en || ''
   if (subjectCode.value === 'setswana') return q.question_af || '' // English translation for parents

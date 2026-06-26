@@ -12,13 +12,19 @@ function getPrisma(req: AuthRequest): PrismaClient {
   return req.app.locals.prisma;
 }
 
-async function callGemini(key: string, body: object, timeoutMs = 120000): Promise<any> {
+async function callGemini(key: string, body: any, timeoutMs = 120000): Promise<any> {
+  // gemini-2.5-flash "thinks" by default, which is slow enough to hit the proxy timeout.
+  // Disable thinking so it generates as fast as the old gemini-2.0-flash did.
+  const payload = {
+    ...body,
+    generationConfig: { ...(body.generationConfig || {}), thinkingConfig: { thinkingBudget: 0 } },
+  };
   let delay = 8000;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       return await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-        body,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        payload,
         { timeout: timeoutMs }
       );
     } catch (err: any) {
@@ -470,6 +476,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
         return {
           question_af: q.question_af,
           question_en: q.question_en,
+          question_home: q.question_home,
           options: q.options,
           category: q.category,
           ...(showAnswers ? { correct: q.correct } : {}),
@@ -520,12 +527,20 @@ router.post('/:id/attempts', optionalAuth, async (req: AuthRequest, res: Respons
       ? (q?.options?.[a.givenAnswer] || a.givenAnswer)
       : a.givenAnswer;
 
+    // Store the question in the test's selected language, plus the home-language
+    // translation (e.g. Setswana) so result/review screens match what the learner saw.
+    const selAf = template.language === 'af';
+    const questionSel = isProblemSolving
+      ? (selAf ? (q?.question_af || q?.question_en) : (q?.question_en || q?.question_af))
+      : q?.question;
+
     return {
       questionIndex: a.questionIndex,
       givenAnswer: givenAnswerDisplay,
       correctAnswer,
       correct,
-      question: isProblemSolving ? (q?.question_af || q?.question_en) : q?.question,
+      question: questionSel,
+      question_home: isProblemSolving ? (q?.question_home || null) : null,
     };
   });
 

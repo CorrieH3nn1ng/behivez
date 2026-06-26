@@ -6,17 +6,57 @@ import { AppError } from '../middleware/errorHandler.js';
 
 const router = Router();
 
+// ALPHA/BETA: every parent-tester and child gets all subjects, tests and study mode for
+// free, at all times (including the anonymous magic-link play page). Flip to false to
+// re-enable the subscription paywall across all generation endpoints when going paid.
+const OPEN_BETA = true;
+
+// Language subjects already force their own question+option language via langPrompt(),
+// so the generic answer-language rule below must NOT be applied to them.
+const LANGUAGE_SUBJECTS = new Set([
+  'english', 'afrikaans', 'setswana', 'french', 'zulu', 'xhosa', 'sepedi',
+  'sesotho', 'venda', 'swati', 'tsonga', 'ndebele', 'spanish', 'portuguese',
+]);
+
+// Content subjects (Science, EMS, etc.) generate a bilingual question (question_en +
+// question_af) but a SINGLE options array. Left unguided the AI jams both languages into
+// each option ("Selmembraan / Cell membrane"), which reads as Afrikaans answers to an
+// English learner. This forces every option into ONLY the learner's selected language,
+// matching the question shown on screen. Content prompts only produce en/af, so anything
+// that isn't Afrikaans maps to English.
+function answerLanguageRule(language?: string): string {
+  const wantAf = ['af', 'afrikaans'].includes((language || '').toLowerCase());
+  const name = wantAf ? 'Afrikaans' : 'English';
+  const goodEg = wantAf ? 'Selmembraan' : 'Cell membrane';
+  return `\n\nCRITICAL ANSWER-LANGUAGE RULE: Write EVERY answer option ENTIRELY in ${name} ONLY. Never combine two languages in one option — do NOT write "Selmembraan / Cell membrane", write only "${goodEg}". Keep question_en in English and question_af in Afrikaans as already specified.`;
+}
+
+// When a child's home language is an African language (Setswana etc.), add an accurate
+// translation of the question so a home-language parent/child can follow along. English &
+// Afrikaans are already covered by question_en/question_af, so no rule is needed for those.
+function homeLanguageRule(homeLang?: string): string {
+  const name = NATIVE_LANG_NAMES[(homeLang || '').toLowerCase()];
+  if (!name) return '';
+  return `\n\nHOME-LANGUAGE TRANSLATION: Add a "question_home" field to EVERY question containing an ACCURATE ${name} translation of the question text only (NOT the options). This is for a ${name}-speaking home; the translation must be natural and correct.`;
+}
+
 function getPrisma(req: AuthRequest): PrismaClient {
   return req.app.locals.prisma;
 }
 
-async function callGemini(key: string, body: object, timeoutMs = 120000): Promise<any> {
+async function callGemini(key: string, body: any, timeoutMs = 120000): Promise<any> {
+  // gemini-2.5-flash "thinks" by default, which is slow enough to hit the proxy timeout.
+  // Disable thinking so it generates as fast as the old gemini-2.0-flash did.
+  const payload = {
+    ...body,
+    generationConfig: { ...(body.generationConfig || {}), thinkingConfig: { thinkingBudget: 0 } },
+  };
   let delay = 8000;
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       return await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-        body,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        payload,
         { timeout: timeoutMs }
       );
     } catch (err: any) {
@@ -1230,28 +1270,30 @@ Return ONLY a valid JSON array. IEB LO, SA context essential. Do NOT include any
 // POST /api/subject-tests/generate — Generate AI test for any subject
 router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) => {
   const prisma = getPrisma(req);
-  const { subject_code, grade, language, strand, curriculum } = req.body;
+  const { subject_code, grade, language, strand, curriculum, home_language } = req.body;
 
   if (!subject_code || !grade) {
     throw new AppError('subject_code and grade are required', 400);
   }
 
-  // Subscription gate — OWNER/ADMIN bypass, free tier blocked
-  if (req.userId && req.userRole !== 'OWNER' && req.userRole !== 'ADMIN') {
-    const sub = await prisma.grade_subscriptions.findUnique({ where: { auth_user_id: req.userId } });
-    const isActive = sub?.status === 'active' && (!sub.expires_at || sub.expires_at > new Date());
-    const plan = isActive ? sub!.plan : 'free';
+  if (!OPEN_BETA) {
+    // Subscription gate — OWNER/ADMIN bypass, free tier blocked
+    if (req.userId && req.userRole !== 'OWNER' && req.userRole !== 'ADMIN') {
+      const sub = await prisma.grade_subscriptions.findUnique({ where: { auth_user_id: req.userId } });
+      const isActive = sub?.status === 'active' && (!sub.expires_at || sub.expires_at > new Date());
+      const plan = isActive ? sub!.plan : 'free';
 
-    if (plan === 'free') {
-      throw new AppError('Upgrade your plan to access AI subject tests', 403);
-    }
-    if ((plan === 'per_subject' || plan === 'three_subjects') && sub!.subjects.length > 0) {
-      if (!sub!.subjects.includes(subject_code)) {
-        throw new AppError(`Your plan doesn't include ${subject_code}`, 403);
+      if (plan === 'free') {
+        throw new AppError('Upgrade your plan to access AI subject tests', 403);
       }
+      if ((plan === 'per_subject' || plan === 'three_subjects') && sub!.subjects.length > 0) {
+        if (!sub!.subjects.includes(subject_code)) {
+          throw new AppError(`Your plan doesn't include ${subject_code}`, 403);
+        }
+      }
+    } else if (!req.userId) {
+      throw new AppError('Please sign in to generate subject tests', 401);
     }
-  } else if (!req.userId) {
-    throw new AppError('Please sign in to generate subject tests', 401);
   }
 
   const gradeNum = parseInt(grade);
@@ -1299,6 +1341,13 @@ router.post('/generate', optionalAuth, async (req: AuthRequest, res: Response) =
       strandPrompt = buildCreativeArtsPrompt(gradeNum, strand || 'visual_arts');
     }
     prompt = strandPrompt || config.buildPrompt(gradeNum);
+  }
+
+  // Content subjects: force answer options into the learner's selected language, and add a
+  // home-language (e.g. Setswana) translation of the question when requested.
+  if (!LANGUAGE_SUBJECTS.has(subject_code)) {
+    prompt += answerLanguageRule(language);
+    prompt += homeLanguageRule(home_language);
   }
 
   try {
@@ -1458,6 +1507,7 @@ Be STRICT. A child who reads both languages should never get a different answer 
       questions: questions.map((q: any) => ({
         question_af: q.question_af,
         question_en: q.question_en,
+        question_home: q.question_home,
         options: q.options,
         category: q.category,
       })),
@@ -1789,19 +1839,21 @@ router.post('/tutor', optionalAuth, async (req: AuthRequest, res: Response) => {
 
   if (!subject_code || !grade) throw new AppError('subject_code and grade are required', 400);
 
-  // Subscription gate
-  if (req.userId && req.userRole !== 'OWNER' && req.userRole !== 'ADMIN') {
-    const prisma = getPrisma(req);
-    const sub = await prisma.grade_subscriptions.findUnique({ where: { auth_user_id: req.userId } });
-    const isActive = sub?.status === 'active' && (!sub.expires_at || sub.expires_at > new Date());
-    const plan = isActive ? sub!.plan : 'free';
+  if (!OPEN_BETA) {
+    // Subscription gate
+    if (req.userId && req.userRole !== 'OWNER' && req.userRole !== 'ADMIN') {
+      const prisma = getPrisma(req);
+      const sub = await prisma.grade_subscriptions.findUnique({ where: { auth_user_id: req.userId } });
+      const isActive = sub?.status === 'active' && (!sub.expires_at || sub.expires_at > new Date());
+      const plan = isActive ? sub!.plan : 'free';
 
-    if (plan === 'free') throw new AppError('Upgrade your plan to access study mode', 403);
-    if ((plan === 'per_subject' || plan === 'three_subjects') && sub!.subjects.length > 0) {
-      if (!sub!.subjects.includes(subject_code)) throw new AppError(`Your plan doesn't include ${subject_code}`, 403);
+      if (plan === 'free') throw new AppError('Upgrade your plan to access study mode', 403);
+      if ((plan === 'per_subject' || plan === 'three_subjects') && sub!.subjects.length > 0) {
+        if (!sub!.subjects.includes(subject_code)) throw new AppError(`Your plan doesn't include ${subject_code}`, 403);
+      }
+    } else if (!req.userId) {
+      throw new AppError('Please sign in to use study mode', 401);
     }
-  } else if (!req.userId) {
-    throw new AppError('Please sign in to use study mode', 401);
   }
 
   const gradeNum = parseInt(grade);

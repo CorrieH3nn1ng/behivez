@@ -124,6 +124,116 @@
             </div>
           </q-card>
 
+          <!-- Social Sciences (Grade 4-9) -->
+          <q-card
+            v-if="hasSubject('social_sciences')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #0d9488;"
+            @click="selectedSubject = 'social_sciences'; subTab = 'test'"
+          >
+            <div class="row items-center">
+              <q-icon name="public" size="48px" color="teal" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #115e59;">
+                  {{ lang === 'af' ? 'Sosiale Wetenskappe' : (lang === 'tn' ? 'Disaense tsa Loago' : 'Social Sciences') }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? 'Geskiedenis &amp; Geografie' : 'History &amp; Geography' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="teal" size="28px" />
+            </div>
+          </q-card>
+
+          <!-- Technology (Grade 4-9) -->
+          <q-card
+            v-if="hasSubject('technology')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #475569;"
+            @click="selectedSubject = 'technology'; subTab = 'test'"
+          >
+            <div class="row items-center">
+              <q-icon name="engineering" size="48px" color="blue-grey" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #334155;">
+                  {{ lang === 'af' ? 'Tegnologie' : (lang === 'tn' ? 'Theknoloji' : 'Technology') }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? '20 vrae, Meervoudige keuse' : '20 questions, Multiple choice' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="blue-grey" size="28px" />
+            </div>
+          </q-card>
+
+          <!-- EMS (Grade 4-9) -->
+          <q-card
+            v-if="hasSubject('ems')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #15803d;"
+            @click="selectedSubject = 'ems'; subTab = 'test'"
+          >
+            <div class="row items-center">
+              <q-icon name="savings" size="48px" color="green-8" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #14532d;">
+                  {{ lang === 'af' ? 'EBW' : (lang === 'tn' ? 'EMS' : 'EMS') }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? 'Ekonomiese &amp; Bestuurswetenskappe' : 'Economic &amp; Management Sciences' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="green-8" size="28px" />
+            </div>
+          </q-card>
+
+          <!-- Life Orientation (Grade 4-9) -->
+          <q-card
+            v-if="hasSubject('life_orientation')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #ea580c;"
+            @click="selectedSubject = 'life_orientation'; subTab = 'test'"
+          >
+            <div class="row items-center">
+              <q-icon name="self_improvement" size="48px" color="deep-orange" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #9a3412;">
+                  {{ lang === 'af' ? 'Lewensorientering' : (lang === 'tn' ? 'Thuto ya Botshelo' : 'Life Orientation') }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? '20 vrae, Meervoudige keuse' : '20 questions, Multiple choice' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="deep-orange" size="28px" />
+            </div>
+          </q-card>
+
+          <!-- Creative Arts (Grade 4-9) -->
+          <q-card
+            v-if="hasSubject('creative_arts')"
+            flat class="bee-card q-pa-lg q-mb-md cursor-pointer subject-btn"
+            style="border-left: 6px solid #db2777;"
+            @click="selectedSubject = 'creative_arts'; subTab = 'test'"
+          >
+            <div class="row items-center">
+              <q-icon name="palette" size="48px" color="pink" class="q-mr-md" />
+              <div>
+                <div class="text-h6 text-weight-bold" style="color: #9d174d;">
+                  {{ lang === 'af' ? 'Skeppende Kunste' : (lang === 'tn' ? 'Bokgabo jwa Boitlhamedi' : 'Creative Arts') }}
+                </div>
+                <div class="text-caption text-grey-6">
+                  {{ lang === 'af' ? 'Visuele Kuns, Musiek, Drama, Dans' : 'Visual Arts, Music, Drama, Dance' }}
+                </div>
+              </div>
+              <q-space />
+              <q-icon name="chevron_right" color="pink" size="28px" />
+            </div>
+          </q-card>
+
         </template>
 
         <!-- Phase 2: Test types for selected subject -->
@@ -139,12 +249,9 @@
             toggle-color="amber-8"
             color="grey-3"
             text-color="grey-7"
-            :options="[
-              { label: lang === 'af' ? 'Toets' : 'Test', value: 'test', icon: 'play_arrow' },
-              { label: lang === 'af' ? 'Punte' : 'Scores', value: 'scores', icon: 'emoji_events' },
-            ]"
+            :options="tabOptions"
             class="q-mb-md"
-            @update:model-value="loadScores"
+            @update:model-value="onTabChange"
           />
 
           <!-- LANGUAGES — pick which language -->
@@ -266,6 +373,48 @@
                   </q-item>
                 </q-list>
               </q-card>
+            </template>
+          </template>
+
+          <!-- === STUDY TAB === -->
+          <template v-if="subTab === 'study'">
+            <div v-if="loadingStudy" class="text-center q-pa-lg">
+              <q-spinner-gears color="amber" size="36px" />
+              <div class="text-caption text-grey-6 q-mt-sm">
+                {{ lang === 'af' ? 'KI berei leerkaarte voor... dit kan 30s neem' : 'AI preparing study cards... may take 30s' }}
+              </div>
+            </div>
+            <q-banner v-else-if="studyError" class="bg-red-1 text-red-8 q-mb-md" rounded dense>
+              <template #avatar><q-icon name="error" color="red" /></template>
+              {{ studyError }}
+              <template #action>
+                <q-btn flat no-caps color="red" :label="lang === 'af' ? 'Probeer weer' : 'Try again'" @click="loadStudy" />
+              </template>
+            </q-banner>
+            <template v-else>
+              <div class="text-center q-mb-sm text-caption text-grey-6">
+                {{ lang === 'af' ? 'Leer die konsepte, doen dan die toets' : 'Learn the concepts, then take the test' }}
+              </div>
+              <q-card v-for="(c, i) in studyConcepts" :key="i" flat class="bee-card q-pa-md q-mb-sm" style="border-left: 4px solid #f59e0b;">
+                <div class="text-weight-bold" style="color: #78350f;">
+                  {{ lang === 'af' ? (c.term_af || c.term_en) : (c.term_en || c.term_af) }}
+                  <span v-if="c.term_native" class="text-grey-5 text-body2">/ {{ c.term_native }}</span>
+                </div>
+                <div class="text-body2 q-mt-xs" style="color: #1c1917; line-height: 1.5;">
+                  {{ lang === 'af' ? (c.definition_af || c.definition_en) : (c.definition_en || c.definition_af) }}
+                </div>
+                <div v-if="c.definition_native" class="text-caption text-grey-6 q-mt-xs" style="font-style: italic;">
+                  {{ c.definition_native }}
+                </div>
+                <div v-if="c.example_en || c.example_af" class="text-caption text-grey-7 q-mt-sm">
+                  <q-icon name="lightbulb" size="14px" color="amber-7" class="q-mr-xs" />
+                  {{ lang === 'af' ? (c.example_af || c.example_en) : (c.example_en || c.example_af) }}
+                  <span v-if="c.example_native" class="text-grey-5"> — {{ c.example_native }}</span>
+                </div>
+              </q-card>
+              <q-btn class="btn-bee full-width q-mt-sm" no-caps icon="play_arrow"
+                :label="lang === 'af' ? 'Doen nou die toets' : 'Take the test now'"
+                @click="subTab = 'test'" />
             </template>
           </template>
 
@@ -427,6 +576,127 @@
             </q-card>
           </template>
 
+          <!-- SOCIAL SCIENCES (History / Geography) -->
+          <template v-if="subTab === 'test' && selectedSubject === 'social_sciences'">
+            <div class="text-center q-mb-md">
+              <q-icon name="public" size="36px" color="teal" />
+              <div class="text-h5 text-weight-bold" style="color: #115e59;">
+                {{ lang === 'af' ? 'Sosiale Wetenskappe' : 'Social Sciences' }}
+              </div>
+            </div>
+
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-weight-bold q-mb-xs" style="color: #115e59;">
+                {{ lang === 'af' ? 'Geskiedenis' : 'History' }}
+              </div>
+              <div class="text-caption text-grey-6 q-mb-sm">25 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; {{ lang === 'af' ? 'Meervoudige keuse' : 'Multiple choice' }}</div>
+              <q-btn color="teal" class="full-width" size="md" no-caps :loading="generatingAI" @click="startSubjectTest('social_sciences', 'history')" icon="history_edu">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+            </q-card>
+
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-weight-bold q-mb-xs" style="color: #115e59;">
+                {{ lang === 'af' ? 'Geografie' : 'Geography' }}
+              </div>
+              <div class="text-caption text-grey-6 q-mb-sm">25 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; {{ lang === 'af' ? 'Meervoudige keuse' : 'Multiple choice' }}</div>
+              <q-btn color="teal" class="full-width" size="md" no-caps :loading="generatingAI" @click="startSubjectTest('social_sciences', 'geography')" icon="map">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+            </q-card>
+            <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+              {{ lang === 'af' ? 'KI genereer vrae... dit kan 30s neem' : 'AI generating questions... may take 30s' }}
+            </div>
+          </template>
+
+          <!-- TECHNOLOGY -->
+          <template v-if="subTab === 'test' && selectedSubject === 'technology'">
+            <div class="text-center q-mb-md">
+              <q-icon name="engineering" size="36px" color="blue-grey" />
+              <div class="text-h5 text-weight-bold" style="color: #334155;">
+                {{ lang === 'af' ? 'Tegnologie' : 'Technology' }}
+              </div>
+            </div>
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-caption text-grey-6 q-mb-sm text-center">
+                20 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; {{ lang === 'af' ? 'Meervoudige keuse (A-D)' : 'Multiple choice (A-D)' }}
+              </div>
+              <q-btn color="blue-grey" class="full-width" size="lg" no-caps :loading="generatingAI" @click="startSubjectTest('technology')" icon="engineering">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+                {{ lang === 'af' ? 'KI genereer vrae... dit kan 30s neem' : 'AI generating questions... may take 30s' }}
+              </div>
+            </q-card>
+          </template>
+
+          <!-- EMS -->
+          <template v-if="subTab === 'test' && selectedSubject === 'ems'">
+            <div class="text-center q-mb-md">
+              <q-icon name="savings" size="36px" color="green-8" />
+              <div class="text-h5 text-weight-bold" style="color: #14532d;">EMS</div>
+            </div>
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-caption text-grey-6 q-mb-sm text-center">
+                25 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; {{ lang === 'af' ? 'Meervoudige keuse (A-D)' : 'Multiple choice (A-D)' }}
+              </div>
+              <q-btn color="green-8" class="full-width" size="lg" no-caps :loading="generatingAI" @click="startSubjectTest('ems')" icon="savings">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+                {{ lang === 'af' ? 'KI genereer vrae... dit kan 30s neem' : 'AI generating questions... may take 30s' }}
+              </div>
+            </q-card>
+          </template>
+
+          <!-- LIFE ORIENTATION -->
+          <template v-if="subTab === 'test' && selectedSubject === 'life_orientation'">
+            <div class="text-center q-mb-md">
+              <q-icon name="self_improvement" size="36px" color="deep-orange" />
+              <div class="text-h5 text-weight-bold" style="color: #9a3412;">
+                {{ lang === 'af' ? 'Lewensorientering' : 'Life Orientation' }}
+              </div>
+            </div>
+            <q-card flat class="bee-card q-pa-md q-mb-md">
+              <div class="text-caption text-grey-6 q-mb-sm text-center">
+                20 {{ lang === 'af' ? 'vrae' : 'questions' }} &bull; {{ lang === 'af' ? 'Meervoudige keuse (A-D)' : 'Multiple choice (A-D)' }}
+              </div>
+              <q-btn color="deep-orange" class="full-width" size="lg" no-caps :loading="generatingAI" @click="startSubjectTest('life_orientation')" icon="self_improvement">
+                {{ lang === 'af' ? 'Begin Toets' : 'Start Test' }}
+              </q-btn>
+              <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+                {{ lang === 'af' ? 'KI genereer vrae... dit kan 30s neem' : 'AI generating questions... may take 30s' }}
+              </div>
+            </q-card>
+          </template>
+
+          <!-- CREATIVE ARTS (Visual Arts / Music / Drama / Dance) -->
+          <template v-if="subTab === 'test' && selectedSubject === 'creative_arts'">
+            <div class="text-center q-mb-md">
+              <q-icon name="palette" size="36px" color="pink" />
+              <div class="text-h5 text-weight-bold" style="color: #9d174d;">
+                {{ lang === 'af' ? 'Skeppende Kunste' : 'Creative Arts' }}
+              </div>
+            </div>
+            <q-card
+              v-for="art in creativeArtStrands"
+              :key="art.code"
+              flat class="bee-card q-pa-md q-mb-sm"
+            >
+              <div class="row items-center">
+                <q-icon :name="art.icon" size="28px" color="pink" class="q-mr-sm" />
+                <div class="text-weight-bold" style="color: #9d174d;">{{ lang === 'af' ? art.af : art.en }}</div>
+                <q-space />
+                <q-btn color="pink" size="md" no-caps :loading="generatingAI" @click="startSubjectTest('creative_arts', art.code)">
+                  {{ lang === 'af' ? 'Begin' : 'Start' }}
+                </q-btn>
+              </div>
+            </q-card>
+            <div v-if="generatingAI" class="text-caption text-grey-5 text-center q-mt-sm">
+              {{ lang === 'af' ? 'KI genereer vrae... dit kan 30s neem' : 'AI generating questions... may take 30s' }}
+            </div>
+          </template>
+
         </template>
 
         <!-- Recent Scores -->
@@ -481,6 +751,62 @@ const generatingAI = ref(false)
 // Scores
 const loadingScores = ref(false)
 const subjectScores = ref<any>(null)
+
+// Study mode (concept cards) — content subjects + maths (Gr 7-9). Language subjects have
+// their own learn flow, so they're excluded here.
+const STUDY_SUBJECTS = ['natural_science', 'social_sciences', 'ems', 'technology', 'life_orientation', 'life_skills', 'creative_arts']
+const loadingStudy = ref(false)
+const studyConcepts = ref<any[]>([])
+const studyError = ref('')
+
+const canStudy = computed(() => {
+  const s = selectedSubject.value
+  if (s === 'maths') return (child.value?.grade || 0) >= 7
+  return STUDY_SUBJECTS.includes(s)
+})
+
+const tabOptions = computed(() => {
+  const opts: any[] = [{ label: lang.value === 'af' ? 'Toets' : 'Test', value: 'test', icon: 'play_arrow' }]
+  if (canStudy.value) opts.push({ label: lang.value === 'af' ? 'Leer' : 'Study', value: 'study', icon: 'school' })
+  opts.push({ label: lang.value === 'af' ? 'Punte' : 'Scores', value: 'scores', icon: 'emoji_events' })
+  return opts
+})
+
+function onTabChange() {
+  loadScores()
+  loadStudy()
+}
+
+async function loadStudy() {
+  if (subTab.value !== 'study' || !child.value || !canStudy.value) return
+  loadingStudy.value = true
+  studyError.value = ''
+  studyConcepts.value = []
+  try {
+    const code = selectedSubject.value === 'maths' ? 'mathematics' : selectedSubject.value
+    const { data } = await backendApi.post('/subject-tests/tutor', {
+      subject_code: code,
+      grade: child.value.grade,
+      native_language: child.value.home_language || undefined,
+    })
+    studyConcepts.value = data.concepts || []
+    if (studyConcepts.value.length === 0) {
+      studyError.value = lang.value === 'af' ? 'Geen leerstof beskikbaar nie' : 'No study material available'
+    }
+  } catch {
+    studyError.value = lang.value === 'af' ? 'Kon nie leerstof laai nie. Probeer weer.' : 'Could not load study material. Please try again.'
+  } finally {
+    loadingStudy.value = false
+  }
+}
+
+// Creative Arts strands (CAPS)
+const creativeArtStrands = [
+  { code: 'visual_arts', en: 'Visual Arts', af: 'Visuele Kuns', icon: 'brush' },
+  { code: 'music', en: 'Music', af: 'Musiek', icon: 'music_note' },
+  { code: 'drama', en: 'Drama', af: 'Drama', icon: 'theater_comedy' },
+  { code: 'dance', en: 'Dance', af: 'Dans', icon: 'directions_run' },
+]
 
 const availableLanguageNames = computed(() => {
   const langs = []
@@ -560,13 +886,16 @@ async function startProblemTest() {
   }
 }
 
-async function startSubjectTest(subjectCode: string) {
+async function startSubjectTest(subjectCode: string, strand?: string) {
   generatingAI.value = true
   try {
     const { data } = await backendApi.post('/subject-tests/generate', {
       subject_code: subjectCode,
       grade: child.value.grade,
       language: lang.value,
+      childId: child.value.id,
+      ...(child.value.home_language ? { home_language: child.value.home_language } : {}),
+      ...(strand ? { strand } : {}),
     })
     store.setPlayerName(child.value.name)
     router.push({

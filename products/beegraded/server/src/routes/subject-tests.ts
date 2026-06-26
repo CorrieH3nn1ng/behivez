@@ -40,6 +40,18 @@ function homeLanguageRule(homeLang?: string): string {
   return `\n\nHOME-LANGUAGE TRANSLATION: Add a "question_home" field to EVERY question containing an ACCURATE ${name} translation of the question text only (NOT the options). This is for a ${name}-speaking home; the translation must be natural and correct.`;
 }
 
+// Deterministic safety net: if the AI ever ignores the answer-language rule and returns a
+// bilingual option like "Selmembraan / Cell membrane", collapse it to the selected side.
+// Leaves anything with a number, "=", "×" or "÷" untouched (formulas, units like "5 km / h",
+// fractions, quantities) so real answers are never mangled.
+function keepOneLanguage(text: string, wantAf: boolean): string {
+  if (!text.includes(' / ')) return text;
+  if (/[=×÷\d]/.test(text)) return text;
+  const m = text.match(/^(.+?)\s+\/\s+(.+)$/);
+  if (!m) return text;
+  return (wantAf ? m[1] : m[2]).trim();
+}
+
 function getPrisma(req: AuthRequest): PrismaClient {
   return req.app.locals.prisma;
 }
@@ -1461,9 +1473,10 @@ Be STRICT. A child who reads both languages should never get a different answer 
       q.correct = q.options.indexOf(correctOption);
       // Re-label options with (A), (B), (C), (D)
       const labels = ['(A)', '(B)', '(C)', '(D)', '(E)'];
+      const wantAf = ['af', 'afrikaans'].includes((language || '').toLowerCase());
       q.options = q.options.map((opt: string, i: number) => {
-        // Strip existing label like "(A) " and add new one
-        const text = opt.replace(/^\([A-E]\)\s*/, '');
+        // Strip existing label like "(A) ", collapse any stray bilingual pair, re-label
+        const text = keepOneLanguage(opt.replace(/^\([A-E]\)\s*/, ''), wantAf);
         return `${labels[i]} ${text}`;
       });
     }
@@ -1786,7 +1799,8 @@ IMPORTANT:
       }
       q.correct = q.options.indexOf(correctOption);
       const labels = ['(A)', '(B)', '(C)', '(D)'];
-      q.options = q.options.map((opt: string, i: number) => `${labels[i]} ${opt.replace(/^\([A-E]\)\s*/, '')}`);
+      const wantAf = lang === 'afrikaans';
+      q.options = q.options.map((opt: string, i: number) => `${labels[i]} ${keepOneLanguage(opt.replace(/^\([A-E]\)\s*/, ''), wantAf)}`);
     }
 
     const templateName = `${subject_name} Gr ${gradeNum} — Mock Assessment`;

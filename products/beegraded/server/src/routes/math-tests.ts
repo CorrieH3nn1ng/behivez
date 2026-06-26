@@ -38,6 +38,16 @@ async function callGemini(key: string, body: any, timeoutMs = 120000): Promise<a
   }
 }
 
+// Deterministic safety net: collapse a stray bilingual option ("Afrikaans / English") to
+// the selected side. Leaves numbers, "=", "×", "÷" untouched (formulas, units, quantities).
+function keepOneLanguage(text: string, wantAf: boolean): string {
+  if (!text.includes(' / ')) return text;
+  if (/[=×÷\d]/.test(text)) return text;
+  const m = text.match(/^(.+?)\s+\/\s+(.+)$/);
+  if (!m) return text;
+  return (wantAf ? m[1] : m[2]).trim();
+}
+
 // --- Question Generation ---
 
 interface Question {
@@ -328,8 +338,9 @@ IMPORTANT: Actually solve each problem. Check the arithmetic. Return ONLY the JS
       }
       q.correct = q.options.indexOf(correctOption);
       const labels = ['(A)', '(B)', '(C)', '(D)', '(E)'];
+      const wantAf = (language || '').toLowerCase().startsWith('af');
       q.options = q.options.map((opt: string, i: number) => {
-        const text = opt.replace(/^\([A-E]\)\s*/, '');
+        const text = keepOneLanguage(opt.replace(/^\([A-E]\)\s*/, ''), wantAf);
         return `${labels[i]} ${text}`;
       });
     }
